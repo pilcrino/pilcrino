@@ -1,0 +1,32 @@
+node_modules/
+.pin.*/
+plugin.old/
+out/
+*.log
+.DS_Store
+.superpowers/
+__pycache__/
+.idea/
+.worktrees/
+
+# Claude Code worktrees (session-managed, never committed)
+.claude/worktrees/
+
+# Playwright MCP session logs and page snapshots
+.playwright-mcp/
+
+# Impeccable working state; config, design sidecar, surface briefs and approved comps are committed
+.impeccable/archive/
+.impeccable/build/
+.impeccable/live/
+.impeccable/questions/
+.impeccable/review/
+.impeccable/hook.cache.json
+.impeccable/mocks/*
+!.impeccable/mocks/app/
+!.impeccable/mocks/blog/
+!.impeccable/mocks/comp-g2-pencil-grid.png
+!.impeccable/mocks/comp-g2-pencil-grid.png.json
+
+# Local Netlify folder
+.netlify

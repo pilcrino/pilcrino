@@ -1,0 +1,19 @@
+# Lives in the public plugin repo (pilcrino/pilcrino) after the split.
+name: Plugin
+on: { push: { branches: [main] }, pull_request: {} }
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: "22" }
+      # tests/check_yaml_blocks.py and the frontmatter check import yaml.
+      # setup-python gives a pip that may install packages (the runner's
+      # system Python is externally managed).
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: python -m pip install pyyaml
+      - run: ./tests/lint.sh
+      - run: cd browser && npm ci && node --test test/*.test.mjs
+      - run: node --test adapters/images/scripts/*.test.mjs

@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pilcrino-browser": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/browser/bin.mjs"]
+    }
+  }
+}

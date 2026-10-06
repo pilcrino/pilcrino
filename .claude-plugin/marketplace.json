@@ -1,0 +1,11 @@
+{
+  "name": "pilcrino",
+  "owner": { "name": "Slav Gurmanov" },
+  "plugins": [
+    {
+      "name": "pilcrino",
+      "source": "./",
+      "description": "Generic, personalizable blog-post production workflow: gated pipeline from intake and research to draft, review, humanize, images, and publish."
+    }
+  ]
+}
