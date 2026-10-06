@@ -234,6 +234,18 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.43.1 - competitor profiles come from the base branch
+
+- A post run read competitor profiles from its own branch, which can be
+  months behind main. A refresh on the Competitors screen landed on main and
+  never reached the post, so `competitor_profile_stale` parked forever.
+- `skills/blog-post-workflow/scripts/competitor-profiles.mjs` fetches `origin/<base>`, pins one
+  commit and reads the profiles from it. Intake lists and date-checks from
+  it; Stage 1.5c snapshots the profiles into the draft's
+  `research/profiles/`, and the researcher reads only that snapshot. The post
+  branch is never touched.
+- Park text names where the profile was read and its date.
+
 ### 0.43.0 - the console finds its plugin
 
 - The Remotion composition-id helper lives in the plugin at

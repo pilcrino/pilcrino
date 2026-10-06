@@ -2,7 +2,7 @@
 
 Written by: blog-researcher agent, invoked with `source=competitors`.
 Read by: blog-editor at Stage 1c (plan synthesis); rows from "Ready for facts.md" copied into `facts.md` "Competitor facts" verbatim.
-Source: per-competitor synthesized profiles in `{competitors_dir}/<slug>.md`. The blog-post-workflow skill validates each profile's `**Last verified:**` is ≤14 days from today at Stage 0 intake AND again at Stage 1.5c (defense-in-depth re-check); the workflow halts if either gate fails. The blog-researcher does NOT browse, does NOT fetch live pricing pages, and does NOT consult any `_raw/` artifacts for competitors: those don't exist in the new flow.
+Source: per-competitor profiles from the base branch, snapshotted at Stage 1.5c into `{drafts_dir}/<slug>/research/profiles/`. The blog-post-workflow skill validates each profile's `**Last verified:**` is ≤14 days from today at Stage 0 intake AND again at Stage 1.5c (defense-in-depth re-check); the workflow halts if either gate fails. The blog-researcher does NOT browse, does NOT fetch live pricing pages, and does NOT consult any `_raw/` artifacts for competitors: those don't exist in the new flow.
 
 **Freshness contract:** every `Last verified` value in this document is inherited verbatim from the source profile's `**Last verified:**` line. Because Stage 1.5c hard-halted on any profile >14 days old, every row arriving here is by definition within the writer's 14-day-freshness window (per `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md`).
 
@@ -11,7 +11,7 @@ This entire template only exists when `modules.competitors` is enabled.
 <!-- module: competitors -->
 ## Competitors covered
 
-The editor named these competitors at Stage 0 intake; the workflow validated each one's profile in `{competitors_dir}/` is fresh.
+The editor named these competitors at Stage 0 intake; the workflow validated each one's base-branch profile is fresh.
 
 | Competitor | Profile path | Last verified | Status |
 |---|---|---|---|
@@ -19,7 +19,7 @@ The editor named these competitors at Stage 0 intake; the workflow validated eac
 
 `Status` values:
 - `ok`, profile exists and is fresh; pricing/feature facts were extracted from the profile
-- `profile_missing`, the brief.md row points at a profile that no longer exists on disk; the workflow should have halted at Stage 1.5c, surface the gap loudly so the editor doesn't proceed
+- `profile_missing`, the brief.md row names a profile missing from the snapshot; the workflow should have halted at Stage 1.5c, surface the gap loudly so the editor doesn't proceed
 - `profile_stale`, the profile is older than 14 days; the workflow should have halted at Stage 1.5c, surface the gap loudly
 
 ---
@@ -30,7 +30,7 @@ One block per competitor. Order = order from `brief.md` "Competitors to mention"
 
 ### <Competitor name>
 
-**Profile source:** {competitors_dir}/<slug>.md
+**Profile source:** research/profiles/<file> (base branch, commit from the Stage 1.5c log)
 **Profile last verified:** <YYYY-MM-DD, copied from the profile's `**Last verified:**` line>
 **Status:** <ok | profile_missing | profile_stale>
 

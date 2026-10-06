@@ -63,13 +63,13 @@ Skip if the human declined X during intake, or if `modules.x_research` is false.
 
 ### Stage 1.5c: Competitor profile freshness re-check (owner: blog-post-workflow skill, MANDATORY when `modules.competitors` is enabled AND brief.md "Competitors to mention" is non-empty)
 
-For each competitor named in `brief.md`, the editor re-validates that `{competitors_dir}/<slug>.md` exists on disk and its `**Last verified:**` is ≤14 days from today. No Chrome, no fetching. Defense-in-depth gate that catches workflows paused for >14 days between intake and Stage 1b. Hard-halts on first failure; the human refreshes the offending profile per `{competitors_dir}/methodology.md` before resuming. Skipped only if the brief lists zero competitors (or the competitors module is off).
+For each competitor named in `brief.md`, the editor runs `competitor-profiles.mjs` in snapshot mode and re-validates, from the base branch's profiles, that each one is listed and its `**Last verified:**` is ≤14 days from today. No Chrome, no page fetching. Defense-in-depth gate that catches workflows paused for >14 days between intake and Stage 1b. Hard-halts on first failure; the human refreshes the offending profile per `methodology.md` (it lands on the base branch) before resuming. Skipped only if the brief lists zero competitors (or the competitors module is off).
 
-- [ ] every profile path in brief.md "Competitors to mention" exists at `{competitors_dir}/<slug>.md`
+- [ ] every profile in brief.md "Competitors to mention" is found on the base branch and snapshotted into `research/profiles/`
 - [ ] every profile's `**Last verified:**` is ≤14 days from today
 - [ ] no `_raw/` artifacts written for competitors (the profiles are the source of truth)
 
-**Artifacts:** none (the brief.md "Competitors to mention" table + the source-of-truth profiles in `{competitors_dir}/` are the artifacts)
+**Artifacts:** the snapshot in `{drafts_dir}/<slug>/research/profiles/` is the artifact
 
 ### Stage 1b: Research analysis (owner: blog-researcher subagent, no MCP)
 
@@ -78,7 +78,7 @@ The researcher reads ALL completed `_raw/` artifacts (SERP + optionally Reddit +
 - [ ] research/serp.md complete (always; includes "Citations harvested from competitors" section so editor can route around forbidden SERP-competitor URLs)
 - [ ] research/reddit.md complete (only if Stage 1.5a ran)
 - [ ] research/x.md complete (only if Stage 1.5b ran)
-- [ ] research/competitors.md complete (only if Stage 1.5c ran; sourced from `{competitors_dir}/<slug>.md` profiles; "Ready for facts.md" rows inherit each profile's `**Last verified:**` date verbatim)
+- [ ] research/competitors.md complete (only if Stage 1.5c ran; sourced from the snapshot in `research/profiles/`; "Ready for facts.md" rows inherit each profile's `**Last verified:**` date verbatim)
 - [ ] product reference loaded (editor reads `{profile_dir}/product.md` directly, no per-post product researcher; only if `modules.product` is enabled)
 
 **Artifacts:** `research/serp.md`, optionally `research/reddit.md`, optionally `research/x.md`, optionally `research/competitors.md`

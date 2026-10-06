@@ -183,7 +183,9 @@ validation step (`blog-setup`) both check:
    `frontmatter_template`, `base_url`, `username`, `app_password_env`).
 5. Module-conditional profile docs exist iff module on: `product: true` →
    `{profile_dir}/product.md`; `competitors: true` →
-   `{competitors_dir}/methodology.md`.
+   `methodology.md` in `{competitors_dir}` on the base branch (checked at
+   intake by `competitor-profiles.mjs`, see
+   `references/competitor-profiles.md`).
 6. Required profile docs always: `blog.md`, `voice.md`, `authors.md`,
    `audience.md`, `image-style.md`.
 7. `blog.route_prefix` present, starts and ends with `/`.
@@ -193,8 +195,9 @@ validation step (`blog-setup`) both check:
     `"astro-git-pr"` (WordPress go-live is always manual).
 11. If a `console` block is present, it contains only the keys documented
     above with the documented types.
-12. `competitors.profile_dir`, if set, is a repo-relative path that exists
-    on disk when `modules.competitors` is true.
+12. `competitors.profile_dir`, if set, is a repo-relative path; with
+    `modules.competitors` on it must exist on the base branch (checked at
+    intake by `competitor-profiles.mjs`).
 13. `social.linkedin`, if present, has a non-empty string `company_id`.
 14. `remotion` ∈ `images.enabled` → the repo-root `.gitattributes` exists on
     the BASE branch and contains a line marking

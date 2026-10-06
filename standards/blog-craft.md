@@ -147,16 +147,16 @@ Blogs may extend the allowlist in `{profile_dir}/voice.md` §Additional allowlis
 Any pricing, feature comparison, or "Tool X does Y" claim about a named
 competitor MUST trace to a row in `facts.md` "Competitor facts" where
 `Last verified` is within 14 days of the post's planned publish date. The
-source of truth for these facts is `{competitors_dir}/<slug>.md`
-(synthesized profiles refreshed per
-`{competitors_dir}/methodology.md`); facts.md inherits each row's
+source of truth for these facts is the competitor's profile in
+`{competitors_dir}` on the base branch (synthesized profiles refreshed per
+`methodology.md`); facts.md inherits each row's
 `Last verified` from the source profile. Older rows are stale and not
 citable; the human refreshes the source profile per `methodology.md` to
 refresh the row.
 
 **Writers may NEVER use `[VERIFY:]` for competitor pricing or features.**
 Either the fact is fresh in facts.md (cite it) or the relevant profile has
-to be refreshed in `{competitors_dir}/` before the writer touches
+to be refreshed (it lands on the base branch) before the writer touches
 that section. This rule prevents shipping invented prices or features that
 changed last quarter.
 <!-- /module -->

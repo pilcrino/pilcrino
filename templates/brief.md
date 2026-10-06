@@ -59,14 +59,15 @@ Reasoning: <one sentence on why this author fits, per the selection rubric in `{
 ## Competitors to mention (honestly)
 
 <competitor tools that must be discussed in the post; empty if not a comparison post.
-Every competitor named here must already exist as a profile in
-`{competitors_dir}/` (the source of truth for competitor pricing and
+Every competitor named here must already have a profile in
+`{competitors_dir}` on the base branch (the source of truth for competitor pricing and
 features) and must have `**Last verified:**` within 14 days of today.
 
 The editor validates these constraints at Stage 0 intake and HARD-HALTS if a
 named competitor is missing a profile or its profile is stale. Profiles are
-refreshed per `{competitors_dir}/methodology.md`; this workflow does
-NOT fetch pricing pages live, that's the methodology's job.>
+refreshed per `methodology.md` and land on the base branch; the Profile
+path column is the profile's identity, the run reads the base-branch copy;
+this workflow does NOT fetch pricing pages live, that's the methodology's job.>
 
 | Name | Profile path |
 |---|---|

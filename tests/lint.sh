@@ -120,5 +120,15 @@ fi
 if ls adapters/images/scripts/*.test.mjs >/dev/null 2>&1; then
   node --test adapters/images/scripts/*.test.mjs >/dev/null 2>&1 || err "adapters/images/scripts tests failed"
 fi
+if ls skills/blog-post-workflow/scripts/*.test.mjs >/dev/null 2>&1; then
+  node --test skills/blog-post-workflow/scripts/*.test.mjs >/dev/null 2>&1 || err "skills/blog-post-workflow/scripts tests failed"
+fi
+
+# 14. Competitor profiles are read from the base branch, never the post's working tree.
+if [ -f tests/check_competitor_reads.sh ]; then
+  bash tests/check_competitor_reads.sh || err "competitor profile reads (tests/check_competitor_reads.sh)"
+else
+  err "tests/check_competitor_reads.sh missing"
+fi
 
 [ "$fail" -eq 0 ] && echo "LINT OK" || exit 1

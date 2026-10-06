@@ -6,14 +6,14 @@ Verification checklist per stage completion. The editor reads this file when com
 
 - [ ] `{drafts_dir}/<slug>/brief.md` exists and is fully populated
 <!-- module: competitors -->
-- [ ] If `brief.md` lists competitors: the "Competitors to mention" table has a `Profile path` pointing to `{competitors_dir}/<slug>.md` for every named competitor (no URL columns)
+- [ ] If `brief.md` lists competitors: the "Competitors to mention" table has a `Profile path` pointing to `{competitors_dir}/<slug>.md` for every named competitor (no URL columns; the path is an identity, the run reads the base-branch copy)
 <!-- /module -->
 - [ ] `{drafts_dir}/<slug>/research/_raw/_serp.json` exists with ≥5 top results
 - [ ] `{drafts_dir}/<slug>/research/_raw/NN-*.json` files exist (one per selected result, up to 8; **no minimum**, the selection criteria allow skipping weak / paywalled / failed results)
 - [ ] `{drafts_dir}/<slug>/research/serp.md` exists; every claim traces to a raw file or URL; §"Citations harvested from competitors" is populated with `primary_source` / `auth_allowlist` candidates so the editor doesn't have to link to top-10 SERP URLs
 - [ ] If Reddit / X enabled: matching `_raw/_<source>_search.json`, per-item files, and `research/<source>.md` all exist
 <!-- module: competitors -->
-- [ ] If `brief.md` lists competitors: every named competitor has a profile at `{competitors_dir}/<slug>.md` whose `**Last verified:**` is ≤14 days from today (Stage 1.5c freshness re-check passed); `research/competitors.md` exists, sourced from those profiles, and its §"Ready for facts.md" carries each profile's verification date verbatim
+- [ ] If `brief.md` lists competitors: every named competitor has a base-branch profile, snapshotted in `research/profiles/`, whose `**Last verified:**` is ≤14 days from today (Stage 1.5c freshness re-check passed); `research/competitors.md` exists, sourced from that snapshot, and its §"Ready for facts.md" carries each profile's verification date verbatim
 <!-- /module -->
 - [ ] `{drafts_dir}/<slug>/facts.md` exists with sourced entries only
 <!-- module: competitors -->

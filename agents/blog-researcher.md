@@ -1,6 +1,6 @@
 ---
 name: blog-researcher
-description: Analyzes pre-fetched research raw JSON files (SERP, optionally Reddit, optionally X, optionally competitor profiles) for a blog post and produces filled research/<source>.md analysis files. Does NOT browse Chrome. SERP/Reddit/X raw data is fetched by the main blog-post-workflow skill in the parent context and saved to {drafts_dir}/<slug>/research/_raw/ before this agent is spawned. Competitor data (when `modules.competitors` is enabled) is read from synthesized profiles in {competitors_dir}/<slug>.md (not from any _raw/ artifacts), the parent skill validates each profile's freshness at Stage 0 and Stage 1.5c, this agent inherits the profile's Last verified date verbatim. Never hallucinates, cites every claim from the source files. For SERP analysis, harvests competitor articles' externalLinks as candidate primary sources (so we can link to those instead of top-10 SERP-ranking competitors). Invoked by blog-post-workflow during Stage 1b.
+description: Analyzes pre-fetched research raw JSON files (SERP, optionally Reddit, optionally X, optionally competitor profiles) for a blog post and produces filled research/<source>.md analysis files. Does NOT browse Chrome. SERP/Reddit/X raw data is fetched by the main blog-post-workflow skill in the parent context and saved to {drafts_dir}/<slug>/research/_raw/ before this agent is spawned. Competitor data (when `modules.competitors` is enabled) comes from the Stage 1.5c snapshot of the base branch's profiles in {drafts_dir}/<slug>/research/profiles/ (not from any _raw/ artifacts), the parent skill validates each profile's freshness at Stage 0 and Stage 1.5c, this agent inherits the profile's Last verified date verbatim. Never hallucinates, cites every claim from the source files. For SERP analysis, harvests competitor articles' externalLinks as candidate primary sources (so we can link to those instead of top-10 SERP-ranking competitors). Invoked by blog-post-workflow during Stage 1b.
 tools: Read, Write, Glob, Grep, Bash
 model: sonnet
 effort: medium
@@ -21,7 +21,8 @@ The skill spawns you with a prompt containing:
 - `slug`, the draft slug (directory exists under `{drafts_dir}`)
 - `target_keyword`, the exact keyword for this post
 - `sources`, comma-separated list: `serp` (always), optionally `reddit`, optionally `x`, optionally `competitors`
-- `brief_excerpt`, relevant portions of `{drafts_dir}/<slug>/brief.md` (when `competitors` is in `sources`, the excerpt MUST include the "Competitors to mention" table so this agent knows which `{competitors_dir}/<slug>.md` profiles to read)
+- `brief_excerpt`, relevant portions of `{drafts_dir}/<slug>/brief.md` (when `competitors` is in `sources`, the excerpt MUST include the "Competitors to mention" table so this agent can pair each row with its file in `profile_paths`)
+- `profile_paths`, when `competitors` is in `sources`: the snapshot files `{drafts_dir}/<slug>/research/profiles/<file>` taken at Stage 1.5c by `competitor-profiles.mjs` from the base branch. These are the only profile files you read; the brief's `Profile path` column is an identity, never opened.
 
 For each source in `sources`, read the matching raw files and produce the corresponding analysis:
 
@@ -32,7 +33,7 @@ For each source in `sources`, read the matching raw files and produce the corres
 | `x` | `_raw/_x_search.json` + `_raw/_x_selection.md` + `_raw/x-NN-*.json` (≤5) | `research/x.md` | resolved template `research-x.md` |
 
 <!-- module: competitors -->
-| `competitors` | `{competitors_dir}/<slug>.md` for each competitor named in `brief.md` "Competitors to mention" (one profile per row). NO `_raw/` artifacts, competitor data lives outside the draft directory in the canonical profiles folder. Each profile follows `{competitors_dir}/methodology.md` and includes `**Last verified:**`, TL;DR, audience/positioning, pricing tiers, features, integrations, self-reported metrics, and (if `modules.product` is also on) this blog's product overlap. Use the profile's `**Last verified:**` value verbatim as `Last verified` in `Ready for facts.md` rows. | `research/competitors.md` | resolved template `research-competitors.md` |
+| `competitors` | the snapshot files in `research/profiles/` passed as `profile_paths` (one per `brief.md` "Competitors to mention" row). NO `_raw/` artifacts. Each profile follows `methodology.md` (also in the snapshot) and includes `**Last verified:**`, TL;DR, audience/positioning, pricing tiers, features, integrations, self-reported metrics, and (if `modules.product` is also on) this blog's product overlap. Use the profile's `**Last verified:**` value verbatim as `Last verified` in `Ready for facts.md` rows. | `research/competitors.md` | resolved template `research-competitors.md` |
 <!-- /module -->
 
 Process each source independently. A failure on one source doesn't block the others.
@@ -103,13 +104,13 @@ Per-source file expectations:
 | `x` | `_x_search.json` | `x-NN-<handle>.json` |
 
 <!-- module: competitors -->
-| `competitors` | `brief.md` "Competitors to mention" non-empty (read from the spawn prompt's `brief_excerpt`) | one `{competitors_dir}/<slug>.md` per row in that table (no fixed count cap, typically 1–4) |
+| `competitors` | `brief.md` "Competitors to mention" non-empty (read from the spawn prompt's `brief_excerpt`) | one `research/profiles/<file>` per row in that table (no fixed count cap, typically 1 to 4) |
 <!-- /module -->
 
 If a source has its sentinel but 0 per-item files succeeded: skip that source, flag in Open Questions of other sources' output (or in the final handoff if no other source ran). If fewer than 2 per-item files succeeded: still analyze but flag "thin".
 
 <!-- module: competitors -->
-Exception: `competitors` doesn't have a "≥2" floor, even one competitor profile is worth analyzing. The parent skill already validated each named profile exists and is ≤14 days fresh at Stage 1.5c. If you find a profile path in the brief that doesn't exist on disk OR whose `**Last verified:**` is now >14 days from today (rare race condition), do NOT analyze the competitor; instead emit a `Ready for facts.md` row with the `NO_PRICING_DATA` marker and surface the gap loudly in your handoff. Count-vs-list check: if a profile fact states a number AND enumerates the items (e.g. "covers N integrations: A, B, C..."), verify N equals the list length; on mismatch, keep the enumerated list, drop the disputed number from the row, and flag it in your handoff (the source profile needs a fix).
+Exception: `competitors` doesn't have a "≥2" floor, even one competitor profile is worth analyzing. The parent skill already validated each named profile exists and is ≤14 days fresh at Stage 1.5c. If a file in `profile_paths` (`research/profiles/`) is missing OR its `**Last verified:**` is now >14 days from today (rare race condition), do NOT analyze the competitor; instead emit a `Ready for facts.md` row with the `NO_PRICING_DATA` marker and surface the gap loudly in your handoff. Count-vs-list check: if a profile fact states a number AND enumerates the items (e.g. "covers N integrations: A, B, C..."), verify N equals the list length; on mismatch, keep the enumerated list, drop the disputed number from the row, and flag it in your handoff (the source profile needs a fix).
 <!-- /module -->
 
 ### Step 2, Read source metadata
@@ -151,14 +152,14 @@ For each per-item JSON in this source:
 - Credibility signal (verified / follower heuristics if present)
 
 <!-- module: competitors -->
-**Competitor items (`{competitors_dir}/<slug>.md` for each competitor in `brief.md`):**
+**Competitor items (`research/profiles/<file>` from `profile_paths`, one per competitor in `brief.md`):**
 - Read each profile fully; the relevant sections are TL;DR, Audience/positioning, Pricing, Features (Core / Differentiators / Notable absences), Integrations and platforms, Self-reported metrics, Recent product direction signals, and (if `modules.product` is on) this blog's overlap.
 - Pricing tiers: lift verbatim from the profile's "Pricing" table. Per tier: name, monthly price, annual price, limits, notable inclusions/exclusions. Do not invent rows the profile doesn't have; do not paraphrase prices.
 - Free tier / Trial / Discount / Renewal vs intro: copy the profile's values directly.
 - Headline features: lift the profile's "Differentiators they actively market" section. Use the profile's wording verbatim so the editor can quote or paraphrase honestly.
 - Comparison-to-our-product fact rows (if `modules.product` is on): the profile already includes an overlap section comparing itself to this blog's product; lift facts from there rather than re-deriving against `{profile_dir}/product.md`. Don't editorialize ("better"/"worse"); just list facts.
 - **Build the "Ready for facts.md" block.** One row per concrete fact (typical: 1 row per pricing tier + 1 row per headline feature, drawn from the profile). Format matches the resolved template `research-competitors.md` exactly. **`Last verified` for every row is the profile's `**Last verified:**` value verbatim, NOT today.** The editor copies these rows verbatim into `facts.md` "Competitor facts" at Stage 1c, and the writer's 14-day-freshness rule holds because Stage 1.5c already gated on the profile being ≤14 days fresh.
-- For any competitor whose profile path in the brief is missing OR is stale (>14 days, rare since Stage 1.5c gated on it): add ONE explicit row in "Ready for facts.md" with the `NO_PRICING_DATA` marker AND raise it as a critical issue in your handoff so the editor halts before drafting.
+- For any competitor whose `profile_paths` file in `research/profiles/` is missing OR is stale (>14 days, rare since Stage 1.5c gated on it): add ONE explicit row in "Ready for facts.md" with the `NO_PRICING_DATA` marker AND raise it as a critical issue in your handoff so the editor halts before drafting.
 <!-- /module -->
 
 ### Step 4, Aggregate (per source)

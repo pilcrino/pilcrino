@@ -17,3 +17,4 @@ jobs:
       - run: ./tests/lint.sh
       - run: cd browser && npm ci && node --test test/*.test.mjs
       - run: node --test adapters/images/scripts/*.test.mjs
+      - run: node --test skills/blog-post-workflow/scripts/*.test.mjs

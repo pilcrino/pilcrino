@@ -43,14 +43,14 @@ Before the workflow does any orchestration, load and validate the blog's config,
    2. `images.featured_default`, if set, ∈ `images.enabled`.
    3. `remotion` ∈ `images.enabled` → `images.remotion.project_dir` set and exists on disk.
    4. `publish.adapter` ∈ {`astro-git-pr`, `wordpress-rest`} and its config block present.
-   5. Module-conditional profile docs exist iff module on: `modules.product: true` → `{profile_dir}/product.md`; `modules.competitors: true` → `{competitors_dir}/methodology.md`.
+   5. Module-conditional profile docs exist iff module on: `modules.product: true` → `{profile_dir}/product.md`; `modules.competitors: true` → `methodology.md` in `{competitors_dir}` on the base branch, checked at intake from the `competitor-profiles.mjs` list run (`references/competitor-profiles.md` rule 5), not here.
    6. Required profile docs always present: `{profile_dir}/blog.md`, `voice.md`, `authors.md`, `audience.md`, `image-style.md`.
    7. `blog.route_prefix` present, starts and ends with `/`.
    8. `browser.executable`, if present, is an absolute path.
    9. `blog.trailing_slash` present and a boolean.
    10. If `console.publish_policy` is `auto`, `publish.adapter` must be `astro-git-pr` (WordPress go-live is always manual).
    11. If a `console` block is present, it contains only the documented keys with the documented types.
-   12. `competitors.profile_dir`, if set, is a repo-relative path that exists on disk when `modules.competitors` is true.
+   12. `competitors.profile_dir`, if set, is a repo-relative path (syntax only here; its existence on the base branch is checked at intake by `competitor-profiles.mjs`, `references/competitor-profiles.md` rule 5).
    13. `social.linkedin`, if present, has a non-empty string `company_id`.
 
    Invariants 10 and 11 are checked only when a `console:` block is present; interactive-only blogs (no `console:` block) satisfy them vacuously. Both are cheap, no-network structural checks (config-schema.md §Validation invariants), consistent with this preamble's "cheap checks only" rule.
@@ -282,12 +282,10 @@ Follow editor persona §Stage 0, Intake. Three skill-specific requirements on to
 - During Q&A, explicitly ask whether to enable each **config-enabled** research source. Reddit is offered ONLY if `modules.reddit_research` is on; X is offered ONLY if `modules.x_research` is on; a module that is off is never surfaced to the human. `serp` is always on. Save the choices to `brief.md` under a "Research sources enabled" section: `serp` (always), `reddit` (yes/no — only if the module is on), `x` (yes/no — only if the module is on).
 - **Category (conditional on `{profile_dir}/site-conventions.md` existing).** If that file exists, read its §Categories (taxonomy list + per-cluster mapping table, cross-referenced against `{profile_dir}/blog.md` §Content pillars): propose the category the mapping table assigns to this post's pillar, confirm it with the human (their override must be either an existing taxonomy name or an explicit "create new: `<name>`"), and save the resolved name to `brief.md`'s Category field. If `site-conventions.md` doesn't exist yet for this blog (no adapter site-inspection has run, or the blog has no existing categories to inspect), ask free-text and save whatever the human gives, or "none" if they have no preference — the wordpress-rest adapter's §Staging category-resolution step only runs when a category was actually planned here, so "none" is safe (WordPress falls back to its own "Uncategorized" default, which is only a bug when a category WAS planned and didn't make it through).
 <!-- module: competitors -->
-- **Per competitor named, validate against `{competitors_dir}/`.** That folder is the source of truth for competitor pricing and features (synthesized profiles, refreshed per `{competitors_dir}/methodology.md`). When the human lists competitors to mention:
-  1. `Glob: {competitors_dir}/*.md`, exclude `_summary.md` and `methodology.md` from the result.
-  2. Read each profile's H1 + `**Slug:**` + `**Last verified:**` lines (small, safe to ingest). Build an in-memory map of `{slug, h1, last_verified}` and present the list to the human so they can pick from profiled competitors.
-  3. For every competitor the human names, match (case-insensitive) against the H1 or the slug. If no match → **HARD-HALT**: "No profile found for `<name>` in `{competitors_dir}/`. Add a profile per `{competitors_dir}/methodology.md` (template at the bottom of that file), then resume intake. Workflow paused." Set checklist `status: paused`; do NOT proceed.
-  4. For each matched profile, compute `(today - last_verified).days`. If >14 → **HARD-HALT**: "Profile `<path>` is stale (Last verified: `<date>`, `<N>` days ago, freshness contract is 14 days). Refresh the profile per `{competitors_dir}/methodology.md` (or with Refresh on the console's Competitors screen), then resume. Workflow paused." Set checklist `status: paused`; do NOT proceed.
-  5. Save matched competitors to `brief.md` "Competitors to mention" table per the resolved template `brief.md`, one row per competitor: `Name | Profile path` (e.g., `Acme Tool | {competitors_dir}/acme-tool.md`). The presence of competitors in this table triggers Step 4.85 (Stage 1.5c, profile freshness re-check) below.
+- **Per competitor named, validate against the base branch's profiles.** Profiles in `{competitors_dir}` are the source of truth for competitor pricing and features, and they live on `origin/{git.base_branch}`, not in this post's working tree. Follow `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/competitor-profiles.md`:
+  1. Run `competitor-profiles.mjs` in list mode (always, while `modules.competitors` is on, even if the human names no competitor) and apply reference rule 5 first. Show the human the listed profiles (`name`, `lastVerified`) so they pick from profiled competitors.
+  2. Match and date-check every named competitor per the reference's rules 1, 2 and 5. A hard stop → **HARD-HALT**: say which rule failed, that the profile must be added or refreshed (per `methodology.md`, or with Refresh on the console's Competitors screen) and that refreshing lands on the base branch so a resume sees it. Set checklist `status: paused`; do NOT proceed.
+  3. Save matched competitors to `brief.md` "Competitors to mention" per the resolved template `brief.md`: `Name | Profile path`, where the path is the identity `{competitors_dir}/<slug>.md` (reference rule 7). The table triggers Step 4.85 (Stage 1.5c).
 <!-- /module -->
 - If the human says "pause" / "stop" / "nevermind" during intake: set checklist `status: paused`, acknowledge, end gracefully.
 
@@ -672,29 +670,26 @@ Apply same failure handling. Update checklist: tick Stage 1.5b items.
 
 Run only if `modules.competitors` is on AND `brief.md` "Competitors to mention" has at least one row. Skip otherwise (empty table = no competitors = no check).
 
-**Why this stage exists:** the source of truth for competitor pricing and features is `{competitors_dir}/<slug>.md` (synthesized profiles refreshed per `{competitors_dir}/methodology.md`). Stage 0 intake already validated each named competitor has a profile and that the profile is fresh. This stage is a **defense-in-depth re-check** that catches the case where a workflow was paused for >14 days between intake and Stage 1b, during which a profile aged past the freshness window. No Chrome, no fetching, no `_raw/` artifacts — purely a file-read + date-arithmetic gate.
+**Why this stage exists:** competitor pricing and features come from the base branch's profiles (`references/competitor-profiles.md`). Stage 0 intake already validated each named competitor has a profile and that the profile is fresh. This stage is a **defense-in-depth re-check** that catches the case where a workflow was paused for >14 days between intake and Stage 1b, during which a profile aged past the freshness window. No Chrome and no `_raw/` artifacts: a `git fetch`, a snapshot and date arithmetic.
 
-The writer is forbidden from using `[VERIFY:]` for competitor pricing or features (`${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §"Competitor pricing and feature claims"). The freshness gate is what gives that rule teeth: if a profile is stale, the workflow halts and the human refreshes the profile in `{competitors_dir}/` before any draft is written.
+The writer is forbidden from using `[VERIFY:]` for competitor pricing or features (`${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §"Competitor pricing and feature claims"). The freshness gate is what gives that rule teeth: if a profile is stale, the workflow halts and the human refreshes the profile (it lands on the base branch) before any draft is written.
 
-#### Step 4.85.1, Re-validate every named competitor
+#### Step 4.85.1, Snapshot and re-validate every named competitor
 
-For each row in `brief.md` "Competitors to mention":
+Always run this step from the top, including on a resume: a retry after a refresh lands here, and the snapshot is what makes the refresh visible.
 
-1. Read the row's `Profile path` (e.g., `{competitors_dir}/acme-tool.md`).
-2. Verify the file still exists. If missing → **HARD-HALT**: "Competitor profile `<path>` named in `brief.md` is missing from disk. Either restore the profile (per `{competitors_dir}/methodology.md`) or remove the competitor from the brief and re-run intake. Workflow paused." Set checklist `status: paused`.
-3. Read the profile's `**Last verified:** <YYYY-MM-DD>` line (small targeted read, just the first ~10 lines).
-4. Compute `(today - last_verified).days` using `Bash: date +%Y-%m-%d` for today.
-5. If >14 days → **HARD-HALT**: "Competitor profile `<path>` is now stale (Last verified: `<date>`, `<N>` days ago, freshness contract is 14 days). Refresh the profile per `{competitors_dir}/methodology.md` (or with Refresh on the console's Competitors screen), then resume `<slug>`. Workflow paused." Set checklist `status: paused`.
+1. Run `competitor-profiles.mjs` in snapshot mode with `--out {drafts_dir}/<slug>/research/profiles` (`references/competitor-profiles.md`). A non-zero exit is a hard stop (reference rule 4).
+2. For each row in `brief.md` "Competitors to mention", find its profile in the JSON by comparing the row's identity path file name (last segment) with the file name (last segment) of the JSON `file`. Not listed → **HARD-HALT** per reference rule 1; `lastVerified` null or more than 14 days old → **HARD-HALT** per rule 2. Use the reference's message, set checklist `status: paused`.
 
-Halt on the FIRST failure — don't continue checking the remaining competitors after a halt is required. The human refreshes the offending profile, then resumes; the resume re-runs Step 4.85 from the top, which catches any other competitors that aged past the window in the same paused interval.
+Halt on the FIRST failure. The human refreshes the offending profile on the Competitors screen, then resumes; the resume re-runs this step from the top.
 
 #### Step 4.85.2, Update checklist on pass
 
-If every competitor's profile passes, no file artifacts are written (the brief.md table + the source-of-truth profiles are the artifacts). Update `{drafts_dir}/<slug>/checklist.md`:
+If every competitor's profile passes, the snapshot in `{drafts_dir}/<slug>/research/profiles/` is the artifact. Update `{drafts_dir}/<slug>/checklist.md`:
 
 - Frontmatter: `current_stage=competitor_check`, `current_owner=blog-post-workflow`
 - Tick Stage 1.5c items: `competitor profile freshness re-check passed`
-- Append stage log: `Stage 1.5c profile freshness re-check passed: <ts>, N competitors validated against {competitors_dir}/`
+- Append stage log: `Stage 1.5c profile freshness re-check passed: <ts>, N competitors validated against <source> at <commit>`
 <!-- /module -->
 
 ### Step 4.9, Hand off to research analysis
@@ -714,7 +709,7 @@ Determine which sources to analyze by checking `brief.md` "Research sources enab
 | `serp` | `_raw/_serp.json` | always |
 | `reddit` | `_raw/_reddit_search.json` | brief.md "Research sources enabled, reddit: yes" |
 | `x` | `_raw/_x_search.json` | brief.md "Research sources enabled, x: yes" |
-| `competitors` | n/a (no `_raw/` artifact; reads `{competitors_dir}/<slug>.md` directly) | brief.md "Competitors to mention" non-empty (Stage 1.5c freshness re-check passed) |
+| `competitors` | n/a (no `_raw/` artifact; reads the Stage 1.5c snapshot in `research/profiles/`) | brief.md "Competitors to mention" non-empty (Stage 1.5c freshness re-check passed) |
 
 Pass the list of confirmed-enabled sources as `sources=...` (e.g., `sources=serp,reddit,competitors`).
 
@@ -727,6 +722,7 @@ Agent tool call:
     target_keyword=<keyword>
     sources=<comma-separated list, e.g., "serp" or "serp,reddit" or "serp,reddit,x">
     brief_excerpt=<relevant portions of {drafts_dir}/<slug>/brief.md>
+    profile_paths=<only when sources includes competitors: comma-separated `path` value from the Stage 1.5c snapshot run's JSON, for each brief row>
     """
 ```
 
@@ -968,7 +964,7 @@ If zero hits: nothing to resolve. Skip to step 6 (advance to Stage 4a). Otherwis
 <!-- module: competitors -->
 #### Step 12.5.2, Competitor-claim guard (do this FIRST, per marker)
 
-If a `[VERIFY:]` marker is about a competitor's pricing or features, do NOT web-resolve it and do NOT delete it. The writer is forbidden from using `[VERIFY:]` for competitor pricing/features (`${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §"Competitor pricing and feature claims"); its presence means the reviewer missed it. Halt this marker, flag to the human, and route to a Stage 1.5c profile refresh (the source of truth is `{competitors_dir}/<slug>.md`, never a live web guess). This is the one exception to "always resolve."
+If a `[VERIFY:]` marker is about a competitor's pricing or features, do NOT web-resolve it and do NOT delete it. The writer is forbidden from using `[VERIFY:]` for competitor pricing/features (`${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §"Competitor pricing and feature claims"); its presence means the reviewer missed it. Halt this marker, flag to the human, and route to a Stage 1.5c profile refresh (the source of truth is the base branch's profile, snapshotted in `research/profiles/`, never a live web guess). This is the one exception to "always resolve."
 <!-- /module -->
 
 #### Step 12.5.3, Research with allowlist discipline
@@ -1272,15 +1268,17 @@ live publish.
      `brief.md` as a `## Requirements` section, verbatim.
    - **Intent.** When pageType is non-empty, the brief's ## Intent defaults from it: alternatives, best-for and for-role → transactional; vs → comparison; review → review; export and how-to → how_to; other → choose as today. A requirement naming another intent wins (the precedence above). Record the default and its source in ## Autopilot assumptions. Observed search intent still wins at planning: when the SERP disagrees, switch intent while writing the plan and record the switch in the plan, as for any post.
    <!-- module: competitors -->
-   - **Competitors.** Competitor names come from the requirements text (a line
-     such as "Mention: Lasso, PrettyLinks", or names in prose). For each name,
-     run the EXACT SAME validation `personas/editor.md` §Stage 0 runs
-     interactively: match it against `{competitors_dir}/*.md` (H1 or
-     `**Slug:**` line, case-insensitive); a name with no matching profile, or a
-     matched profile whose `**Last verified:**` is >14 days old, is a hard stop:
-     in autopilot, park `competitor_profile_stale` (detail: which name, missing
-     vs. stale). Every name that passes goes into brief.md's "Competitors to
-     mention" table exactly as interactive intake would (`Name | Profile path`).
+   - **Competitors.** Whenever `modules.competitors` is on, run
+     `competitor-profiles.mjs` in list mode once, even with no requirements,
+     and apply reference rule 5 first (a failure parks `other`). Competitor
+     names come from the requirements text (a line
+     such as "Mention: Lasso, PrettyLinks", or names in prose). That one list
+     run is the only one per intake: for each name, apply
+     `references/competitor-profiles.md` rules 1 and 2 to its JSON exactly as
+     interactive intake does. A hard stop parks `competitor_profile_stale`
+     with the rule 6 detail; a script failure parks `other` (rule 4). Every
+     name that passes goes into brief.md's "Competitors to mention" table
+     exactly as interactive intake would (`Name | Profile path`).
      No requirements, or none that name a competitor: an empty table, and
      Stage 1.5c skips its check as it does for any post naming no competitor.
    - **`modules.competitors` off:** names in the requirements are plain text;
@@ -1345,7 +1343,7 @@ Everything important lives on disk:
 - `{drafts_dir}/<slug>/research/_raw/_reddit_search.json` + `_reddit_selection.md` + per-thread JSONs (optional)
 - `{drafts_dir}/<slug>/research/_raw/_x_search.json` + `_x_selection.md` + per-post JSONs (optional)
 <!-- module: competitors -->
-- `{drafts_dir}/<slug>/research/competitors.md` (only when brief.md lists competitors; sourced from `{competitors_dir}/<slug>.md` profiles, no `_raw/` artifacts)
+- `{drafts_dir}/<slug>/research/competitors.md` (only when brief.md lists competitors; sourced from the snapshot in `{drafts_dir}/<slug>/research/profiles/`, no `_raw/` artifacts)
 <!-- /module -->
 - `{drafts_dir}/<slug>/research/serp.md` (always)
 - `{drafts_dir}/<slug>/research/reddit.md` / `research/x.md` (optional, present when the matching source ran)
