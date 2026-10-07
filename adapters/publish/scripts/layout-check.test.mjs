@@ -169,3 +169,19 @@ test('a lazy image whose request never finishes trips the settle deadline instea
     await assert.rejects(checkLayout({ url, widths: [1440], settleMs: 1500 }), /did not finish loading its images within 1.5s/)
   } finally { server.closeAllConnections?.(); server.close() }
 })
+
+test('a lazy image far below the fold on a smooth-scrolling page is loaded before measuring (the scripted scroll never got it)', needsBrowser, async () => {
+  // Served over HTTP, not a data URL: a data image loads instantly on any scroll and hides the regression.
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="40"><rect width="1000" height="40"/></svg>'
+  const server = createServer((req, res) => {
+    if (req.url.endsWith('.svg')) { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end(svg) }
+    res.writeHead(200, { 'content-type': 'text/html' })
+    res.end(page('html{scroll-behavior:smooth} .tall{height:10000px}', '<p class="tall">Long post.</p><img loading="lazy" alt="" src="/wide.svg">'))
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/blog/p/`
+    const r = await checkLayout({ url, widths: [1440], settleMs: 2500 })
+    assert.deepEqual(r.findings.map((f) => [f.width, f.element]), [[1440, 'img']], JSON.stringify(r.findings))
+  } finally { server.closeAllConnections?.(); server.close() }
+})
