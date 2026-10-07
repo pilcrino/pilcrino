@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import { parseArgs, describeFindings, checkLayout, DEFAULT_WIDTHS } from './layout-check.mjs'
-import { findChrome } from '../../../browser/src/chrome.mjs'
 
 test('parseArgs: url required, widths parsed, unknown flag refused', () => {
   assert.throws(() => parseArgs([]), /--url is required/)
@@ -30,12 +29,14 @@ test('describeFindings: one plain line per finding', () => {
 
 // The browser-backed cases need Chrome and puppeteer-core (browser/node_modules,
 // `node browser/bin.mjs install`). Without them they are skipped, loudly.
-function browserReady() {
+async function browserReady() {
+  let findChrome
+  try { ({ findChrome } = await import('../../../browser/src/chrome.mjs')) } catch { return 'browser packages not installed (node browser/bin.mjs install)' }
   try { findChrome() } catch { return 'Chrome not found' }
   try { createRequire(join(import.meta.dirname, '..', '..', '..', 'browser', 'package.json')).resolve('puppeteer-core') } catch { return 'puppeteer-core not installed under browser/' }
   return ''
 }
-const reason = browserReady()
+const reason = await browserReady()
 // node:test skips whenever the option is present, so only pass it when there is a reason.
 const needsBrowser = reason ? { skip: reason } : {}
 

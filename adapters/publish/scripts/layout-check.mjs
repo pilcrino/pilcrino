@@ -24,10 +24,21 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { findChrome } from '../../../browser/src/chrome.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const BROWSER_ROOT = join(here, '..', '..', '..', 'browser')
+const INSTALL_HINT = `run: node ${join(BROWSER_ROOT, 'bin.mjs')} install`
+
+// The browser helper's modules pull in its packages (yaml, puppeteer-core),
+// which exist only after `bin.mjs install`; loading them lazily keeps this
+// script importable, and its argument parsing testable, without them.
+async function loadChromeFinder() {
+  try {
+    return (await import('../../../browser/src/chrome.mjs')).findChrome
+  } catch (err) {
+    throw new Error(`the Pilcrino browser's packages are not installed (${err.message}); ${INSTALL_HINT}`)
+  }
+}
 
 export const DEFAULT_WIDTHS = [1440, 390]
 /** Sub-pixel rounding and a 1px border are not overflow. */
@@ -93,12 +104,12 @@ async function loadPuppeteer() {
   try {
     return (await import(require.resolve('puppeteer-core'))).default
   } catch {
-    throw new Error(`puppeteer-core is not installed under ${BROWSER_ROOT}; run: node ${join(BROWSER_ROOT, 'bin.mjs')} install`)
+    throw new Error(`puppeteer-core is not installed under ${BROWSER_ROOT}; ${INSTALL_HINT}`)
   }
 }
 
 export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', timeout = 30000, chrome, puppeteer }) {
-  const exe = chrome ?? findChrome()
+  const exe = chrome ?? (await loadChromeFinder())()
   const pp = puppeteer ?? (await loadPuppeteer())
   const profile = mkdtempSync(join(tmpdir(), 'pilcrino-layout-'))
   const browser = await pp.launch({ executablePath: exe, headless: true, userDataDir: profile, args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'] })
