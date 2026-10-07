@@ -234,6 +234,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.43.2 - CLAUDE.md for sessions working on the plugin
+
+- `CLAUDE.md` states the rules a Claude Code session needs in this repository: bump the version and changelog with every change, run the lint, release by tag, and never edit the pinned copy under the app's `plugin/`.
+
 ### 0.43.1 - competitor profiles come from the base branch
 
 - A post run read competitor profiles from its own branch, which can be
