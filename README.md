@@ -234,6 +234,12 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.44.0 - layout check on the rendered post
+
+- `adapters/publish/scripts/layout-check.mjs --url <page>` opens the page in a throwaway headless Chrome at 1440px and 390px and reports every element that extends past its own container, plus a page that scrolls sideways. JSON out, exit 1 on findings, no model involved. It reproduces the fault that shipped on 2026-10-07: a table 147px wider than its column, under the table of contents, which the build passed and nobody measured.
+- The Gate 2 banner carries a `Layout:` line for every post: the `astro-git-pr` adapter runs the check on the staging-deploy URL (§Staging step 9) and the PR monitor runs it once when that URL first appears, commenting the findings on the PR (§Each firing step 2a); `wordpress-rest` runs it on the draft preview and says "not checked" when the preview needs a signed-in browser.
+- `tests/lint.sh` runs the publish adapter scripts' tests too, and prints a failing test log instead of swallowing it.
+
 ### 0.43.3 - tags are created on merge
 
 - A merge to main that bumps the plugin version now gets the tag `v<version>` from a workflow (`.github/workflows/tag.yml`). No hand tagging; the app pins these tags.
