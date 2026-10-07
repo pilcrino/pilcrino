@@ -6,7 +6,7 @@ import { join } from 'node:path'
 import { createRequire } from 'node:module'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
-import { parseArgs, describeFindings, checkLayout, DEFAULT_WIDTHS } from './layout-check.mjs'
+import { parseArgs, describeFindings, checkLayout, settleLazyContent, DEFAULT_WIDTHS } from './layout-check.mjs'
 
 test('parseArgs: url required, widths parsed, unknown flag refused', () => {
   assert.throws(() => parseArgs([]), /--url is required/)
@@ -142,4 +142,30 @@ test('a lazy image below the fold that turns out wider than the column is a find
     const r = await checkLayout({ url: fixture(dir, 'lazy.html', html), widths: [1440] })
     assert.deepEqual(r.findings.map((f) => [f.width, f.element]), [[1440, 'img']], JSON.stringify(r.findings))
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('a lazy image hidden at this width is not waited for', needsBrowser, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+  try {
+    const svg = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="40"><rect width="1000" height="40"/></svg>')}`
+    const html = page('.tall{height:3000px} .phone{display:none} @media (max-width:640px){.phone{display:block}}', `<p class="tall">Long post.</p><img class="phone" loading="lazy" alt="" src="${svg}">`)
+    const started = Date.now()
+    const r = await checkLayout({ url: fixture(dir, 'hidden.html', html), widths: [1440] })
+    assert.equal(r.ok, true, JSON.stringify(r.findings))
+    assert.ok(Date.now() - started < 10000, 'did not wait for the hidden image')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('a lazy image whose request never finishes trips the settle deadline instead of hanging', needsBrowser, async () => {
+  // The page itself loads (a lazy image is not requested until scrolled to); the settle phase then waits on it.
+  const server = createServer((req, res) => {
+    if (req.url.endsWith('.png')) return // never answered
+    res.writeHead(200, { 'content-type': 'text/html' })
+    res.end(page('.tall{height:3000px}', '<p class="tall">Long post.</p><img loading="lazy" alt="" src="/never.png">'))
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/blog/p/`
+    await assert.rejects(checkLayout({ url, widths: [1440], settleMs: 1500 }), /did not finish loading its images within 1.5s/)
+  } finally { server.closeAllConnections?.(); server.close() }
 })

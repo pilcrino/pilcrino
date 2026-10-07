@@ -161,7 +161,7 @@ Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets
    ```
    `status`: `open` | `approved` | `done` | `closed`. Every branch commit (open, comment-fixes, archive) happens via `git -C "$worktree"`.
 8. **Preview line for the Gate 2 banner.** If `publish.astro.preview_comment_marker` is configured, read the CI's PR comment matching that marker for the staging-deploy URL; if CI hasn't posted it yet, show the PR URL and note "staging deploying, check back". If the marker is not configured, show the PR URL only — never guess at a preview host.
-9. **Layout line for the Gate 2 banner.** When step 8 found a staging-deploy URL AND the PR head commit's checks have all completed without failure (`gh api repos/$REPO/commits/$(git -C "$worktree" rev-parse HEAD)/check-runs --jq '[.check_runs[] | .status, .conclusion]'`; an earlier push's deploy can still be the one behind the URL until then), run the layout check on it and report the result on the banner's `Layout:` line:
+9. **Layout line for the Gate 2 banner.** When step 8 found a staging-deploy URL AND the PR head commit has proof of its deploy, as `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/pr-monitor.md` §Each firing step 2a defines it (every check run for `$(git -C "$worktree" rev-parse HEAD)` completed with conclusion `success`, at least one run, and any commit id in the marker comment a prefix of that head; an earlier push's deploy can be the one behind the URL until then), run the layout check on it and report the result on the banner's `Layout:` line:
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/layout-check.mjs" --url "$PREVIEW_URL"
    ```

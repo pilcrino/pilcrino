@@ -140,26 +140,38 @@ async function loadPuppeteer() {
   }
 }
 
+/** The whole settling phase (scroll, image loads, decodes) must finish in this long, or the check is "could not run". */
+export const SETTLE_DEADLINE_MS = 15000
+
 /**
  * Lazy images (`loading="lazy"`) below the fold have no size until the reader
  * scrolls to them, and an unsized one that turns out wider than the column is
  * exactly the fault to catch. Walk the page once so they load, wait for every
- * image to decode, and go back to the top before measuring.
+ * image that is rendered at this width to load and decode (an image hidden by
+ * a media query never loads and is not waited for), and go back to the top
+ * before measuring. The deadline bounds everything: a page that never
+ * settles is reported, not waited on forever.
  */
-export async function settleLazyContent(page) {
-  await page.evaluate(async () => {
+export async function settleLazyContent(page, deadlineMs = SETTLE_DEADLINE_MS) {
+  const settled = await page.evaluate(async (deadline) => {
+    const until = Date.now() + deadline
     const step = window.innerHeight
-    for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
+    for (let y = 0; y <= document.documentElement.scrollHeight && Date.now() < until; y += step) {
       window.scrollTo(0, y)
       await new Promise((r) => setTimeout(r, 40))
     }
     window.scrollTo(0, 0)
-    await Promise.all([...document.images].map((img) => (img.complete ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }) }))))
-    await Promise.all([...document.images].map((img) => img.decode().catch(() => {})))
-  })
+    const shown = [...document.images].filter((img) => img.getClientRects().length > 0)
+    const loaded = Promise.all(shown.map((img) => (img.complete ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }) }))))
+      .then(() => Promise.all(shown.map((img) => img.decode().catch(() => {}))))
+      .then(() => true)
+    const expired = new Promise((r) => setTimeout(() => r(false), Math.max(0, until - Date.now())))
+    return Promise.race([loaded, expired])
+  }, deadlineMs)
+  if (!settled) throw new Error(`the page did not finish loading its images within ${deadlineMs / 1000}s`)
 }
 
-export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', timeout = 30000, chrome, puppeteer }) {
+export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', timeout = 30000, settleMs = SETTLE_DEADLINE_MS, chrome, puppeteer }) {
   const exe = chrome ?? (await loadChromeFinder())()
   const pp = puppeteer ?? (await loadPuppeteer())
   const profile = mkdtempSync(join(tmpdir(), 'pilcrino-layout-'))
@@ -183,7 +195,7 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
       const status = response?.status() ?? 0
       if (status >= 400) throw new Error(`the page answered HTTP ${status}`)
       finalUrl = page.url()
-      await settleLazyContent(page)
+      await settleLazyContent(page, settleMs)
       const r = await page.evaluate(pageProbe, article, TOLERANCE_PX)
       how = r.article
       title = r.title
