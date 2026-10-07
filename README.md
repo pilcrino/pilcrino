@@ -234,6 +234,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.44.1 - layout check loads lazy images for real
+
+- Headless Chrome did not start lazy image loads on a scripted scroll, so the check timed out on any post with `loading="lazy"` images below the fold (every Pilcrino post). Every image is now switched to eager before the wait, which resumes the deferred loads at once. Verified on the live posts.
+
 ### 0.44.0 - layout check on the rendered post
 
 - `adapters/publish/scripts/layout-check.mjs --url <page>` opens the page in a throwaway headless Chrome at 1440px and 390px and reports every element that extends past its own container, plus a page that scrolls sideways. JSON out, exit 1 on findings, no model involved. It reproduces the fault that shipped on 2026-10-07: a table 147px wider than its column, under the table of contents, which the build passed and nobody measured.
