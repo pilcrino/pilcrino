@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { parseArgs, describeFindings, checkLayout, DEFAULT_WIDTHS } from './layout-check.mjs'
 
@@ -124,9 +125,21 @@ test('the scope itself and an absolutely positioned image are measured too', nee
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('an HTTP error is "could not run", never a fit', needsBrowser, async () => {
+test('a clean page served with HTTP 404 is "could not run", never a fit', needsBrowser, async () => {
+  const server = createServer((_req, res) => { res.writeHead(404, { 'content-type': 'text/html' }); res.end(page('')) })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const url = `http://127.0.0.1:${server.address().port}/blog/missing/`
+    await assert.rejects(checkLayout({ url, widths: [1440] }), /the page answered HTTP 404/)
+  } finally { server.close() }
+})
+
+test('a lazy image below the fold that turns out wider than the column is a finding', needsBrowser, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
   try {
-    await assert.rejects(checkLayout({ url: pathToFileURL(join(dir, 'missing.html')).href, widths: [1440] }), /HTTP 404|net::ERR_FILE_NOT_FOUND/)
+    const svg = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="40"><rect width="1000" height="40"/></svg>')}`
+    const html = page('.tall{height:3000px}', `<p class="tall">Long post.</p><img loading="lazy" alt="" src="${svg}">`)
+    const r = await checkLayout({ url: fixture(dir, 'lazy.html', html), widths: [1440] })
+    assert.deepEqual(r.findings.map((f) => [f.width, f.element]), [[1440, 'img']], JSON.stringify(r.findings))
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

@@ -140,6 +140,25 @@ async function loadPuppeteer() {
   }
 }
 
+/**
+ * Lazy images (`loading="lazy"`) below the fold have no size until the reader
+ * scrolls to them, and an unsized one that turns out wider than the column is
+ * exactly the fault to catch. Walk the page once so they load, wait for every
+ * image to decode, and go back to the top before measuring.
+ */
+export async function settleLazyContent(page) {
+  await page.evaluate(async () => {
+    const step = window.innerHeight
+    for (let y = 0; y <= document.documentElement.scrollHeight; y += step) {
+      window.scrollTo(0, y)
+      await new Promise((r) => setTimeout(r, 40))
+    }
+    window.scrollTo(0, 0)
+    await Promise.all([...document.images].map((img) => (img.complete ? Promise.resolve() : new Promise((r) => { img.addEventListener('load', r, { once: true }); img.addEventListener('error', r, { once: true }) }))))
+    await Promise.all([...document.images].map((img) => img.decode().catch(() => {})))
+  })
+}
+
 export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', timeout = 30000, chrome, puppeteer }) {
   const exe = chrome ?? (await loadChromeFinder())()
   const pp = puppeteer ?? (await loadPuppeteer())
@@ -164,6 +183,7 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
       const status = response?.status() ?? 0
       if (status >= 400) throw new Error(`the page answered HTTP ${status}`)
       finalUrl = page.url()
+      await settleLazyContent(page)
       const r = await page.evaluate(pageProbe, article, TOLERANCE_PX)
       how = r.article
       title = r.title
