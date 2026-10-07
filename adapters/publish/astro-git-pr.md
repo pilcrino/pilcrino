@@ -161,6 +161,11 @@ Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets
    ```
    `status`: `open` | `approved` | `done` | `closed`. Every branch commit (open, comment-fixes, archive) happens via `git -C "$worktree"`.
 8. **Preview line for the Gate 2 banner.** If `publish.astro.preview_comment_marker` is configured, read the CI's PR comment matching that marker for the staging-deploy URL; if CI hasn't posted it yet, show the PR URL and note "staging deploying, check back". If the marker is not configured, show the PR URL only — never guess at a preview host.
+9. **Layout line for the Gate 2 banner.** When step 8 found a staging-deploy URL, run the layout check on it and report the result on the banner's `Layout:` line:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/layout-check.mjs" --url "$PREVIEW_URL"
+   ```
+   Exit 0: `Layout: fits at 1440px and 390px`. Exit 1: `Layout: N finding(s)`, then one line per finding from the JSON (`at 1440px <table> "Claim as found" extends 147px past the article`); these are blocking for the editor, not for the human: say what to change (wrap the cell, shorten the URL, split the table) or that the site's stylesheet is at fault, and let the human decide at Gate 2. Exit 2: `Layout: not checked (<error>)`, never silent. When step 8 had no URL yet: `Layout: pending, the monitor runs it when the staging preview appears` (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/pr-monitor.md` §Each firing step 2a). The check opens the page in a throwaway headless Chrome at a desktop and a phone width and reports anything that extends past its container; it needs the Pilcrino browser's packages (`node "${CLAUDE_PLUGIN_ROOT}/browser/bin.mjs" install`, once).
 
 ## On review-loop edit
 

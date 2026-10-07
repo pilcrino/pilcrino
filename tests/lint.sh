@@ -117,12 +117,14 @@ else
 fi
 
 # 13. Plugin scripts pass their own tests (node --test, no framework)
-if ls adapters/images/scripts/*.test.mjs >/dev/null 2>&1; then
-  node --test adapters/images/scripts/*.test.mjs >/dev/null 2>&1 || err "adapters/images/scripts tests failed"
-fi
-if ls skills/blog-post-workflow/scripts/*.test.mjs >/dev/null 2>&1; then
-  node --test skills/blog-post-workflow/scripts/*.test.mjs >/dev/null 2>&1 || err "skills/blog-post-workflow/scripts tests failed"
-fi
+# Output is kept and printed on failure: a swallowed test log is unreadable on CI.
+script_tests() {
+  local out
+  out=$(node --test "$1"/*.test.mjs 2>&1) || { printf '%s\n' "$out" | grep -E '^not ok|^#|Error|error' | head -40; err "$1 tests failed"; }
+}
+for dir in adapters/images/scripts adapters/publish/scripts skills/blog-post-workflow/scripts; do
+  ls "$dir"/*.test.mjs >/dev/null 2>&1 && script_tests "$dir"
+done
 
 # 14. Competitor profiles are read from the base branch, never the post's working tree.
 if [ -f tests/check_competitor_reads.sh ]; then

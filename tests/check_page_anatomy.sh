@@ -69,7 +69,7 @@ need skills/review-blog-post/SKILL.md 'Information gain'
 need personas/editor.md 'Information gain'
 
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.43.3"'
+need .claude-plugin/plugin.json '"version": "0.44.0"'
 
 # Review fixes: rules that must not be module-gated, disclosure only with a product, reviewer inputs
 ungated() {
