@@ -234,6 +234,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.43.3 - tags are created on merge
+
+- A merge to main that bumps the plugin version now gets the tag `v<version>` from a workflow (`.github/workflows/tag.yml`). No hand tagging; the app pins these tags.
+
 ### 0.43.2 - CLAUDE.md for sessions working on the plugin
 
 - `CLAUDE.md` states the rules a Claude Code session needs in this repository: bump the version and changelog with every change, run the lint, release by tag, and never edit the pinned copy under the app's `plugin/`.
