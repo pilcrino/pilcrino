@@ -1,0 +1,31 @@
+name: Tag release
+
+# Every merge to main that bumps `version` in .claude-plugin/plugin.json gets
+# the tag v<version>. Merges that do not bump change nothing here.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag v<version> when missing
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./.claude-plugin/plugin.json').version")
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists"; exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Pilcrino plugin $tag"
+          git push origin "$tag"
+          echo "tagged $tag"
