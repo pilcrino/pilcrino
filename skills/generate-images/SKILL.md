@@ -21,7 +21,7 @@ If either file is missing, stop and report which one; never fabricate a manifest
 
 Check the following guards in order; stop at the first match.
 
-1. **Published-post guard (checked first).** If `{content_dir}/<slug>.md` (or the WordPress-equivalent published post) exists AND is not in draft state: a published post already owns this slug. Return the manifest with top-level `"halt": true` and every result array empty. Do not render, do not touch the asset dir.
+1. **Published-post guard (checked first).** If `{content_dir}/<slug>.md` (or the WordPress-equivalent published post) exists on `origin/{git.base_branch}` (run `git fetch origin "$BASE"`, then `git cat-file -e "origin/$BASE:{content_dir}/$SLUG.md"`) AND is not in draft state: a published post already owns this slug. A copy in the working tree alone is the in-progress post, not a published one. Return the manifest with top-level `"halt": true` and every result array empty. Do not render, do not touch the asset dir.
 2. **Asset dir absent.** If `{assets_dir}/<slug>/` does not exist: create it, then write a sentinel file `{assets_dir}/<slug>/.staged-by-blog-workflow` containing `<slug>` and the current UTC timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`). Proceed to Step 3.
 3. **Asset dir present with sentinel.** If `{assets_dir}/<slug>/` exists AND contains `.staged-by-blog-workflow`: it's ours (a prior run of this skill created it, or is resuming). Proceed to Step 3.
 4. **Asset dir present without sentinel.** If `{assets_dir}/<slug>/` exists WITHOUT the sentinel (a manually created folder, a published post's assets, or an unrelated abandoned run): STOP. Do not render into it, do not delete anything. Return the manifest with top-level `"halt": true` and every result array empty.

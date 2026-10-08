@@ -246,7 +246,10 @@ page. Write candidate, nearest post and clause as one line each in
 slug and query; its topic may come back with a different query and angle.
 Fan-out variants of one parent query merge into one idea whose H2s cover them.
 Posts already on the live site count too: for Astro read the titles under the
-config's `publish.astro.content_dir`; for WordPress open
+config's `publish.astro.content_dir`; for markdown read the titles of `*.md` under
+`publish.markdown.content_dir`, and for a paste platform (jekyll, ghost, generic)
+also read the live site's blog index or sitemap when `blog.url` is set, since the
+live posts there are not the repository; for WordPress open
 `<site>/wp-json/wp/v2/posts?per_page=100&_fields=slug,title` in the browser
 once Step 2's tabs are open (`navigate`, then `capture` with Step 2's page
 script to `{raw}/live-posts.json`, then `Read`).

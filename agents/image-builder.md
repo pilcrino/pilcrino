@@ -20,7 +20,7 @@ Derive `REPO=$(git rev-parse --show-toplevel)`. All paths below are under `$REPO
 
 Check the following guards in order. Stop at the first match.
 
-- **Published-post guard (checked first):** if `{content_dir}/<slug>.md` (or the WordPress equivalent post) exists AND is not in draft state → STOP. A published post owns this slug. Return the manifest with top-level `"halt": true` and empty result arrays. Do not render, do not touch the asset dir.
+- **Published-post guard (checked first):** if `{content_dir}/<slug>.md` (or the WordPress equivalent post) exists on `origin/{git.base_branch}` (run `git fetch origin "$BASE"`, then `git cat-file -e "origin/$BASE:{content_dir}/$SLUG.md"`) AND is not in draft state → STOP. A published post owns this slug. A copy in the working tree alone is the in-progress post, not a published one. Return the manifest with top-level `"halt": true` and empty result arrays. Do not render, do not touch the asset dir.
 - **Asset dir absent:** if `{assets_dir}/<slug>/` does NOT exist: create it, then write a sentinel file `.staged-by-blog-workflow` containing `<slug>` and the current timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`); proceed.
 - **Asset dir present with sentinel:** if the dir exists AND contains `.staged-by-blog-workflow`: it is ours; proceed.
 - **Asset dir present without sentinel:** if the dir exists WITHOUT the sentinel (manual folder, a published post's assets, or an unrelated abandoned run): STOP. Do not render into it, do not delete anything. Return the manifest with top-level `"halt": true` and empty result arrays.

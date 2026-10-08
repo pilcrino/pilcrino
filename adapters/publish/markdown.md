@@ -44,7 +44,7 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
 
 `REPO=$(git rev-parse --show-toplevel)`. Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets_dir}/$SLUG"`.
 
-1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 1, 2 and 3 as written. Embed paths and the cover path follow the configured `markdown-<platform>.md` §Cover path computation (relative from `{content_dir}` to `{assets_dir}/<slug>/<file>`). The cover goes under that doc's cover key (`heroImage`, `cover`, `image` or `feature_image`), replacing any value the draft carried; a missing `featured.<ext>` stops staging exactly as step 3a there says.
+1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 1, 2 and 3 as written. Embed paths and the cover path follow the configured `markdown-<platform>.md` §Cover path computation (relative from `{content_dir}` to `{assets_dir}/<slug>/<file>`). The cover goes under that doc's cover key (`heroImage`, `cover`, `image` or `feature_image`), replacing any value the draft carried; a missing `featured.<ext>` stops staging exactly as step 3a there says. The staged copy now in the main tree is not a published post for the image-builder guard, which counts only `origin/{git.base_branch}`.
 2. **Strip the draft key** (replaces astro-git-pr.md §Staging step 4), per the configured platform doc. Only the leading frontmatter block (line 1 `---` to the next `---` line) is touched; every body line, code fences included, stays byte for byte. Run exactly:
    - `astro`, `hugo`: remove `draft: true`:
      ```bash
@@ -107,5 +107,5 @@ Paste platform (`jekyll`, `ghost`, `generic`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
 - [ ] Paste the zip (or `{content_dir}/<slug>.md` and `{assets_dir}/<slug>/`, setting the date field to today) into <Platform>, then merge the pull request.
-- [ ] Jekyll only: name the file `YYYY-MM-DD-<slug>.md` in `_posts`.
+- [ ] Jekyll only (emit this item only when `platform` is `jekyll`): name the file `YYYY-MM-DD-<slug>.md` in `_posts`.
 - [ ] Once <Platform> shows the post, verify it per action-items §8.
