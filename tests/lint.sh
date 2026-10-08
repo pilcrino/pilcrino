@@ -133,4 +133,7 @@ else
   err "tests/check_competitor_reads.sh missing"
 fi
 
+# 15. Markdown adapter frontmatter docs carry exactly their platform's keys
+python3 tests/check_markdown_frontmatter.py || err "markdown frontmatter docs (tests/check_markdown_frontmatter.py)"
+
 [ "$fail" -eq 0 ] && echo "LINT OK" || exit 1
