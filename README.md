@@ -3,7 +3,8 @@
 A Claude Code plugin that turns "write a blog post" into a gated,
 crash-resumable production pipeline: intake, research, a reviewable plan, a
 drafted, reviewed and humanized post, a production-ready image set, and a
-publish step that opens a PR (Astro) or stages a draft (WordPress). It never
+publish step that opens a PR (Astro, or a markdown file for any other
+platform) or stages a draft (WordPress). It never
 auto-merges or auto-publishes.
 
 ## What Pilcrino is
@@ -35,8 +36,8 @@ repurpose-blog-post, LinkedIn posting and a post-run retrospective
 | Personas | 3 | `personas/` (editor, writer, repurposer) |
 | Standards docs | 2 | `standards/` (writing-standards, blog-craft) |
 | Structural templates | 19 | `templates/` |
-| Publish adapters | 2 | `adapters/publish/` (astro-git-pr, wordpress-rest) |
-| Frontmatter templates | 3 | `adapters/publish/frontmatter/` (astro-starlight, astro-content, wordpress) |
+| Publish adapters | 3 | `adapters/publish/` (astro-git-pr, wordpress-rest, markdown) |
+| Frontmatter templates | 10 | `adapters/publish/frontmatter/` (astro-starlight, astro-content, wordpress, markdown-<platform> for seven platforms) |
 | Image adapters | 3 | `adapters/images/` (remotion, ai-prompt, screenshot) |
 | Remotion scaffold | 1 | `scaffold/remotion-starter/` |
 | Pilcrino browser | 1 | `browser/` (the bundled `pilcrino-browser` MCP server) |
@@ -49,6 +50,8 @@ Prerequisites:
 - Google Chrome
 - Node 22 with npm
 - Claude Code
+- `git`
+- A GitHub repository for each blog, with `gh` signed in: every adapter publishes through a pull request, the markdown one included
 
 This repo is its own single-plugin marketplace. In Claude Code:
 
@@ -224,6 +227,7 @@ each slot to its adapter in `adapters/images/`:
 |---|---|---|---|
 | Astro (git PR) | `astro-git-pr` | `adapters/publish/frontmatter/astro-starlight.md` or `astro-content.md`, chosen via `publish.astro.frontmatter_template` | Stages the post into `content_dir`/`assets_dir`, opens a PR through the shared Gate 2 shell; a human merges to publish |
 | WordPress (REST) | `wordpress-rest` | `adapters/publish/frontmatter/wordpress.md`, set via `publish.wordpress.frontmatter_template` | The workspace repo's markdown stays canonical. At staging it's converted to native Gutenberg block markup (`adapters/publish/scripts/md-to-gutenberg.py`, with a classic-block pandoc/marked fallback) and a WordPress draft is created via the REST API (as the rendered preview), idempotently re-synced by stored post ID through the review loop, and never pushed past `status: draft`. A human publishes in WP admin |
+| Markdown (any platform) | `markdown` | `adapters/publish/frontmatter/markdown-<platform>.md`, derived from `publish.markdown.platform` (astro, hugo, jekyll, ghost, nextjs, eleventy, generic) | Writes `<slug>.md` in the platform's frontmatter shape with its images and opens a PR through the same staging as Astro; like every adapter it needs a GitHub repository. When the site builds from the repo (Astro, Hugo, Next.js, Eleventy) the merge publishes; otherwise (Jekyll, Ghost, anything else) the owner pastes the post in before approving |
 
 ## The Pilcrino app
 
@@ -233,6 +237,13 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.45.0 - markdown publish adapter
+
+- `adapters/publish/markdown.md`: a third publish adapter, `markdown`, for every platform without a direct adapter (Hugo, Jekyll, Ghost, Next.js, Eleventy, anything that takes a markdown file). It writes `<slug>.md` in the platform's frontmatter shape with the images beside it and opens a pull request through the same staging as `astro-git-pr`. For a site built from the repository the merge publishes; for Jekyll, Ghost and any other platform the owner pastes the post in before approving.
+- Seven frontmatter docs, `adapters/publish/frontmatter/markdown-<platform>.md`; `tests/check_markdown_frontmatter.py` pins each block's keys.
+- `config-schema.md` documents the `publish.markdown` block; `publish_policy: auto` stays Astro only. `blog-setup` offers the adapter in Phase 5.
+- README prerequisites name `git` and a GitHub repository with `gh` signed in: every adapter publishes through a pull request.
 
 ### 0.44.2 - interrupted runs restart
 
