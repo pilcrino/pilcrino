@@ -234,6 +234,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.44.2 - interrupted runs restart
+
+- The console contract documents `interrupted_retry`: the app restarts a run that was killed mid-flight in the same mode, and parks `interrupted_retries_exhausted` after two restarts.
+
 ### 0.44.1 - layout check loads lazy images for real
 
 - Headless Chrome did not start lazy image loads on a scripted scroll, so the check timed out on any post with `loading="lazy"` images below the fold (every Pilcrino post). Every image is now switched to eager before the wait, which resumes the deferred loads at once. Verified on the live posts.

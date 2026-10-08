@@ -340,6 +340,7 @@ values are not.
 | `error` | `message` | Unhandled failure |
 | `paused_limit` | `resume_at` | SYNTHETIC — appended by the console, never by the run, when a usage-limit death is detected |
 | `api_retry` | — | SYNTHETIC — appended by the console, never by the run, when a dead run's log shows a dropped API connection (`terminal_reason: api_error`); derives `queued` so the scheduler restarts it |
+| `interrupted_retry` | (none) | SYNTHETIC: appended by the console, never by the run, when a dead run's log has no top-level `result` line (the process was killed: app restart, signal, crash, reboot). Derives `queued`; the console restarts the SAME mode as the run that died (`autopilot-revise` re-reads `feedback.md`, `autopilot-cont` re-opens the PR, `autopilot-fix` re-reads the report). Every mode must therefore be safe to run again after a kill at any point |
 | `verify_retry` | `by` | SYNTHETIC: appended by the console, never by the run, when verification is re-armed on a parked run. `by: "operator"` for Check again (`POST /api/verify/:postId/retry`, uncapped, resets `verify_retries`); `by: "console"` for the automatic retry of a `verification_error` park after 15 min, 1 h and 4 h (`console/src/verification/verify-retry.ts`) |
 | `verify_skipped` | `by` | SYNTHETIC: appended by the console when an operator waives a FAILED site check (`POST /api/verify/:postId/skip`), never by the run. The console spawns `autopilot-cont` exactly as it does after a PASS; Gate 2 approval is unchanged |
 
@@ -371,7 +372,7 @@ is not. The console rejects a zero/missing `pr` at the approval route
 `verification_error`, `pr_conflicted`, `merge_failed`, `pr_create_failed`,
 `staging_conflicted`,
 `archive_missing`, `archive_state_unknown`, `limit_retries_exhausted`,
-`api_retries_exhausted`, `other`, `unexpected_error`
+`api_retries_exhausted`, `interrupted_retries_exhausted`, `other`, `unexpected_error`
 
 Parking never corrupts checklist state: a parked slug is always resumable
 interactively via `/pilcrino:blog-post-workflow resume <slug>`.
@@ -471,7 +472,9 @@ own orchestration writes a `parked` line via `console/src/publish.ts`'s
   auto-resume loop hits `max_limit_resumes`),
   `api_retries_exhausted` (`console/src/runwatch.ts` when a post's transient
   api_error auto-retries hit `max_api_retries` — a connection that keeps
-  dropping is a condition for a human, not a blip to ride out).
+  dropping is a condition for a human, not a blip to ride out),
+  `interrupted_retries_exhausted` (`console/src/runwatch.ts` when a post's
+  killed runs were restarted `max_interrupt_retries` times, default 2).
 - **Both sides** (overlap — a `parked` event with one of these reasons could
   have come from either side): `wp_auth_failed` is emitted by the run (auth
   probe fails during staging) AND appended by the console
