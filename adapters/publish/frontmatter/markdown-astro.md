@@ -39,6 +39,8 @@ draft: true
 
 The cover and every in-post image embed take one of two shapes, chosen by `publish.markdown.image_url_prefix`:
 
+Wherever `<image_url_prefix>` appears below, it is the normalized value bound as `$PREFIX` in `markdown.md` §Config inputs (trimmed, one trailing slash dropped).
+
 - **Prefix set:** `<image_url_prefix>/<slug>/<file>`, a URL on the site. For an Astro site that serves the images from `public/` (`assets_dir: public/images`, prefix `/images`):
 
   ```yaml

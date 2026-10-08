@@ -38,6 +38,8 @@ image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, s
 
 The cover and every in-post image embed take one of two shapes, chosen by `publish.markdown.image_url_prefix`:
 
+Wherever `<image_url_prefix>` appears below, it is the normalized value bound as `$PREFIX` in `markdown.md` §Config inputs (trimmed, one trailing slash dropped).
+
 - **Prefix set:** `<image_url_prefix>/<slug>/<file>`, a URL on the site. Next.js's usual layout: the files under `public/images/<slug>/` (`assets_dir: public/images`), prefix `/images`, because Next.js serves `public/` at the site root:
 
   ```yaml

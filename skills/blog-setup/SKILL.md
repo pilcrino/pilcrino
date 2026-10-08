@@ -1340,7 +1340,12 @@ above.
        files under `public/images/<slug>/`, served at `/images`
    - "relative, my site copies the folder next to the post".
 
-   When the answer is a prefix: write `image_url_prefix: <prefix>` (for
+   When the answer is a prefix: normalize it first, in three steps: (a) trim
+   surrounding whitespace, (b) drop one trailing `/`, (c) require that the
+   result starts with `/`, `http://` or `https://`; if it does not, say so
+   and ask again, and write nothing until it does. `/images/` and
+   ` /images ` both become `/images`. Then write `image_url_prefix:
+   <normalized prefix>` (for
    example `/images`), and when `assets_dir` (item 3) is not the folder
    that prefix serves, suggest changing it to that folder (for example
    `static/images` for Hugo, `public/images` for Next.js). When the answer

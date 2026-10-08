@@ -38,6 +38,8 @@ image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, s
 
 The cover and every in-post image embed take one of two shapes, chosen by `publish.markdown.image_url_prefix`:
 
+Wherever `<image_url_prefix>` appears below, it is the normalized value bound as `$PREFIX` in `markdown.md` §Config inputs (trimmed, one trailing slash dropped).
+
 - **Prefix set:** `<image_url_prefix>/<slug>/<file>`, a URL on the site. Eleventy's usual layout: a folder the site's config passes to `addPassthroughCopy` (for example `assets_dir: images`, copied to `/images/` in the output), prefix the URL that folder is served at (`/images`):
 
   ```yaml
