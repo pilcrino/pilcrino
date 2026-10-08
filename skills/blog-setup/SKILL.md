@@ -1161,9 +1161,11 @@ left to do in Phase 5."
 ### Interview: adapter choice
 
 1. "Which publish adapter? `astro-git-pr` (an Astro site, posts land as
-   markdown in the site repo via a PR) or `wordpress-rest` (posts publish
+   markdown in the site repo via a PR), `wordpress-rest` (posts publish
    to a WordPress site via its REST API, with the markdown still living in
-   this repo as the source of truth)." → `publish.adapter`.
+   this repo as the source of truth), or `markdown` (a markdown file per
+   post for any platform: Hugo, Jekyll, Ghost, Next.js, Eleventy, or
+   anything else that takes one)." → `publish.adapter`.
 
 ### If `astro-git-pr`
 
@@ -1308,7 +1310,39 @@ above.
   run's probe succeeds (see the crash-note above and the Resume check at
   the top of this phase, which is how that later run finds out).
 
-### git: block (both adapters)
+### If `markdown`
+
+2. `content_dir` (default `posts`): the folder in this repo where each post
+   lands as `<slug>.md`.
+3. `assets_dir` (default `posts/images`): each post's images land in
+   `<assets_dir>/<slug>/`.
+4. "Which platform reads these files? It sets the frontmatter at the top of
+   each post." → `publish.markdown.platform`, one of:
+   - `astro`: `title`, `description`, `pubDate`, `tags`, `author`, `heroImage` (an Astro content collection)
+   - `hugo`: `title`, `description`, `date`, `tags`, `author`, `cover`
+   - `jekyll`: `layout: post`, `title`, `description`, `date`, `tags`, `author`, `image`; you rename each file to `YYYY-MM-DD-<slug>.md` in `_posts`
+   - `ghost`: `title`, `excerpt`, `published_at`, `tags`, `authors`, `feature_image`, Ghost's own field names
+   - `nextjs`: `title`, `description`, `date`, `tags`, `author`, `image`
+   - `eleventy`: the same keys as `nextjs`
+   - `generic`: the same keys, for any other platform (Webflow, a page builder)
+5. `frontmatter_template`: state, don't ask:
+   `adapters/publish/frontmatter/markdown-<platform>.md`.
+
+Then say in one line what the merge does for their platform. Repo platforms
+(`astro`, `hugo`, `nextjs`, `eleventy`): "Merging a post's pull request
+publishes it: your site builds from the base branch." Paste platforms
+(`jekyll`, `ghost`, `generic`): "Before you approve each post, download its
+zip from the app (or copy the file and its images) and paste it into
+<Platform>; merging then files it in this repository."
+
+Verify the directories exist on disk:
+```bash
+[ -d "<content_dir>" ] && [ -d "<assets_dir>" ] && echo "both exist" || echo "missing"
+```
+If missing, offer to `mkdir -p` them; this adapter needs no site project in
+the repo.
+
+### git: block (every adapter)
 
 10. `git.branch_prefix` (default `blog/`)
 11. `git.base_branch` (default `main`)
@@ -1317,7 +1351,7 @@ Merge into `config.yaml`:
 
 ```yaml
 publish:
-  adapter: <astro-git-pr | wordpress-rest>
+  adapter: <astro-git-pr | wordpress-rest | markdown>
   astro:            # only if adapter = astro-git-pr
     content_dir: <path>
     site_dir: <path>                # omit if the repo root IS the Astro site
@@ -1335,6 +1369,11 @@ publish:
     app_password_env: <env var name>
     default_status: draft
     apply_inbound_links_live: false
+  markdown:         # only if adapter = markdown
+    content_dir: <path>
+    assets_dir: <path>
+    platform: <astro | hugo | jekyll | ghost | nextjs | eleventy | generic>
+    frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
 
 git:
   branch_prefix: <prefix>
@@ -1361,6 +1400,9 @@ probe above, a few paragraphs up):
 - **`astro-git-pr`:** no credential dependency at all — run this
   immediately, regardless of the directory-verification outcome above
   (it only reads files already in the repo).
+- **`markdown`:** no inspection procedure (the adapter never reads the
+  site): skip this section. `site-conventions.md` stays unwritten and is
+  never required for this adapter.
 
 Either branch writes `{profile_dir}/site-conventions.md` (shape:
 `${CLAUDE_PLUGIN_ROOT}/templates/site-conventions.md`) and presents it to
@@ -1394,7 +1436,7 @@ procedure / start over) instead of blindly re-running it.
 ### Check the GitHub precondition
 
 Per config-schema.md §GitHub precondition (this is unconditional for
-either adapter — the shared git staging shell runs underneath both):
+every adapter, because the shared git staging shell runs underneath all of them):
 
 ```bash
 ORIGIN=$(git remote get-url origin 2>/dev/null)
@@ -1435,13 +1477,13 @@ pass/fail table as you go:
 | 1 | YAML parses; `blog.name`, `blog.url`, `modules`, non-empty `images.enabled`, `publish.adapter` present | ✅/❌ |
 | 2 | `images.featured_default` (if set) ∈ `images.enabled` | ✅/❌ |
 | 3 | `remotion` ∈ `images.enabled` → `images.remotion.project_dir` set AND exists on disk | ✅/❌ |
-| 4 | `publish.adapter` ∈ {astro-git-pr, wordpress-rest} and its config block present with required keys | ✅/❌ |
+| 4 | `publish.adapter` ∈ {astro-git-pr, wordpress-rest, markdown} and its config block present with required keys | ✅/❌ |
 | 5 | Module-conditional profile docs exist iff module on (`product.md`, `competitors/methodology.md`) | ✅/❌ |
 | 6 | Required profile docs always present: `blog.md`, `voice.md`, `authors.md`, `audience.md`, `image-style.md` | ✅/❌ |
 | 7 | `blog.route_prefix` present, starts and ends with `/` | ✅/❌ |
 | 8 | `browser.executable`, if present, is an absolute path | ✅/❌ |
 | 9 | `blog.trailing_slash` present and a boolean | ✅/❌ |
-| 10 | `console.publish_policy: auto` → `publish.adapter` is `astro-git-pr` (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
+| 10 | `console.publish_policy: auto` → `publish.adapter` is `astro-git-pr` (`wordpress-rest` and `markdown` are gated only) (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
 | 11 | `console:` block, if present, contains only documented keys with documented types (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
 | 12 | `competitors.profile_dir`, if set, is a repo-relative path that exists on disk when `modules.competitors` is true (N/A, ✅ by vacuity, if unset — the default applies) | ✅/❌ |
 | 13 | `social.linkedin`, if present, has a non-empty string `company_id` (N/A, ✅ by vacuity, if `social.linkedin` is absent — this phase doesn't offer a wizard step for it, add it by hand) | ✅/❌ |
@@ -1470,7 +1512,7 @@ for `social.linkedin` (invariant 13); the operator adds that block to
   subject to this check. Any other hit → that doc wasn't fully filled in;
   go back to the owning phase and fill it.
 - **Adapter auth re-confirmed.** Re-state the Phase 5 auth probe result
-  (WordPress: the `users/me` check; Astro: `gh auth status` +
+  (WordPress: the `users/me` check; Astro and markdown: `gh auth status` +
   `gh repo view`). If either failed, remind the user it needs fixing
   before the first real post, but don't block handoff on it (the config
   preamble will catch it again at workflow-run time).
@@ -1539,8 +1581,9 @@ If yes:
 2. Add the `console:` block from references/config-schema.md defaults to
    `blog-ops/config.yaml` (skip if already present). **Write it via the
    whole-file rewrite mechanism (Global rule 4), NOT an append.** For
-   `wordpress-rest` blogs force `publish_policy: gated` and say why (go-live
-   is manual, invariant 10).
+   `wordpress-rest` and `markdown` blogs force `publish_policy: gated` and
+   say why (invariant 10: WordPress go-live is manual, and every markdown
+   post waits for the owner's approval).
 3. Say where the app is: "The Pilcrino app is at https://pilcrino.com. Once
    installed, connect this folder from its dashboard; it imports
    `blog-ops/content-plan.md` into its post list on connect."
