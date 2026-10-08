@@ -17,7 +17,7 @@ derive from config values.
 
 ## Schema
 
-The full annotated schema, with both `publish.adapter` variants shown:
+The full annotated schema, with all three `publish.adapter` variants shown:
 
 ```yaml
 blog:
@@ -60,7 +60,7 @@ images:
     project_dir: tools/remotion             # scaffolded by wizard if absent
 
 publish:
-  adapter: astro-git-pr                     # or wordpress-rest
+  adapter: astro-git-pr                     # or wordpress-rest, or markdown
   astro:
     content_dir: src/content/blog
     site_dir: web/site                      # OPTIONAL; the Astro project root
@@ -86,6 +86,11 @@ publish:
                                                      #   LIVE posts via REST once
                                                      #   the new post is published;
                                                      #   default false (safety: off)
+  markdown:
+    content_dir: posts                              # posts/<slug>.md
+    assets_dir: posts/images                        # posts/images/<slug>/<file>
+    platform: hugo                                  # astro | hugo | jekyll | ghost | nextjs | eleventy | generic
+    frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md   # derived from platform at setup; plugin-relative
 
 git:
   branch_prefix: blog/
@@ -130,7 +135,7 @@ console:
   port: 4700
   max_concurrent_writes: 1
   scheduler_interval_ms: 60000
-  publish_policy: gated          # gated | auto  (auto invalid with wordpress-rest)
+  publish_policy: gated          # gated | auto  (auto invalid with wordpress-rest and markdown)
   verification:
     build_check: true
     vision: auto                 # on | off | auto (auto = run when a preview is reachable, else skip loudly)
@@ -153,7 +158,7 @@ from `config.yaml` (plus the fixed `blog-ops/` bootstrap anchor):
 | `{profile_dir}` | `blog-ops/profile` |
 | `{drafts_dir}` | `blog-ops/drafts` |
 | `{content_dir}` | `publish.<adapter>.content_dir` |
-| `{assets_dir}` | `publish.astro.assets_dir` or `publish.wordpress.assets_dir` (default `blog-ops/assets`) |
+| `{assets_dir}` | `publish.astro.assets_dir`, `publish.wordpress.assets_dir` (default `blog-ops/assets`) or `publish.markdown.assets_dir` (default `posts/images`) |
 | `{remotion_dir}` | `images.remotion.project_dir` |
 | `{route_prefix}` | `blog.route_prefix` (default `/blog/`) — the URL path prefix this blog's posts are served under |
 | `{competitors_dir}` | competitors.profile_dir (default blog-ops/profile/competitors) |
@@ -177,10 +182,14 @@ validation step (`blog-setup`) both check:
    planner selects from `images.enabled`.
 3. `remotion` ∈ `images.enabled` → `images.remotion.project_dir` set and
    exists on disk.
-4. `publish.adapter` ∈ {`astro-git-pr`, `wordpress-rest`} and its config
-   block present (astro: `content_dir`, `assets_dir`, `frontmatter_template`,
-   `draft_mechanism`; wordpress: `content_dir`, `assets_dir`,
-   `frontmatter_template`, `base_url`, `username`, `app_password_env`).
+4. `publish.adapter` ∈ {`astro-git-pr`, `wordpress-rest`, `markdown`} and its
+   config block present (astro: `content_dir`, `assets_dir`,
+   `frontmatter_template`, `draft_mechanism`; wordpress: `content_dir`,
+   `assets_dir`, `frontmatter_template`, `base_url`, `username`,
+   `app_password_env`; markdown: `content_dir`, `assets_dir`, `platform` (one
+   of `astro`, `hugo`, `jekyll`, `ghost`, `nextjs`, `eleventy`, `generic`),
+   `frontmatter_template` (`adapters/publish/frontmatter/markdown-<platform>.md`);
+   no `site_dir` for markdown).
 5. Module-conditional profile docs exist iff module on: `product: true` →
    `{profile_dir}/product.md`; `competitors: true` →
    `methodology.md` in `{competitors_dir}` on the base branch (checked at
@@ -192,7 +201,9 @@ validation step (`blog-setup`) both check:
 8. `browser.executable`, if present, is an absolute path.
 9. `blog.trailing_slash` present and a boolean.
 10. If `console.publish_policy` is `"auto"`, `publish.adapter` must be
-    `"astro-git-pr"` (WordPress go-live is always manual).
+    `"astro-git-pr"`. `wordpress-rest` and `markdown` are gated only:
+    WordPress go-live is always manual, and every markdown post waits for the
+    owner's approval (a paste platform needs that gate to paste first).
 11. If a `console` block is present, it contains only the keys documented
     above with the documented types.
 12. `competitors.profile_dir`, if set, is a repo-relative path; with
@@ -332,6 +343,46 @@ publish:
 git:
   branch_prefix: blog/
   base_branch: main
+
+research:
+```
+
+### Example: Hugo blog (markdown)
+
+A Hugo site built from this repository; the merge publishes.
+
+```yaml
+blog:
+  name: "Quiet Compile"
+  url: https://quietcompile.example
+  language: en
+  route_prefix: /posts/
+  trailing_slash: true
+
+modules:
+  reddit_research: false
+  x_research: false
+  product: false
+  competitors: false
+  repurpose: false
+
+images:
+  enabled: [ai-prompt]
+
+publish:
+  adapter: markdown
+  markdown:
+    content_dir: content/posts
+    assets_dir: content/posts/images
+    platform: hugo
+    frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md
+
+git:
+  branch_prefix: blog/
+  base_branch: main
+
+console:
+  publish_policy: gated
 
 research:
 ```
