@@ -1325,12 +1325,35 @@ above.
    - `nextjs`: `title`, `description`, `date`, `tags`, `author`, `image`
    - `eleventy`: the same keys as `nextjs`
    - `generic`: the same keys, for any other platform (Webflow, a page builder)
-5. `frontmatter_template`: state, don't ask:
+5. Repo platforms only (`astro`, `hugo`, `nextjs`, `eleventy`; skip for
+   `jekyll`, `ghost`, `generic`): "How does your site serve a post's
+   images?" → `publish.markdown.image_url_prefix`. Offer two answers, the
+   platform's usual layout first as the default:
+   - the usual layout for the platform:
+     - `hugo`: files under `static/images/<slug>/`, served at `/images`
+     - `nextjs`: files under `public/images/<slug>/`, served at `/images`
+     - `eleventy`: a folder the site's config passes to
+       `addPassthroughCopy` (for example `images`), served at its URL
+       (for example `/images`)
+     - `astro`: relative paths, as `astro-content.md` (the content
+       collection resolves them at build); the other answer for astro is
+       files under `public/images/<slug>/`, served at `/images`
+   - "relative, my site copies the folder next to the post".
+
+   When the answer is a prefix: write `image_url_prefix: <prefix>` (for
+   example `/images`), and when `assets_dir` (item 3) is not the folder
+   that prefix serves, suggest changing it to that folder (for example
+   `static/images` for Hugo, `public/images` for Next.js). When the answer
+   is relative: write no `image_url_prefix`. Either way, say: "Pilcrino
+   does not inspect your site, so the first post's page on the site is the
+   check: open it after the merge and confirm the images load."
+6. `frontmatter_template`: state, don't ask:
    `adapters/publish/frontmatter/markdown-<platform>.md`.
 
 Then say in one line what the merge does for their platform. Repo platforms
 (`astro`, `hugo`, `nextjs`, `eleventy`): "Merging a post's pull request
-publishes it: your site builds from the base branch." Paste platforms
+publishes it when your site builds from the base branch and serves the
+image shape you just chose." Paste platforms
 (`jekyll`, `ghost`, `generic`): "Before you approve each post, download its
 zip from the app (or copy the file and its images) and paste it into
 <Platform>; merging then files it in this repository."
@@ -1372,6 +1395,7 @@ publish:
   markdown:         # only if adapter = markdown
     content_dir: <path>
     assets_dir: <path>
+    image_url_prefix: <prefix>      # omit when images are relative
     platform: <astro | hugo | jekyll | ghost | nextjs | eleventy | generic>
     frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
 

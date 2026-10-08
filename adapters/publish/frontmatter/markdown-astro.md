@@ -1,6 +1,6 @@
 # Astro frontmatter template (markdown adapter)
 
-Read by: the `blog-writer` agent (see `${CLAUDE_PLUGIN_ROOT}/personas/writer.md` §Frontmatter, which points here via `publish.markdown.frontmatter_template`), the review skill, and `${CLAUDE_PLUGIN_ROOT}/adapters/publish/markdown.md` (Stage 4b.5 cover injection and draft strip). Used when `publish.markdown.platform: astro`, for an Astro site built on plain content collections. Repo platform: the merge publishes.
+Read by: the `blog-writer` agent (see `${CLAUDE_PLUGIN_ROOT}/personas/writer.md` §Frontmatter, which points here via `publish.markdown.frontmatter_template`), the review skill, and `${CLAUDE_PLUGIN_ROOT}/adapters/publish/markdown.md` (Stage 4b.5 cover injection and draft strip). Used when `publish.markdown.platform: astro`, for an Astro site built on plain content collections. Repo platform: the merge publishes for a site that serves the configured image shape (§Cover path computation).
 
 ## Config inputs
 
@@ -37,13 +37,24 @@ draft: true
 
 ## Cover path computation
 
-The cover and every in-post image embed are relative paths from `{content_dir}/` to `{assets_dir}/<slug>/<file>`: one `../` per path segment of `{content_dir}` that `{assets_dir}` does not share, then down into `{assets_dir}`. When `{assets_dir}` sits inside `{content_dir}` there is no `../`. With the defaults (`content_dir: posts`, `assets_dir: posts/images`):
+The cover and every in-post image embed take one of two shapes, chosen by `publish.markdown.image_url_prefix`:
+
+- **Prefix set:** `<image_url_prefix>/<slug>/<file>`, a URL on the site. For an Astro site that serves the images from `public/` (`assets_dir: public/images`, prefix `/images`):
+
+  ```yaml
+  heroImage: "/images/<slug>/featured.png"
+  ```
+- **Prefix absent:** the relative path from `{content_dir}/` to `{assets_dir}/<slug>/<file>`: one `../` per path segment of `{content_dir}` that `{assets_dir}` does not share, then down into `{assets_dir}`. When `{assets_dir}` sits inside `{content_dir}` there is no `../`. This is Astro's usual shape, as `astro-content.md`: a content collection resolves a relative image path at build. With `content_dir: src/content/blog` and `assets_dir: src/assets/blog` it is `"../../assets/blog/<slug>/featured.png"`.
+
+Pilcrino does not verify that the site serves either shape; the first post's page on the site is the check.
+
+With the defaults (`content_dir: posts`, `assets_dir: posts/images`) and no prefix:
 
 ```yaml
 heroImage: "images/<slug>/featured.png"
 ```
 
-With `content_dir: src/content/blog` and `assets_dir: src/assets/blog` it is `"../../assets/blog/<slug>/featured.png"`. In the app's zip both become `./<file>` (`./featured.png`); always write the repository path.
+In the app's zip both shapes become `./<file>` (`./featured.png`); always write the repository shape.
 
 ## Quality gates (self-check before Gate 2)
 

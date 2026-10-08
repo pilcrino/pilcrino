@@ -89,6 +89,9 @@ publish:
   markdown:
     content_dir: posts                              # posts/<slug>.md
     assets_dir: posts/images                        # posts/images/<slug>/<file>
+    image_url_prefix: /images                       # OPTIONAL; when set, images are referenced as <prefix>/<slug>/<file>;
+                                                    #   absent: the source-relative path from content_dir, which only
+                                                    #   works for a site that copies the assets folder next to the post
     platform: hugo                                  # astro | hugo | jekyll | ghost | nextjs | eleventy | generic
     frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md   # derived from platform at setup; plugin-relative
 
@@ -349,7 +352,7 @@ research:
 
 ### Example: Hugo blog (markdown)
 
-A Hugo site built from this repository; the merge publishes.
+A Hugo site built from this repository that serves `static/` at the site root, so the images under `static/images/<slug>/` are served at `/images/<slug>/<file>`; for a site that serves that image shape the merge publishes.
 
 ```yaml
 blog:
@@ -373,7 +376,8 @@ publish:
   adapter: markdown
   markdown:
     content_dir: content/posts
-    assets_dir: content/posts/images
+    assets_dir: static/images
+    image_url_prefix: /images
     platform: hugo
     frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md
 

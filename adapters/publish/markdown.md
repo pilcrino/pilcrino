@@ -10,6 +10,7 @@ This adapter serves every platform Pilcrino has no direct adapter for: Hugo, Jek
 |---|---|
 | `{content_dir}` | `publish.markdown.content_dir` (default `posts`): each post lands as `{content_dir}/<slug>.md` |
 | `{assets_dir}` | `publish.markdown.assets_dir` (default `posts/images`): each post's images land in `{assets_dir}/<slug>/` |
+| `{image_url_prefix}` | `publish.markdown.image_url_prefix`, OPTIONAL. Set: every body image and the cover are referenced as `<image_url_prefix>/<slug>/<file>` (a site URL). Absent: they are referenced by the source-relative path from `{content_dir}` to `{assets_dir}/<slug>/<file>`, which only works for a site that copies the assets folder next to the post page |
 | `publish.markdown.platform` | one of `astro`, `hugo`, `jekyll`, `ghost`, `nextjs`, `eleventy`, `generic`; the only site knowledge this adapter has |
 | `publish.markdown.frontmatter_template` | `adapters/publish/frontmatter/markdown-<platform>.md`, derived from `platform` at setup and written out, so every reader of `publish.<adapter>.frontmatter_template` finds the frontmatter contract |
 | `{route_prefix}` | `blog.route_prefix`, used only by the inbound links of §Staging step 3 |
@@ -23,7 +24,7 @@ No `site_dir`, no authors map, no preview marker. `console.publish_policy` must 
 
 | Group | Platforms | What the merge does |
 |---|---|---|
-| Repo platform | `astro`, `hugo`, `nextjs`, `eleventy` | The site builds from `{git.base_branch}`, so the merge publishes |
+| Repo platform | `astro`, `hugo`, `nextjs`, `eleventy` | The site builds from `{git.base_branch}`: for a site that serves the configured image shape (§Config inputs, `{image_url_prefix}`), the merge publishes. The platform name alone never decides this |
 | Paste platform | `jekyll`, `ghost`, `generic` | The merge files the post in the repository. The platform gets it only when the owner pastes it in, before approving. Jekyll is here because its `_posts` folder only picks up files named `YYYY-MM-DD-<slug>.md` |
 
 `<Platform>` in the text below is the display name: Astro, Hugo, Jekyll, Ghost, Next.js, Eleventy, or "your platform" for `generic`.
@@ -32,11 +33,11 @@ Repo identity is never hardcoded: `git remote get-url origin` is the only source
 
 ## Site inspection (setup-time)
 
-None. This adapter never reads the site. `publish.markdown.platform` is its only site knowledge, and `blog-setup` writes no `{profile_dir}/site-conventions.md` for it.
+None. This adapter never reads the site. `publish.markdown.platform` and `publish.markdown.image_url_prefix` (the image shape the owner told setup their site serves) are its only site knowledge, and `blog-setup` writes no `{profile_dir}/site-conventions.md` for it. Pilcrino never verifies that the site serves the configured image shape: the first post's page on the site is the check.
 
 ## Relationship to the git repo
 
-The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform the merge publishes. For a paste platform the owner pastes the post into the platform first (the zip the Pilcrino app builds: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
+The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner pastes the post into the platform first (the zip the Pilcrino app builds: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
 
 ## Staging (Stage 4b.5)
 
@@ -44,7 +45,7 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
 
 `REPO=$(git rev-parse --show-toplevel)`. Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets_dir}/$SLUG"`.
 
-1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 1, 2 and 3 as written. Embed paths and the cover path follow the configured `markdown-<platform>.md` §Cover path computation (relative from `{content_dir}` to `{assets_dir}/<slug>/<file>`). The cover goes under that doc's cover key (`heroImage`, `cover`, `image` or `feature_image`), replacing any value the draft carried; a missing `featured.<ext>` stops staging exactly as step 3a there says. The staged copy now in the main tree is not a published post for the image-builder guard, which counts only `origin/{git.base_branch}`.
+1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 1, 2 and 3 as written. Every embed destination is written as `<image_url_prefix>/<slug>/<file>` when `publish.markdown.image_url_prefix` is set, else as the relative path from `{content_dir}` to `{assets_dir}/<slug>/<file>`, per the configured `markdown-<platform>.md` §Cover path computation. The cover goes under that doc's cover key (`heroImage`, `cover`, `image` or `feature_image`) with the same destination (`<image_url_prefix>/<slug>/featured.<ext>` when the prefix is set, else the relative path), replacing any value the draft carried; a missing `featured.<ext>` stops staging exactly as step 3a there says. The staged copy now in the main tree is not a published post for the image-builder guard, which counts only `origin/{git.base_branch}`.
 2. **Strip the draft key** (replaces astro-git-pr.md §Staging step 4), per the configured platform doc. Only the leading frontmatter block (line 1 `---` to the next `---` line) is touched; every body line, code fences included, stays byte for byte. Run exactly:
    - `astro`, `hugo`: remove `draft: true`:
      ```bash
@@ -71,7 +72,7 @@ astro-git-pr.md §On review-loop edit as written: edit `$worktree/{content_dir}/
 
 ## On Gate 2 approval
 
-astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge: for a repo platform "merging it publishes the post", for a paste platform "merging it files the post in the repository; <Platform> has it only if you pasted it in". Never auto-merge.
+astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge: for a repo platform "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site", for a paste platform "merging it files the post in the repository; <Platform> has it only if you pasted it in". Never auto-merge.
 
 ## On abandon
 

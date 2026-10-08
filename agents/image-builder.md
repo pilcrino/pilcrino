@@ -20,7 +20,17 @@ Derive `REPO=$(git rev-parse --show-toplevel)`. All paths below are under `$REPO
 
 Check the following guards in order. Stop at the first match.
 
-- **Published-post guard (checked first):** if `{content_dir}/<slug>.md` (or the WordPress equivalent post) exists on `origin/{git.base_branch}` (run `git fetch origin "$BASE"`, then `git cat-file -e "origin/$BASE:{content_dir}/$SLUG.md"`) AND is not in draft state → STOP. A published post owns this slug. A copy in the working tree alone is the in-progress post, not a published one. Return the manifest with top-level `"halt": true` and empty result arrays. Do not render, do not touch the asset dir.
+- **Published-post guard (checked first):** a published post owns this slug when `{content_dir}/<slug>.md` (or the WordPress equivalent post) exists on `origin/{git.base_branch}` AND that remote copy is not in draft state. A copy in the working tree alone is the in-progress post, not a published one. Run it in this order:
+  1. Bind the variables and fetch, substituting the config value and this invocation's slug:
+     ```bash
+     BASE="{git.base_branch}"   # git.base_branch from blog-ops/config.yaml
+     SLUG="<slug>"              # the slug this run was invoked with
+     git fetch origin "$BASE"
+     ```
+     If the fetch fails, STOP: report `published-post guard: git fetch origin <BASE> failed; cannot tell whether a published post owns <SLUG>` and return no manifest. Never go on to the asset-dir guards or to rendering on an unknown remote state.
+  2. `git cat-file -e "origin/$BASE:{content_dir}/$SLUG.md"`. A non-zero exit means no published post owns the slug: go to the next guard.
+  3. When the file exists on origin, read its draft state from the remote copy, never from the working copy: `git show "origin/$BASE:{content_dir}/$SLUG.md"` and check the active adapter's draft key in its frontmatter. `markdown` with platform `astro` or `hugo`: `draft: true`; `markdown` with platform `jekyll`: `published: false`; the other `markdown` platforms have no draft key, so the file on origin is published; `astro-git-pr`: `draft: true`; `wordpress-rest`: the WordPress equivalent post and its draft status, as before. A draft on origin is not a published post: go to the next guard.
+  4. Otherwise (the file is on origin and not a draft): STOP. A published post owns this slug. Return the manifest with top-level `"halt": true` and empty result arrays. Do not render, do not touch the asset dir.
 - **Asset dir absent:** if `{assets_dir}/<slug>/` does NOT exist: create it, then write a sentinel file `.staged-by-blog-workflow` containing `<slug>` and the current timestamp (`date -u +%Y-%m-%dT%H:%M:%SZ`); proceed.
 - **Asset dir present with sentinel:** if the dir exists AND contains `.staged-by-blog-workflow`: it is ours; proceed.
 - **Asset dir present without sentinel:** if the dir exists WITHOUT the sentinel (manual folder, a published post's assets, or an unrelated abandoned run): STOP. Do not render into it, do not delete anything. Return the manifest with top-level `"halt": true` and empty result arrays.
