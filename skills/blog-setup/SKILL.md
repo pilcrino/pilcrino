@@ -1342,8 +1342,13 @@ above.
 
    When the answer is a prefix: normalize it first, in three steps: (a) trim
    surrounding whitespace, (b) drop one trailing `/`, (c) require that the
-   result starts with `/`, `http://` or `https://`; if it does not, say so
-   and ask again, and write nothing until it does. `/images/` and
+   result is either a site path (a single leading `/`, then at least one
+   character that is not `/`, no whitespace anywhere, so `/images`) or an
+   absolute URL (`http://` or `https://`, then a host, then an optional
+   path with no whitespace, so `https://cdn.example.com/images`); if it is
+   neither (for example `//cdn.example/images`, `/image folder` or
+   `https:///x`), say so, name those two shapes, and ask again, and write
+   nothing until it is one of them. `/images/` and
    ` /images ` both become `/images`. Then write `image_url_prefix:
    <normalized prefix>` (for
    example `/images`), and when `assets_dir` (item 3) is not the folder

@@ -89,7 +89,7 @@ publish:
   markdown:
     content_dir: posts                              # posts/<slug>.md
     assets_dir: posts/images                        # posts/images/<slug>/<file>
-    image_url_prefix: /images                       # OPTIONAL; when set, images are referenced as <prefix>/<slug>/<file>; trimmed, one trailing slash dropped, must start with / or http(s)://;
+    image_url_prefix: /images                       # OPTIONAL; when set, images are referenced as <prefix>/<slug>/<file>; after trimming whitespace and dropping one trailing slash it must match ^/[^/\s][^\s]*$ or ^https?://[^/\s]+(/[^\s]*)?$ (accepted: /images/ and ' /images ' both mean /images; rejected: //cdn.example/images, '/image folder', https:///x);
                                                     #   absent: the source-relative path from content_dir, which only
                                                     #   works for a site that copies the assets folder next to the post
     platform: hugo                                  # astro | hugo | jekyll | ghost | nextjs | eleventy | generic
