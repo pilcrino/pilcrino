@@ -69,21 +69,23 @@ export class TabRegistry {
   /**
    * Leaves the Google search tab open for the owner when its capture hit
    * Google's check or found no results: earlier retained tabs are closed first
-   * (closeCheckLeftovers), then this tab gets the CHECK_TAB_TITLE title, stops
-   * being owned (so closeAll at the end of the run never closes it and no later
-   * call can drive it) and its window comes to the front. The title is the only
-   * mark the cleanup trusts, and it is also what the owner sees on the tab. If
-   * setting it fails, the failure is logged and that tab is simply never
-   * cleaned up. Nothing is persisted and nothing is locked: two retaining
+   * (closeCheckLeftovers), then this tab stops being owned (so closeAll at the
+   * end of the run never closes it and no later call can drive it), its window
+   * comes to the front, and only then does it get the CHECK_TAB_TITLE title.
+   * The title is the last operation on the tab and nothing after it is needed,
+   * because from that moment any run's cleanup may close it. The title is the
+   * only mark the cleanup trusts, and it is also what the owner sees on the
+   * tab. If setting it fails, the failure is logged and that tab is simply
+   * never cleaned up. Nothing is persisted and nothing is locked: two retaining
    * captures at the same time may each leave a tab, which is accepted. Never
    * throws on the cleanup; the capture result stands.
    */
   async leaveOpen(tabId) {
     const page = this.page(tabId)
     await this.closeCheckLeftovers()
-    await markCheckTab(page).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
     this.owned.delete(tabId)
     await page.bringToFront().catch((err) => this.log(`could not bring the check tab to the front: ${errText(err)}`))
+    await markCheckTab(page).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
     return { leftOpen: true }
   }
 
@@ -91,9 +93,12 @@ export class TabRegistry {
    * Closes every page target in this Chrome whose title is exactly
    * CHECK_TAB_TITLE and that no registry in this process owns on the same
    * browser. The URL does not matter. A concurrent run's tab (owned by another
-   * server process, so invisible here) is never closed, because only a tab
-   * already released by leaveOpen ever carries that title. A failed lookup
-   * skips the cleanup; every failure is logged, none is thrown.
+   * server process, so invisible here) is never closed, because a tab gets
+   * that title only after leaveOpen released it. The target list only names
+   * candidates: each one's title is read again right before it is closed, and
+   * a candidate whose title changed (the owner passed the check or navigated)
+   * or whose lookup fails is left alone. A failed ownership lookup skips the
+   * cleanup; every failure is logged, none is thrown.
    */
   async closeCheckLeftovers() {
     let cdp = null
@@ -107,6 +112,14 @@ export class TabRegistry {
       const { targetInfos } = await cdp.send('Target.getTargets')
       for (const t of targetInfos ?? []) {
         if (t.type !== 'page' || owned.has(t.targetId) || t.title !== CHECK_TAB_TITLE) continue
+        let now = null
+        try {
+          now = (await cdp.send('Target.getTargetInfo', { targetId: t.targetId }))?.targetInfo
+        } catch (err) {
+          this.log(`left an earlier check tab open, its title could not be read again: ${errText(err)}`)
+          continue
+        }
+        if (now?.type !== 'page' || now.title !== CHECK_TAB_TITLE) continue
         try {
           await cdp.send('Target.closeTarget', { targetId: t.targetId })
         } catch (err) {
@@ -124,14 +137,13 @@ export class TabRegistry {
 /** The title a retained check tab carries: the owner reads it, and the cleanup closes only un-owned tabs with exactly this title. */
 export const CHECK_TAB_TITLE = 'Pilcrino: pass the check'
 
+/**
+ * Sets the title through the page's own connection, so no CDP session has to
+ * be detached afterwards: once the title is set the tab may be closed by any
+ * run's cleanup, and this run needs nothing more from it.
+ */
 async function markCheckTab(page) {
-  const cdp = await page.createCDPSession()
-  try {
-    const res = await cdp.send('Runtime.evaluate', { expression: `document.title = ${JSON.stringify(CHECK_TAB_TITLE)}` })
-    if (res?.exceptionDetails) throw new Error(res.exceptionDetails.exception?.description ?? res.exceptionDetails.text ?? 'Runtime.evaluate threw')
-  } finally {
-    await cdp.detach().catch(() => {})
-  }
+  await page.evaluate(`document.title = ${JSON.stringify(CHECK_TAB_TITLE)}`)
 }
 
 /** Every registry built in this process, so the check-tab cleanup never closes a tab any of them owns. */

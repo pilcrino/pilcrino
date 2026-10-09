@@ -54,33 +54,37 @@ test('refused url schemes never reach the registry', async () => {
 })
 
 // A fake Chrome shared by several server processes: pages, CDP target lookups,
-// Runtime.evaluate on a page (sets its title) and Target.closeTarget. A Google search navigates to Google's check page
-// when `sorry` is set, as a blocked search does.
+// a title set through page.evaluate, and Target.closeTarget. A Google search navigates to Google's check page
+// when `sorry` is set, as a blocked search does. `step(page, op)` runs before every page operation and every
+// page CDP detach, so a test can interleave another connection there; `afterList` runs once a target list is
+// taken; `failLookup` fails the browser-level per-target lookup.
 function checkBrowser({ value = { blocked: 'unusual_traffic', query: 'q' }, sorry = true } = {}) {
   const pages = []
   const b = {
-    pages, value, failTargetInfo: false, failTitle: false, staleClosed: false,
+    pages, value, failTargetInfo: false, failTitle: false, staleClosed: false, failLookup: false,
+    step: async () => {}, afterList: async () => {},
     newPage: async () => {
       const p = {
         id: `T${pages.length + 1}`, closed: false, front: false, _url: 'about:blank', _title: '',
         url: () => p._url, title: async () => p._title,
         goto: async (u) => { p._url = sorry && u.startsWith('https://www.google.com/search') ? 'https://www.google.com/sorry/index?continue=x' : u },
         close: async () => { p.closed = true },
-        evaluate: async () => b.value,
-        bringToFront: async () => { p.front = true },
+        evaluate: async (expr) => {
+          const t = typeof expr === 'string' ? /^document\.title = (".*")$/.exec(expr) : null
+          if (!t) return b.value
+          await b.step(p, 'title')
+          if (b.failTitle) throw new Error('page.evaluate failed')
+          p._title = JSON.parse(t[1])
+        },
+        bringToFront: async () => { await b.step(p, 'front'); p.front = true },
         createCDPSession: async () => {
           if (b.failTargetInfo) throw new Error('Target.getTargetInfo failed')
           return {
-            send: async (m, args) => {
+            send: async (m) => {
               if (m === 'Target.getTargetInfo') return { targetInfo: { targetId: p.id } }
-              if (m === 'Runtime.evaluate') {
-                if (b.failTitle) throw new Error('Runtime.evaluate failed')
-                const t = /^document\.title = (".*")$/.exec(args.expression)
-                p._title = JSON.parse(t[1])
-              }
               return {}
             },
-            detach: async () => {},
+            detach: async () => { await b.step(p, 'detach') },
           }
         },
       }
@@ -89,11 +93,22 @@ function checkBrowser({ value = { blocked: 'unusual_traffic', query: 'q' }, sorr
     },
     target: () => ({ createCDPSession: async () => ({
       send: async (m, args) => {
-        if (m === 'Target.getTargets') return { targetInfos: pages.filter((x) => !x.closed || b.staleClosed).map((x) => ({ targetId: x.id, type: 'page', url: x._url, title: x._title })) }
+        if (m === 'Target.getTargets') {
+          const targetInfos = pages.filter((x) => !x.closed || b.staleClosed).map((x) => ({ targetId: x.id, type: 'page', url: x._url, title: x._title }))
+          await b.afterList()
+          return { targetInfos }
+        }
+        if (m === 'Target.getTargetInfo') {
+          const t = pages.find((x) => x.id === args.targetId)
+          if (b.failLookup) throw new Error('lookup failed')
+          if (!t || (t.closed && !b.staleClosed)) throw new Error('No target with given id found')
+          return { targetInfo: { targetId: t.id, type: 'page', url: t._url, title: t._title } }
+        }
         if (m === 'Target.closeTarget') {
           const t = pages.find((x) => x.id === args.targetId)
           if (t.closed) throw new Error('No target with given id found')
           t.closed = true
+          b.onClose?.(t)
         }
         return {}
       },
@@ -197,6 +212,7 @@ test('a failed title is logged, the tab is still left open, and the cleanup neve
   assert.equal(first.tab.front, true)
   assert.equal(first.tab._title, '')
   assert.match(first.logs.join('\n'), /could not title the check tab/)
+  assert.equal(first.res.blocked, true, 'the blocked result stands when the title fails after release')
   b.failTitle = false
   const second = await blockedRun(b, root)
   assert.equal(first.tab.closed, false, 'an untitled tab is never cleaned up')
@@ -226,4 +242,74 @@ test('outside Google a blocked value returns the plain result and the tab closes
   assert.deepEqual(Object.keys(run.res).sort(), ['bytes', 'items', 'path'])
   assert.equal(run.againCode, null)
   assert.equal(run.tab.closed, true)
+})
+
+// Two server processes over one Chrome: separate browser connections, so neither sees the other's ownership.
+async function twoConnections() {
+  const { TabRegistry } = await import('../src/tabs.mjs')
+  const b = checkBrowser()
+  const connA = Object.create(b)
+  const connB = Object.create(b)
+  const logs = []
+  const regA = new TabRegistry(connA, { log: (m) => logs.push(`A: ${m}`) })
+  const regB = new TabRegistry(connB, { log: (m) => logs.push(`B: ${m}`) })
+  return { b, regA, regB, logs }
+}
+
+test('a cleanup on another connection overlapping the marking never closes the tab before it is released', async () => {
+  const { b, regA, regB, logs } = await twoConnections()
+  const { tabId } = await regA.open('https://www.google.com/search?q=q')
+  const tab = b.pages[b.pages.length - 1]
+  const ownedByA = () => [...regA.owned.values()].includes(tab)
+  const closes = []
+  b.onClose = (t) => { if (t === tab) closes.push({ ownedByA: ownedByA(), title: t._title }) }
+  // At every operation on A's tab (and every detach, delayed), B's cleanup runs to completion first.
+  let busy = false
+  const steps = []
+  b.step = async (p, op) => {
+    if (p !== tab || busy) return
+    steps.push(op)
+    busy = true
+    try {
+      await new Promise((r) => setTimeout(r, 5))
+      await regB.closeCheckLeftovers()
+    } finally { busy = false }
+  }
+  const res = await regA.leaveOpen(tabId)
+  assert.deepEqual(res, { leftOpen: true })
+  assert.ok(steps.includes('detach') && steps.includes('front') && steps.includes('title'), steps.join(','))
+  assert.equal(steps[steps.length - 1], 'title', 'the title is the last operation on the tab')
+  assert.equal(tab._title, CHECK_TITLE)
+  assert.equal(ownedByA(), false)
+  b.step = async () => {}
+  await regB.closeCheckLeftovers()
+  assert.equal(tab.closed, true, 'once released and titled, the next cleanup closes it')
+  assert.deepEqual(closes, [{ ownedByA: false, title: CHECK_TITLE }], 'never closed while A still owned it')
+  assert.deepEqual(logs, [])
+  await regA.closeAll()
+})
+
+test('a candidate whose title changed between the listing and the close is left open', async () => {
+  const { b, regA, regB, logs } = await twoConnections()
+  const { tabId } = await regA.open('https://www.google.com/search?q=q')
+  const tab = b.pages[b.pages.length - 1]
+  await regA.leaveOpen(tabId)
+  assert.equal(tab._title, CHECK_TITLE)
+  // The owner passes the check while B's target list is in flight.
+  b.afterList = async () => { tab._url = 'https://www.google.com/search?q=q&results'; tab._title = 'q - Google Search' }
+  await regB.closeCheckLeftovers()
+  assert.equal(tab.closed, false)
+  assert.deepEqual(logs, [])
+})
+
+test('a candidate whose title cannot be read again is left open and the failure is logged', async () => {
+  const { b, regA, regB, logs } = await twoConnections()
+  const { tabId } = await regA.open('https://www.google.com/search?q=q')
+  const tab = b.pages[b.pages.length - 1]
+  await regA.leaveOpen(tabId)
+  b.failLookup = true
+  await regB.closeCheckLeftovers()
+  assert.equal(tab.closed, false)
+  assert.equal(tab._title, CHECK_TITLE)
+  assert.deepEqual(logs, ['B: left an earlier check tab open, its title could not be read again: lookup failed'])
 })
