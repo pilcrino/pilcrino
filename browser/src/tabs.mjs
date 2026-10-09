@@ -68,27 +68,32 @@ export class TabRegistry {
 
   /**
    * Leaves the Google search tab open for the owner when its capture hit
-   * Google's check or found no results: earlier check tabs are closed first
-   * (closeCheckLeftovers), then this tab stops being owned, so closeAll at the
-   * end of the run never closes it and no later call can drive it, and its
-   * window comes to the front. Nothing is persisted and nothing is locked: two
-   * blocked captures running at the same time may each leave a tab, which is
-   * accepted. Never throws on the cleanup; the capture result stands.
+   * Google's check or found no results: earlier retained tabs are closed first
+   * (closeCheckLeftovers), then this tab gets the CHECK_TAB_TITLE title, stops
+   * being owned (so closeAll at the end of the run never closes it and no later
+   * call can drive it) and its window comes to the front. The title is the only
+   * mark the cleanup trusts, and it is also what the owner sees on the tab. If
+   * setting it fails, the failure is logged and that tab is simply never
+   * cleaned up. Nothing is persisted and nothing is locked: two retaining
+   * captures at the same time may each leave a tab, which is accepted. Never
+   * throws on the cleanup; the capture result stands.
    */
   async leaveOpen(tabId) {
     const page = this.page(tabId)
     await this.closeCheckLeftovers()
+    await markCheckTab(page).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
     this.owned.delete(tabId)
     await page.bringToFront().catch((err) => this.log(`could not bring the check tab to the front: ${errText(err)}`))
     return { leftOpen: true }
   }
 
   /**
-   * Closes every page target in this Chrome that is on a Google check page
-   * (isCheckPageUrl) and is not owned by any registry in this process on the
-   * same browser. Tabs owned by another server process are invisible here, so
-   * one of them sitting on a check page is closed too. A failed lookup skips
-   * the cleanup; every failure is logged, none is thrown.
+   * Closes every page target in this Chrome whose title is exactly
+   * CHECK_TAB_TITLE and that no registry in this process owns on the same
+   * browser. The URL does not matter. A concurrent run's tab (owned by another
+   * server process, so invisible here) is never closed, because only a tab
+   * already released by leaveOpen ever carries that title. A failed lookup
+   * skips the cleanup; every failure is logged, none is thrown.
    */
   async closeCheckLeftovers() {
     let cdp = null
@@ -101,7 +106,7 @@ export class TabRegistry {
       cdp = await this.browser.target().createCDPSession()
       const { targetInfos } = await cdp.send('Target.getTargets')
       for (const t of targetInfos ?? []) {
-        if (t.type !== 'page' || owned.has(t.targetId) || !isCheckPageUrl(t.url)) continue
+        if (t.type !== 'page' || owned.has(t.targetId) || t.title !== CHECK_TAB_TITLE) continue
         try {
           await cdp.send('Target.closeTarget', { targetId: t.targetId })
         } catch (err) {
@@ -113,6 +118,19 @@ export class TabRegistry {
     } finally {
       await cdp?.detach().catch(() => {})
     }
+  }
+}
+
+/** The title a retained check tab carries: the owner reads it, and the cleanup closes only un-owned tabs with exactly this title. */
+export const CHECK_TAB_TITLE = 'Pilcrino: pass the check'
+
+async function markCheckTab(page) {
+  const cdp = await page.createCDPSession()
+  try {
+    const res = await cdp.send('Runtime.evaluate', { expression: `document.title = ${JSON.stringify(CHECK_TAB_TITLE)}` })
+    if (res?.exceptionDetails) throw new Error(res.exceptionDetails.exception?.description ?? res.exceptionDetails.text ?? 'Runtime.evaluate threw')
+  } finally {
+    await cdp.detach().catch(() => {})
   }
 }
 
@@ -136,20 +154,11 @@ async function targetIdOf(page) {
 }
 
 const parseUrl = (url) => { try { return new URL(url) } catch { return null } }
-const hostIs = (host, domain) => host === domain || host.endsWith(`.${domain}`)
 
 /** A Google page on any google.<tld> host: the SERP capture's tab, the only one retained on a check. */
 export function isGoogleUrl(url) {
   const u = parseUrl(url)
   return !!u && /^https?:$/.test(u.protocol) && /(^|\.)google\.[a-z.]+$/.test(u.hostname)
-}
-
-/** Google's check: a google.com host with a /sorry path, or a recaptcha page. */
-export function isCheckPageUrl(url) {
-  const u = parseUrl(url)
-  if (!u || !/^https?:$/.test(u.protocol)) return false
-  if (hostIs(u.hostname, 'google.com') && (u.pathname.startsWith('/sorry') || u.pathname.startsWith('/recaptcha'))) return true
-  return hostIs(u.hostname, 'recaptcha.net')
 }
 
 /**

@@ -338,7 +338,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
     };
 ```
 
-The tool returns only `{path, bytes, items}`, plus `blocked: true, leftOpen: true` when the script returned `{"blocked": ...}` and `noResults: true, leftOpen: true` when `topResults` is empty. In both cases the browser leaves that tab open, brings its window to the front and stops owning it (open a new tab for any retry). `Read` the file. If it holds `{"blocked": ...}` or `topResults` is empty: stop and tell the user, word for word, `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` Pause the workflow (autopilot: park `serp_blocked` with that sentence as `detail`). Do not try curl or Playwright.
+The tool returns only `{path, bytes, items}`, plus `blocked: true, leftOpen: true` when the script returned `{"blocked": ...}` and `noResults: true, leftOpen: true` when `topResults` is empty. In both cases the browser titles that tab `Pilcrino: pass the check`, leaves it open, brings its window to the front and stops owning it (open a new tab for any retry); the next such capture closes earlier tabs with that title. `Read` the file. If it holds `{"blocked": ...}` or `topResults` is empty: stop and tell the user, word for word, `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` Pause the workflow (autopilot: park `serp_blocked` with that sentence as `detail`). Do not try curl or Playwright.
 
 #### Step 4.3, Editor selects 5–8 results to deep-fetch
 

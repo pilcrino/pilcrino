@@ -53,24 +53,35 @@ test('refused url schemes never reach the registry', async () => {
   await client.close()
 })
 
-// A fake Chrome shared by several server processes: pages, CDP target lookups
-// and Target.closeTarget. A Google search navigates to Google's check page
+// A fake Chrome shared by several server processes: pages, CDP target lookups,
+// Runtime.evaluate on a page (sets its title) and Target.closeTarget. A Google search navigates to Google's check page
 // when `sorry` is set, as a blocked search does.
 function checkBrowser({ value = { blocked: 'unusual_traffic', query: 'q' }, sorry = true } = {}) {
   const pages = []
   const b = {
-    pages, value, failTargetInfo: false, staleClosed: false,
+    pages, value, failTargetInfo: false, failTitle: false, staleClosed: false,
     newPage: async () => {
       const p = {
-        id: `T${pages.length + 1}`, closed: false, front: false, _url: 'about:blank',
-        url: () => p._url, title: async () => '',
+        id: `T${pages.length + 1}`, closed: false, front: false, _url: 'about:blank', _title: '',
+        url: () => p._url, title: async () => p._title,
         goto: async (u) => { p._url = sorry && u.startsWith('https://www.google.com/search') ? 'https://www.google.com/sorry/index?continue=x' : u },
         close: async () => { p.closed = true },
         evaluate: async () => b.value,
         bringToFront: async () => { p.front = true },
         createCDPSession: async () => {
           if (b.failTargetInfo) throw new Error('Target.getTargetInfo failed')
-          return { send: async (m) => (m === 'Target.getTargetInfo' ? { targetInfo: { targetId: p.id } } : {}), detach: async () => {} }
+          return {
+            send: async (m, args) => {
+              if (m === 'Target.getTargetInfo') return { targetInfo: { targetId: p.id } }
+              if (m === 'Runtime.evaluate') {
+                if (b.failTitle) throw new Error('Runtime.evaluate failed')
+                const t = /^document\.title = (".*")$/.exec(args.expression)
+                p._title = JSON.parse(t[1])
+              }
+              return {}
+            },
+            detach: async () => {},
+          }
         },
       }
       pages.push(p)
@@ -78,7 +89,7 @@ function checkBrowser({ value = { blocked: 'unusual_traffic', query: 'q' }, sorr
     },
     target: () => ({ createCDPSession: async () => ({
       send: async (m, args) => {
-        if (m === 'Target.getTargets') return { targetInfos: pages.filter((x) => !x.closed || b.staleClosed).map((x) => ({ targetId: x.id, type: 'page', url: x._url })) }
+        if (m === 'Target.getTargets') return { targetInfos: pages.filter((x) => !x.closed || b.staleClosed).map((x) => ({ targetId: x.id, type: 'page', url: x._url, title: x._title })) }
         if (m === 'Target.closeTarget') {
           const t = pages.find((x) => x.id === args.targetId)
           if (t.closed) throw new Error('No target with given id found')
@@ -119,28 +130,37 @@ async function tmpRoot() {
   return realpathSync(mkdtempSync(join(tmpdir(), 'pb-left-')))
 }
 
-test('a blocked Google capture leaves its tab open, un-owned and in front; the next block closes the earlier one by its url', async () => {
+const CHECK_TITLE = 'Pilcrino: pass the check'
+
+test('a blocked Google capture leaves its tab open, titled, un-owned and in front; the next block closes the earlier one by its title', async () => {
   const root = await tmpRoot()
   const b = checkBrowser()
   const owners = await b.newPage()
   owners._url = 'https://www.google.com/search?q=mine'
+  // Another server process's tab mid-capture on Google's check page: un-owned here, untitled.
+  const concurrent = await b.newPage()
+  concurrent._url = 'https://www.google.com/sorry/index?continue=y'
+  concurrent._title = 'https://www.google.com/search?q=other'
   const first = await blockedRun(b, root)
   assert.deepEqual([first.res.blocked, first.res.leftOpen, first.res.noResults], [true, true, undefined])
   assert.equal(first.againCode, 'not_owned')
   assert.equal(first.tab.closed, false)
   assert.equal(first.tab.front, true)
+  assert.equal(first.tab._title, CHECK_TITLE)
   const second = await blockedRun(b, root)
   assert.equal(second.res.blocked, true)
-  assert.equal(first.tab.closed, true, 'the earlier check tab is closed')
+  assert.equal(first.tab.closed, true, 'the earlier titled tab is closed')
   assert.equal(second.tab.closed, false)
-  assert.deepEqual(b.pages.filter((p) => !p.closed), [owners, second.tab], 'a Google tab off the check page stays open')
+  assert.equal(second.tab._title, CHECK_TITLE)
+  assert.deepEqual(b.pages.filter((p) => !p.closed), [owners, concurrent, second.tab], 'untitled Google tabs stay open, check page or not')
   assert.deepEqual([...first.logs, ...second.logs], [])
 })
 
-test('a check tab the owner already closed by hand breaks nothing', async () => {
+test('a titled check tab the owner already closed by hand breaks nothing', async () => {
   const root = await tmpRoot()
   const b = checkBrowser()
   const first = await blockedRun(b, root)
+  assert.equal(first.tab._title, CHECK_TITLE)
   first.tab.closed = true
   // Chrome may still list a target the owner just closed; closing it then fails and is logged.
   b.staleClosed = true
@@ -167,7 +187,23 @@ test('a target lookup failure skips the cleanup, leaves the tab open and still r
   assert.match(second.logs.join('\n'), /skipped closing earlier check tabs: Target.getTargetInfo failed/)
 })
 
-test('a Google capture with no results also leaves its tab open and in front', async () => {
+test('a failed title is logged, the tab is still left open, and the cleanup never closes it', async () => {
+  const root = await tmpRoot()
+  const b = checkBrowser()
+  b.failTitle = true
+  const first = await blockedRun(b, root)
+  assert.deepEqual([first.res.blocked, first.res.leftOpen], [true, true])
+  assert.equal(first.tab.closed, false)
+  assert.equal(first.tab.front, true)
+  assert.equal(first.tab._title, '')
+  assert.match(first.logs.join('\n'), /could not title the check tab/)
+  b.failTitle = false
+  const second = await blockedRun(b, root)
+  assert.equal(first.tab.closed, false, 'an untitled tab is never cleaned up')
+  assert.equal(second.tab._title, CHECK_TITLE)
+})
+
+test('a Google capture with no results also leaves its tab open, titled and in front; the next one closes it', async () => {
   const root = await tmpRoot()
   const b = checkBrowser({ value: { query: 'q', topResults: [] }, sorry: false })
   const run = await blockedRun(b, root)
@@ -175,6 +211,12 @@ test('a Google capture with no results also leaves its tab open and in front', a
   assert.equal(run.againCode, 'not_owned')
   assert.equal(run.tab.closed, false)
   assert.equal(run.tab.front, true)
+  assert.equal(run.tab._url, 'https://www.google.com/search?q=q')
+  assert.equal(run.tab._title, CHECK_TITLE)
+  const next = await blockedRun(b, root)
+  assert.equal(next.res.noResults, true)
+  assert.equal(run.tab.closed, true, 'a titled tab on a normal search url is closed too')
+  assert.equal(next.tab.closed, false)
 })
 
 test('outside Google a blocked value returns the plain result and the tab closes as usual', async () => {
