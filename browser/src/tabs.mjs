@@ -1,3 +1,4 @@
+import * as nodeFs from 'node:fs'
 import { codedError } from './chrome.mjs'
 
 /**
@@ -62,6 +63,64 @@ export class TabRegistry {
 
   async closeAll() {
     for (const tabId of [...this.owned.keys()]) await this.close(tabId)
+  }
+
+  /**
+   * Leaves a tab that hit a site's check (Google's unusual-traffic page) open
+   * for the owner: it stops being owned, so closeAll at the end of the run
+   * never closes it and no later call can drive it, and its window comes to
+   * the front. `store` keeps the CDP target id of the one tab left this way
+   * across server processes; an earlier leftover is closed first, so repeated
+   * blocks leave exactly one such tab.
+   */
+  async leaveOpen(tabId, store) {
+    const page = this.page(tabId)
+    this.owned.delete(tabId)
+    const targetId = await targetIdOf(page)
+    const earlier = store.read()
+    if (earlier && earlier !== targetId) await closeTarget(this.browser, earlier)
+    if (targetId) store.write(targetId)
+    await page.bringToFront().catch(() => {})
+    return { leftOpen: true }
+  }
+}
+
+async function targetIdOf(page) {
+  let cdp = null
+  try {
+    cdp = await page.createCDPSession()
+    const { targetInfo } = await cdp.send('Target.getTargetInfo')
+    return targetInfo?.targetId ?? null
+  } catch {
+    return null
+  } finally {
+    await cdp?.detach().catch(() => {})
+  }
+}
+
+/** Closes a tab by CDP target id; a tab the owner already closed is not an error. */
+async function closeTarget(browser, targetId) {
+  let cdp = null
+  try {
+    cdp = await browser.target().createCDPSession()
+    await cdp.send('Target.closeTarget', { targetId })
+  } catch {
+    // already gone
+  } finally {
+    await cdp?.detach().catch(() => {})
+  }
+}
+
+/** True for a capture value that reports a site's check: an object with a non-empty `blocked`. */
+export function isBlockedValue(value) {
+  return !!value && typeof value === 'object' && !Array.isArray(value) && !!value.blocked
+}
+
+/** File-backed store for the id of the one tab left open on a check, kept in the profile folder. */
+export function leftTabStore(file, fs = nodeFs) {
+  return {
+    read() { try { return fs.readFileSync(file, 'utf8').trim() || null } catch { return null } },
+    write(id) { try { fs.writeFileSync(file, id) } catch {} },
   }
 }
 

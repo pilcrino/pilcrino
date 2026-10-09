@@ -37,9 +37,12 @@ export function buildServer(session) {
     checkTabUrl(url)
     return navigateTool(await page(tabId), url, { waitUntil, timeoutMs })
   })
-  tool('capture', 'Run a script (async function body that returns a JSON value) in an owned tab and write the result to outFile. Returns {path, bytes, items}. The value never enters this result.', { tabId: z.string(), script: z.string(), outFile: z.string() }, async ({ tabId, script, outFile }) => {
+  tool('capture', 'Run a script (async function body that returns a JSON value) in an owned tab and write the result to outFile. Returns {path, bytes, items}. The value never enters this result. When the value is an object with a `blocked` field (a site check such as Google\'s unusual-traffic page), the result adds `blocked: true, leftOpen: true`: the tab is left open for the owner to pass the check, its window comes to the front, and it is no longer owned by this session (later calls on that tabId fail with not_owned; open a new tab to retry). Only one such tab is kept: an earlier one left this way is closed.', { tabId: z.string(), script: z.string(), outFile: z.string() }, async ({ tabId, script, outFile }) => {
     checkOut(outFile)
-    return captureTool(await page(tabId), script, outFile, session)
+    const reg = await session.getRegistry()
+    const res = await captureTool(reg.page(tabId), script, outFile, session)
+    if (res.blocked) Object.assign(res, await reg.leaveOpen(tabId, session.leftTabs))
+    return res
   })
   tool('run', 'Run a script in an owned tab for its side effects. The value is discarded.', { tabId: z.string(), script: z.string() }, async ({ tabId, script }) => runTool(await page(tabId), script))
   tool('screenshot', 'Write PNG screenshots of an owned tab under outFile. mode: viewport (default), full, scroll.', { tabId: z.string(), outFile: z.string(), mode: z.enum(['viewport', 'full', 'scroll']).optional() }, async ({ tabId, outFile, mode }) => {

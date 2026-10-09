@@ -85,6 +85,12 @@ Cmd+Q: closing its window leaves Chrome running on macOS, and Pilcrino cannot
 restart its browser while that window holds the profile. The next research
 call restarts it with your logins.
 
+When a search or fetch hits a site's check (Google's unusual-traffic page,
+Reddit's captcha), the browser leaves that tab open, brings its window to the
+front and stops using it, so the end of the run does not close it. Pass the
+check there, then retry. Only one such tab is kept: the next block closes the
+earlier one.
+
 Troubleshooting: "Google Chrome was not found" means Chrome is not at the
 platform default; set `browser.executable` in `blog-ops/config.yaml`. A skill
 stopping with "Sign in to Reddit" means that login expired; sign in in the
@@ -237,6 +243,11 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.45.1 - Google's check stays open
+
+- When a capture hits a site's check, such as Google's unusual-traffic page, the Pilcrino browser leaves that tab open and brings its window to the front instead of closing it at the end of the run. Only one such tab is kept.
+- The workflow tells you `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.`; autopilot parks `serp_blocked` with that sentence as the detail.
 
 ### 0.45.0 - markdown publish adapter
 

@@ -338,7 +338,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
     };
 ```
 
-The tool returns only `{path, bytes, items}`. `Read` the file. If it holds `{"blocked": ...}` or `topResults` is empty: stop, report to the user, pause the workflow (autopilot: park `serp_blocked`). Do not try curl or Playwright.
+The tool returns only `{path, bytes, items}`, plus `blocked: true, leftOpen: true` when the script returned `{"blocked": ...}`: the browser leaves that tab open on Google's check, brings its window to the front and stops owning it (open a new tab for any retry). `Read` the file. If it holds `{"blocked": ...}`: stop and tell the user, word for word, `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` Pause the workflow (autopilot: park `serp_blocked` with that sentence as `detail`). If `topResults` is empty: stop, report to the user, pause the workflow (autopilot: park `serp_blocked`). Do not try curl or Playwright.
 
 #### Step 4.3, Editor selects 5–8 results to deep-fetch
 
@@ -444,7 +444,7 @@ Same select-then-fetch pattern as SERP.
 
 Run Step 4.7.4's challenge pass and Search capture to produce `_reddit_search.json`, then `Read` it.
 
-If the file holds `{"blocked": ...}`: Reddit is challenging the Pilcrino browser. Interactive: ask the user to open reddit.com in the Pilcrino browser window and pass the check, then retry once; if it still fails, mark Stage 1.5a skipped and continue. Autopilot: park `captcha_or_login` with `reddit` in detail.
+If the file holds `{"blocked": ...}`: Reddit is challenging the Pilcrino browser. The browser left that tab open and in front (the capture result says `leftOpen: true`) and no longer owns it. Interactive: ask the user to pass the check in that Pilcrino browser tab, then retry once in a new tab; if it still fails, mark Stage 1.5a skipped and continue. Autopilot: park `captcha_or_login` with `reddit` in detail.
 
 If it holds `fetchStatus: failed` (non-JSON response: a block or login page), or the `capture` itself errors: mark Stage 1.5a skipped and continue to the next stage.
 
@@ -1304,7 +1304,7 @@ its current valid stage state, and exits 0. Parked slugs stay resumable via
 | Step 13.5 step 6: featured slot is `screenshot` with no file → pause | Park `featured_screenshot_required` |
 | Step 4.85: competitor profile missing / >14d stale → HARD-HALT prompt | Park `competitor_profile_stale` |
 | >50% research fetches fail → retry/partial/abandon prompt | Proceed-partial and note it in facts.md, UNLESS the SERP capture itself failed → park `research_fetch_failure` |
-| SERP capture returns 0 results or `blocked` (captcha or bot-block) → stop, do not try curl or Playwright | Park `serp_blocked` |
+| SERP capture returns 0 results or `blocked` (captcha or bot-block) → stop, do not try curl or Playwright | Park `serp_blocked`; when `blocked`, detail `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` |
 | Pilcrino browser cannot start, or a site is unreachable (login_status error) | Park `chrome_unavailable` |
 | login_status signed_out or blocked, or a captcha / login wall during a fetch | Park `captcha_or_login` |
 | WordPress auth probe fails | Park `wp_auth_failed` IMMEDIATELY — zero retries, no polling, no backoff (lockout rule) |
@@ -1366,7 +1366,8 @@ If the session dies, everything is on disk. Resume with `resume <slug>`.
 
 - **Slug already exists when starting new:** ask the human to resume that slug or pick a different keyword.
 - **Pilcrino browser unavailable or a site not signed in:** stop per §Browser (the sign-in gate); do not fall back to curl or Playwright.
-- **SERP capture returns no results or `blocked`:** stop; likely captcha; report to the user.
+- **SERP capture returns `blocked`:** stop and tell the user `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` The tab stays open on Google's check.
+- **SERP capture returns no results:** stop; likely captcha; report to the user.
 - **>50% per-URL fetches fail:** offer retry / proceed-partial / abandon.
 - **Researcher fails twice:** report; offer retry or proceed-with-partial.
 - **Template missing or malformed:** stop immediately and report.
