@@ -1,9 +1,8 @@
 import * as nodeFs from 'node:fs'
-import { join } from 'node:path'
 import { connectChrome, findChrome, profileDir, readExecutableOverride } from './chrome.mjs'
 import { outRoots } from './paths.mjs'
 import { openSignIn } from './signin.mjs'
-import { TabRegistry, leftTabStore } from './tabs.mjs'
+import { TabRegistry } from './tabs.mjs'
 
 /**
  * One Chrome connection per server process. The MCP SDK dispatches tool calls
@@ -52,8 +51,6 @@ export function createSession({ cwd = process.cwd(), env = process.env } = {}, d
      * call reconnects. `deps.openSignIn` is a test seam.
      */
     async openSignIn(sites) { return (deps.openSignIn ?? openSignIn)(sites, { profile, exe: exe() }) },
-    /** The id of the one tab left open on a site's check (TabRegistry.leaveOpen); `deps.leftTabs` is a test seam. */
-    leftTabs: deps.leftTabs ?? leftTabStore(join(profile, 'PilcrinoLeftTab')),
     async closeOwned() { if (current) await current.registry.closeAll().catch(() => {}) },
   }
 }

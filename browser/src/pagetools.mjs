@@ -1,7 +1,7 @@
 import * as nodeFs from 'node:fs'
 import { codedError } from './chrome.mjs'
 import { resolveOutFile } from './paths.mjs'
-import { isBlockedValue } from './tabs.mjs'
+import { checkKind } from './tabs.mjs'
 
 // `script` is the body of an async function and must `return` its value.
 const wrap = (script) => `(async () => { ${script}\n })()`
@@ -15,15 +15,21 @@ async function evaluate(page, script) {
   }
 }
 
-/** Runs the script in the page and writes its JSON result to outFile. The value never leaves this function. */
-export async function captureTool(page, script, outFile, ctx) {
+/**
+ * Runs the script in the page and writes its JSON result to outFile. The value
+ * never leaves this function. `googleCheck` is set only for a capture in a Google tab: then a value that
+ * reports Google's check or no results adds `blocked: true` or
+ * `noResults: true`. Every other capture returns {path, bytes, items} alone.
+ */
+export async function captureTool(page, script, outFile, ctx, { googleCheck = false } = {}) {
   const path = resolveOutFile(outFile, ctx.roots, { profile: ctx.profile, fs: ctx.fs })
   const value = await evaluate(page, script)
   const text = JSON.stringify(value ?? null, null, 2)
   ;(ctx.fs ?? nodeFs).writeFileSync(path, text)
   const res = { path, bytes: Buffer.byteLength(text), items: Array.isArray(value) ? value.length : 1 }
   // Only the flag leaves this function, never the value.
-  if (isBlockedValue(value)) res.blocked = true
+  const kind = googleCheck ? checkKind(value) : null
+  if (kind) res[kind] = true
   return res
 }
 
