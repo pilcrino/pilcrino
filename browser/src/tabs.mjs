@@ -19,9 +19,11 @@ export function checkTabUrl(url) {
 }
 
 export class TabRegistry {
-  constructor(browser) {
+  constructor(browser, { log = stderrLog } = {}) {
     this.browser = browser
     this.owned = new Map()
+    this.log = log
+    registries.add(this)
   }
 
   async open(url = 'about:blank', { owned = true } = {}) {
@@ -63,6 +65,131 @@ export class TabRegistry {
   async closeAll() {
     for (const tabId of [...this.owned.keys()]) await this.close(tabId)
   }
+
+  /**
+   * Leaves the Google search tab open for the owner when its capture hit
+   * Google's check or found no results: earlier retained tabs are closed first
+   * (closeCheckLeftovers), then this tab stops being owned (so closeAll at the
+   * end of the run never closes it and no later call can drive it), its window
+   * comes to the front, and only then does it get the CHECK_TAB_TITLE title.
+   * The title is the last operation on the tab and nothing after it is needed,
+   * because from that moment any run's cleanup may close it. The title is the
+   * only mark the cleanup trusts, and it is also what the owner sees on the
+   * tab. If setting it fails, the failure is logged and that tab is simply
+   * never cleaned up. Nothing is persisted and nothing is locked: two retaining
+   * captures at the same time may each leave a tab, which is accepted. Never
+   * throws on the cleanup; the capture result stands.
+   */
+  async leaveOpen(tabId, capturedHref = this.page(tabId).url()) {
+    const page = this.page(tabId)
+    await this.closeCheckLeftovers()
+    this.owned.delete(tabId)
+    await page.bringToFront().catch((err) => this.log(`could not bring the check tab to the front: ${errText(err)}`))
+    await markCheckTab(page, capturedHref).then((marked) => {
+      if (!marked) this.log('left the tab untitled: the page changed after the capture, so it is the owner\'s now')
+    }).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
+    return { leftOpen: true }
+  }
+
+  /**
+   * Closes every page target in this Chrome whose title is exactly
+   * CHECK_TAB_TITLE and that no registry in this process owns on the same
+   * browser. The URL does not matter. A concurrent run's tab (owned by another
+   * server process, so invisible here) is never closed, because a tab gets
+   * that title only after leaveOpen released it. The target list only names
+   * candidates: each one's title is read again right before it is closed, and
+   * a candidate whose title changed (the owner passed the check or navigated)
+   * or whose lookup fails is left alone. A failed ownership lookup skips the
+   * cleanup; every failure is logged, none is thrown.
+   */
+  async closeCheckLeftovers() {
+    let cdp = null
+    try {
+      const owned = new Set()
+      for (const reg of registries) {
+        if (reg.browser !== this.browser) continue
+        for (const page of reg.owned.values()) owned.add(await targetIdOf(page))
+      }
+      cdp = await this.browser.target().createCDPSession()
+      const { targetInfos } = await cdp.send('Target.getTargets')
+      for (const t of targetInfos ?? []) {
+        if (t.type !== 'page' || owned.has(t.targetId) || t.title !== CHECK_TAB_TITLE) continue
+        let now = null
+        try {
+          now = (await cdp.send('Target.getTargetInfo', { targetId: t.targetId }))?.targetInfo
+        } catch (err) {
+          this.log(`left an earlier check tab open, its title could not be read again: ${errText(err)}`)
+          continue
+        }
+        if (now?.type !== 'page' || now.title !== CHECK_TAB_TITLE) continue
+        try {
+          await cdp.send('Target.closeTarget', { targetId: t.targetId })
+        } catch (err) {
+          this.log(`could not close an earlier check tab: ${errText(err)}`)
+        }
+      }
+    } catch (err) {
+      this.log(`skipped closing earlier check tabs: ${errText(err)}`)
+    } finally {
+      await cdp?.detach().catch(() => {})
+    }
+  }
+}
+
+/** The title a retained check tab carries: the owner reads it, and the cleanup closes only un-owned tabs with exactly this title. */
+export const CHECK_TAB_TITLE = 'Pilcrino: pass the check'
+
+/**
+ * Sets the title, only if the page is still at capturedHref, through the page's own connection, so no CDP session has to
+ * be detached afterwards: once the title is set the tab may be closed by any
+ * run's cleanup, and this run needs nothing more from it.
+ */
+async function markCheckTab(page, capturedHref) {
+  // One evaluate does the check and the write, so the title lands only on the document that was blocked.
+  return page.evaluate((title, href) => {
+    if (location.href !== href) return false
+    document.title = title
+    return true
+  }, CHECK_TAB_TITLE, capturedHref)
+}
+
+/** Every registry built in this process, so the check-tab cleanup never closes a tab any of them owns. */
+const registries = new Set()
+
+const errText = (err) => String(err?.message ?? err).slice(0, 300)
+
+/** Diagnostics go to stderr: stdout is the MCP channel. */
+const stderrLog = (msg) => { process.stderr.write(`pilcrino-browser: ${msg}\n`) }
+
+async function targetIdOf(page) {
+  const cdp = await page.createCDPSession()
+  try {
+    const { targetInfo } = await cdp.send('Target.getTargetInfo')
+    if (!targetInfo?.targetId) throw new Error('no target id')
+    return targetInfo.targetId
+  } finally {
+    await cdp.detach().catch(() => {})
+  }
+}
+
+const parseUrl = (url) => { try { return new URL(url) } catch { return null } }
+
+/** A Google page on any google.<tld> host: the SERP capture's tab, the only one retained on a check. */
+export function isGoogleUrl(url) {
+  const u = parseUrl(url)
+  return !!u && /^https?:$/.test(u.protocol) && /(^|\.)google\.[a-z.]+$/.test(u.hostname)
+}
+
+/**
+ * Why a SERP capture value keeps its tab open: `blocked` for an object with a
+ * non-empty `blocked` field (Google's check), `noResults` for an empty
+ * `topResults` array, otherwise null.
+ */
+export function checkKind(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null
+  if (value.blocked) return 'blocked'
+  if (Array.isArray(value.topResults) && value.topResults.length === 0) return 'noResults'
+  return null
 }
 
 export async function navigateTool(page, url, { waitUntil = 'domcontentloaded', timeoutMs = 30000 } = {}) {

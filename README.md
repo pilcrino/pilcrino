@@ -85,6 +85,13 @@ Cmd+Q: closing its window leaves Chrome running on macOS, and Pilcrino cannot
 restart its browser while that window holds the profile. The next research
 call restarts it with your logins.
 
+When the Google search hits Google's unusual-traffic check or comes back
+empty, the browser leaves that tab open, brings its window to the front and
+stops using it, so the end of the run does not close it. Pass the check there,
+then retry. The tab is titled "Pilcrino: pass the check". The next blocked or
+empty search first closes any earlier tab with that title that no run is using;
+other tabs, including another run's search, are never closed.
+
 Troubleshooting: "Google Chrome was not found" means Chrome is not at the
 platform default; set `browser.executable` in `blog-ops/config.yaml`. A skill
 stopping with "Sign in to Reddit" means that login expired; sign in in the
@@ -237,6 +244,11 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.45.1 - Google's check stays open
+
+- When the Google search capture hits Google's unusual-traffic check or returns no results, the Pilcrino browser leaves that tab open and brings its window to the front instead of closing it at the end of the run. Before retaining one the browser closes every tab with exactly the title "Pilcrino: pass the check" that no run in this process owns, rereading each tab's title right before closing it and leaving it open if the title changed or cannot be read, so repeated blocks and empty results do not pile up. The retained tab gets that title only after the run has released it and brought it to the front, as its last step, so a concurrent run's tab never carries the title while in use and is never closed. If the title cannot be set, that tab is left for the owner and never cleaned up. Nothing is stored between runs; two blocks at the same moment may leave two tabs. Other sites' captures, Reddit's included, are unchanged.
+- The workflow tells you `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` in both cases; autopilot parks `serp_blocked` with that sentence as the detail.
 
 ### 0.45.0 - markdown publish adapter
 
