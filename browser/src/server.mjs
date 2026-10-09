@@ -42,7 +42,8 @@ export function buildServer(session) {
     const reg = await session.getRegistry()
     const p = reg.page(tabId)
     const res = await captureTool(p, script, outFile, session, { googleCheck: isGoogleUrl(p.url()) })
-    if (res.blocked || res.noResults) Object.assign(res, await reg.leaveOpen(tabId))
+    const capturedHref = p.url()
+    if (res.blocked || res.noResults) Object.assign(res, await reg.leaveOpen(tabId, capturedHref))
     return res
   })
   tool('run', 'Run a script in an owned tab for its side effects. The value is discarded.', { tabId: z.string(), script: z.string() }, async ({ tabId, script }) => runTool(await page(tabId), script))

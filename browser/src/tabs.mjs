@@ -80,12 +80,14 @@ export class TabRegistry {
    * captures at the same time may each leave a tab, which is accepted. Never
    * throws on the cleanup; the capture result stands.
    */
-  async leaveOpen(tabId) {
+  async leaveOpen(tabId, capturedHref = this.page(tabId).url()) {
     const page = this.page(tabId)
     await this.closeCheckLeftovers()
     this.owned.delete(tabId)
     await page.bringToFront().catch((err) => this.log(`could not bring the check tab to the front: ${errText(err)}`))
-    await markCheckTab(page).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
+    await markCheckTab(page, capturedHref).then((marked) => {
+      if (!marked) this.log('left the tab untitled: the page changed after the capture, so it is the owner\'s now')
+    }).catch((err) => this.log(`could not title the check tab, it will not be cleaned up later: ${errText(err)}`))
     return { leftOpen: true }
   }
 
@@ -138,12 +140,17 @@ export class TabRegistry {
 export const CHECK_TAB_TITLE = 'Pilcrino: pass the check'
 
 /**
- * Sets the title through the page's own connection, so no CDP session has to
+ * Sets the title, only if the page is still at capturedHref, through the page's own connection, so no CDP session has to
  * be detached afterwards: once the title is set the tab may be closed by any
  * run's cleanup, and this run needs nothing more from it.
  */
-async function markCheckTab(page) {
-  await page.evaluate(`document.title = ${JSON.stringify(CHECK_TAB_TITLE)}`)
+async function markCheckTab(page, capturedHref) {
+  // One evaluate does the check and the write, so the title lands only on the document that was blocked.
+  return page.evaluate((title, href) => {
+    if (location.href !== href) return false
+    document.title = title
+    return true
+  }, CHECK_TAB_TITLE, capturedHref)
 }
 
 /** Every registry built in this process, so the check-tab cleanup never closes a tab any of them owns. */

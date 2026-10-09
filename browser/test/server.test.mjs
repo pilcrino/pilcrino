@@ -69,12 +69,19 @@ function checkBrowser({ value = { blocked: 'unusual_traffic', query: 'q' }, sorr
         url: () => p._url, title: async () => p._title,
         goto: async (u) => { p._url = sorry && u.startsWith('https://www.google.com/search') ? 'https://www.google.com/sorry/index?continue=x' : u },
         close: async () => { p.closed = true },
-        evaluate: async (expr) => {
-          const t = typeof expr === 'string' ? /^document\.title = (".*")$/.exec(expr) : null
-          if (!t) return b.value
-          await b.step(p, 'title')
-          if (b.failTitle) throw new Error('page.evaluate failed')
-          p._title = JSON.parse(t[1])
+        evaluate: async (expr, ...args) => {
+          if (typeof expr === 'function') {
+            await b.step(p, 'title')
+            if (b.failTitle) throw new Error('page.evaluate failed')
+            const doc = { title: p._title }
+            const saved = [globalThis.document, globalThis.location]
+            globalThis.document = doc
+            globalThis.location = { href: p._url }
+            try { var out = expr(...args) } finally { [globalThis.document, globalThis.location] = saved }
+            p._title = doc.title
+            return out
+          }
+          return b.value
         },
         bringToFront: async () => { await b.step(p, 'front'); p.front = true },
         createCDPSession: async () => {
@@ -312,4 +319,21 @@ test('a candidate whose title cannot be read again is left open and the failure 
   assert.equal(tab.closed, false)
   assert.equal(tab._title, CHECK_TITLE)
   assert.deepEqual(logs, ['B: left an earlier check tab open, its title could not be read again: lookup failed'])
+})
+
+test('a page that moved on between the release and the title write is not marked and a later cleanup leaves it', async () => {
+  const { b, regA, regB, logs } = await twoConnections()
+  const { tabId } = await regA.open('https://www.google.com/sorry/index?continue=x')
+  const tab = b.pages[b.pages.length - 1]
+  // The owner passes the check while the window comes to the front.
+  b.step = async (p, op) => { if (p === tab && op === 'front') tab._url = 'https://www.google.com/search?q=q&results' }
+  const res = await regA.leaveOpen(tabId, 'https://www.google.com/sorry/index?continue=x')
+  assert.deepEqual(res, { leftOpen: true })
+  assert.equal(tab._title, '', 'the new page is not titled')
+  assert.equal(logs.length, 1)
+  assert.match(logs[0], /left the tab untitled/)
+  b.step = async () => {}
+  await regB.closeCheckLeftovers()
+  assert.equal(tab.closed, false)
+  await regA.closeAll()
 })
