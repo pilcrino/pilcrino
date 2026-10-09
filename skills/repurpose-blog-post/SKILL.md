@@ -28,7 +28,8 @@ URL-based invocation (passing the canonical URL instead of the slug) is **not ye
 3. **Resolve path variables.** `{profile_dir}`, `{drafts_dir}`, `{templates}` (layered rule) per §Path variables. Resolve `{content_dir}` from the ACTIVE `publish.adapter`:
    - `publish.adapter: astro-git-pr` → `{content_dir}` = `publish.astro.content_dir`; source post lives at `{content_dir}/<slug>.md` in the main tree (the published, non-draft post).
    - `publish.adapter: wordpress-rest` → `{content_dir}` = `publish.wordpress.content_dir`; the canonical finalized markdown lives at `{content_dir}/<slug>.md` in the workspace repo (WordPress itself is not the source of truth, the repo is, per `adapters/publish/wordpress-rest.md` §Config inputs).
-   Both adapters use the same key name `content_dir` inside their own config block, never mix the two.
+   - `publish.adapter: markdown` → `{content_dir}` = `publish.markdown.content_dir`; the post lives at `{content_dir}/<slug>.md` in the workspace repo once its PR is merged (the repo is the post's canonical home, per `adapters/publish/markdown.md` §Relationship to the git repo).
+   All three adapters use the same key name `content_dir` inside their own config block; never mix them.
 4. Read `blog.url` (canonical URL prefix) and `blog.name`.
 
 ## Tool access

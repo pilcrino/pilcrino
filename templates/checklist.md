@@ -181,11 +181,11 @@ Editor presents Gate 2 banner (the only human gate; plan approval is an automate
 
 - [ ] Gate 2 presented (banner format)
 - [ ] Human approved
-- [ ] draft moved/published to `{content_dir}/<slug>.md` (or the WordPress equivalent)
+- [ ] post committed at `{content_dir}/<slug>.md` on the post branch (every adapter; `wordpress-rest` also holds a WordPress draft)
 - [ ] asset folder created at `{assets_dir}/<slug>/` (with images.md as README.md)
 - [ ] `{drafts_dir}/<slug>/` archived to `{drafts_dir}/_archive/<slug>/`
 
-**End state:** `status=complete`, `current_stage=complete`. Post lives in `{content_dir}` (or the configured WordPress site); the human works through archived `action-items.md` before publishing per the configured adapter.
+**End state:** `status=complete`, `current_stage=complete`. Post lives in `{content_dir}` on the post branch (and, for `wordpress-rest`, as a WordPress draft); the human works through archived `action-items.md` before publishing per the configured adapter.
 
 ---
 

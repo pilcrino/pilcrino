@@ -362,6 +362,8 @@ is visible and actionable in the console; a `pr: 0` post looks approvable and
 is not. The console rejects a zero/missing `pr` at the approval route
 (HTTP 409) rather than accepting an unpublishable post.
 
+`markdown` runs behave as `astro-git-pr` runs: the same events in the same order, the same `pr_opened` with the real PR number, the same park reasons. The adapter adds no event and no park reason.
+
 ## Park reasons
 
 `brief_insufficient`, `review_escalation`, `featured_screenshot_required`,

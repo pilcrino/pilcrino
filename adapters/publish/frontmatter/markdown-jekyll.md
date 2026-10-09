@@ -1,0 +1,60 @@
+# Jekyll frontmatter template (markdown adapter)
+
+Read by: the `blog-writer` agent (see `${CLAUDE_PLUGIN_ROOT}/personas/writer.md` §Frontmatter, which points here via `publish.markdown.frontmatter_template`), the review skill, and `${CLAUDE_PLUGIN_ROOT}/adapters/publish/markdown.md` (Stage 4b.5 cover injection and draft strip). Used when `publish.markdown.platform: jekyll`. Paste platform: Jekyll's `_posts` folder only picks up files named `YYYY-MM-DD-<slug>.md`, so the owner renames the file (`post.md` in the app's zip, `<slug>.md` in the repository) to `YYYY-MM-DD-<slug>.md` when pasting it into `_posts`. The zip's file name is not changed per platform.
+
+## Config inputs
+
+- `{content_dir}`: `publish.markdown.content_dir`
+- `{assets_dir}`: `publish.markdown.assets_dir`
+- `{profile_dir}/authors.md`: the source of truth for the author name
+
+## The frontmatter block
+
+```yaml
+---
+layout: post
+title: "<Title, 50-60 chars, matches the outline's Final title exactly>"
+description: "<meta description, 160 chars at most>"
+date: <YYYY-MM-DD>
+tags:
+  - <tag-1>
+  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+author: "<Author, or a co-signed byline string for author_voice=we>"
+image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, see Cover path computation>"
+published: false
+---
+```
+
+## Field-by-field rules
+
+- **`layout`**: always the literal `post`.
+- **`title`**: quoted, 50-60 chars, the page H1 rendered by the layout; never repeat an H1 in the body.
+- **`description`**: the meta description, 160 chars at most.
+- **`date`** (the date key): `YYYY-MM-DD`. Write the drafting date and leave it. The Pilcrino app overwrites it with the publish day's date: on the branch copy at approval, and in the zip copy at download (`publish-date.ts`). Keep the `YYYY-MM-DD` shape; the app rewrites only a value it can parse as one. Use the same date in the file name when pasting.
+- **`tags`**: 2-4 entries from this blog's tag taxonomy.
+- **`author`**: one string, not an array: the display name from `{profile_dir}/authors.md`, or a co-signed byline (e.g. `"Alex & Sam"`) for `author_voice=we`.
+- **`image`** (the cover key): one quoted single-line value, see §Cover path computation.
+- **`published: false`** (the draft key): present on every drafted post; `markdown.md` §Staging step 2 strips it, so Jekyll builds the pasted post.
+- **Body:** Markdown only, no raw HTML (the app's preview drops it). FAQ schema is not emitted: the `## FAQ` section ships as plain body content, with no JSON-LD script and no schema marker comment.
+
+## Cover path computation
+
+The cover and every in-post image embed are relative paths from `{content_dir}/` to `{assets_dir}/<slug>/<file>`: one `../` per path segment of `{content_dir}` that `{assets_dir}` does not share, then down into `{assets_dir}`. When `{assets_dir}` sits inside `{content_dir}` there is no `../`. With the defaults (`content_dir: posts`, `assets_dir: posts/images`):
+
+```yaml
+image: "images/<slug>/featured.png"
+```
+
+In the app's zip both become `./<file>` (`./featured.png`); always write the repository path. When pasting, put the images where the Jekyll site serves them and adjust the paths to match.
+
+## Quality gates (self-check before Gate 2)
+
+- [ ] `layout` is `post`
+- [ ] `title` matches the outline's "Final title" exactly
+- [ ] `description` is 160 chars at most
+- [ ] `date` is `YYYY-MM-DD`
+- [ ] `tags` has 2-4 entries from the taxonomy
+- [ ] `author` is a plain display string, not an array
+- [ ] `image` resolves to `{assets_dir}/<slug>/featured.png`
+- [ ] no raw HTML in the body
+- [ ] `published: false` present (stripped at staging, not by the writer)

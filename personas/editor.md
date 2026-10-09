@@ -391,7 +391,7 @@ Triggered after Stage 4a. Purely mechanical: grep the draft for every placeholde
    - § 2 [VERIFY:] markers: after Stage 3d these are normally all resolved/deleted, so the grep finds zero. Record the Stage 3d resolution log (resolved-with-cite / kept-general / deleted / competitor-routed) here instead of a human to-do. Any residual `[VERIFY:]` hit (e.g. a competitor-claim routed to the human) gets a checkbox with line + claim.
    - § 3 [EXTERNAL_LINK_NEEDED:] markers: same, Stage 3d resolves/deletes these. Record outcomes; a residual hit (should be none) gets a checkbox.
    - § 4 Fill [INTERNAL_LINK_NEEDED:]: one checkbox per hit
-   - § 4b Inbound links: one row per outline "Inbound internal links" entry, framed as a record + publish reminder (these are APPLIED at the next stage, 4b.5, not a human TODO): "applied at Stage 4b.5 to `<existing-slug>.md`; include in publish commit + confirm in preview"; "None" if the outline planned none. The row wording follows the active adapter's `§Action-items sections` §4b branch when the adapter defines one (the astro-flavored "include in publish commit" above is the `astro-git-pr` wording).
+   - § 4b Inbound links: one row per outline "Inbound internal links" entry, framed as a record + publish reminder (these are APPLIED at the next stage, 4b.5, not a human TODO): "applied at Stage 4b.5 to `<existing-slug>.md`; include in publish commit + confirm in preview"; "None" if the outline planned none. The row wording follows the active adapter's `§Action-items sections` §4b branch when the adapter defines one (the astro-flavored "include in publish commit" above is the `astro-git-pr` wording, which `markdown` shares).
    - § 5 Final manual read: static checklist from template
    - § 6-7 Publish-adapter-specific steps: per the publish adapter (`${CLAUDE_PLUGIN_ROOT}/adapters/publish/<adapter>.md` §Action-items sections), covers the optional authors-map check and the full publish sequence for the configured `publish.adapter`
    - § 8 Post-publish: static (URLs prefilled with the actual slug)
@@ -480,7 +480,7 @@ After the finalize succeeds:
 ```
 Gate 2 approved, Phase 4 complete.
 
-- Post:    {content_dir}/<slug>.md  (publish-ready; draft mechanism removed, or the WordPress equivalent)
+- Post:    {content_dir}/<slug>.md  (publish-ready; draft key removed by the Astro or markdown adapter, or the WordPress equivalent)
 - Assets:  {assets_dir}/<slug>/  (rendered images + README.md)
 - Archive: {drafts_dir}/_archive/<slug>/
 
