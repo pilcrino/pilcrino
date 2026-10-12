@@ -28,6 +28,15 @@ draft: true
 ---
 ```
 
+## Which keys to emit
+
+`publish.wordpress.frontmatter_keys` in `config.yaml` (optional; config-schema.md §Fitting the site's frontmatter) lists the top-level keys the site accepts. When it is set, emit only the keys in that list, in the order above, and nothing else; the reviewer fails a draft that carries a key outside the list (the draft key aside: it follows its own setting, below). When it is absent, emit every key above, as before.
+
+- **Required keys, never omitted whatever the list says:** `title`, `excerpt`, `date`. This template has no cover key (see §No cover/heroImage field).
+- **May be left out of the list:** `tags`, `authors`. A site whose schema does not know them gets no such line; do not write them "just in case".
+- **The draft key is not governed by the list.** `draft: true` is documentation only here (WordPress gates publication with the post's `status`); emit it as shown.
+- With `tags` left out, `wordpress-rest.md` §Staging step 5 sends no `tags` field; with `authors` left out, the post's author stays the authenticated user, as it does in v1 anyway.
+
 ## Field-by-field rules
 
 - **`title`**: quoted, 50-60 chars, matches the outline's "Final title" exactly. Maps to the WP post's `title` field verbatim — see §WP REST field mapping.
@@ -60,7 +69,8 @@ The `## FAQ` body section converts to regular HTML like any other section (§Sta
 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `excerpt` ≤160 chars
-- [ ] `tags` has 2-4 entries from this blog's tag taxonomy
-- [ ] every `authors:` entry matches an author in `{profile_dir}/authors.md`
+- [ ] `tags` has 2-4 entries from this blog's tag taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] every `authors:` entry matches an author in `{profile_dir}/authors.md` (only when `authors` is emitted, §Which keys to emit)
 - [ ] no `cover`/`heroImage` field present — the featured image ships via media upload, not frontmatter
 - [ ] `draft: true` present
+- [ ] no key outside `publish.wordpress.frontmatter_keys` plus `draft` when that list is set (§Which keys to emit)

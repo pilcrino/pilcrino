@@ -57,6 +57,15 @@ draft: true
 
 The `mainEntity` array carries one entry per `## FAQ` question in the body, same order — see §JSON-LD 1:1 rule below.
 
+## Which keys to emit
+
+`publish.astro.frontmatter_keys` in `config.yaml` (optional; config-schema.md §Fitting the site's frontmatter) lists the top-level keys the site accepts. When it is set, emit only the keys in that list, in the order above, and nothing else; the reviewer fails a draft that carries a key outside the list (the draft key aside: it follows its own setting, below). When it is absent, emit every key above, as before.
+
+- **Required keys, never omitted whatever the list says:** `title`, `excerpt`, `date`, `cover`.
+- **May be left out of the list:** `tags`, `authors`, `head`. A site whose schema does not know them gets no such line; do not write them "just in case".
+- **The draft key is not governed by the list.** `draft: true` follows `publish.astro.draft_mechanism`: emit it as shown unless that value is the literal `none`, in which case the site has no draft flag, emit no draft line at all, and `astro-git-pr.md` §Staging step 4 strips nothing.
+- Leaving `head` out also drops the FAQPage JSON-LD and the meta-description entry; the reviewer then skips its JSON-LD sub-check and the FAQ ships as plain body content.
+
 ## Field-by-field rules
 
 - **`title`**: quoted, 50-60 chars. Starlight renders this verbatim as the page's H1 — never duplicate an H1 in the body.
@@ -102,8 +111,9 @@ The `mainEntity` array must have exactly one entry per `## FAQ` question in the 
 ## Quality gates (self-check before Gate 2)
 
 - [ ] `title` matches the outline's "Final title" exactly
-- [ ] `excerpt` ≤160 chars, identical string in `head[]` meta description
-- [ ] `authors:` casing matches the site's authors map exactly (see §Authors map)
+- [ ] `excerpt` ≤160 chars; identical string in `head[]` meta description when `head` is emitted
+- [ ] `authors:` casing matches the site's authors map exactly (see §Authors map) (only when `authors` is emitted, §Which keys to emit)
 - [ ] `cover.image` path resolves to a file that actually exists at `{assets_dir}/<slug>/featured.png`
-- [ ] FAQPage JSON-LD `mainEntity` has exactly one entry per `## FAQ` question, same order, same wording
-- [ ] `draft: true` present (stripped later by the publish adapter, not by the writer)
+- [ ] FAQPage JSON-LD `mainEntity` has exactly one entry per `## FAQ` question, same order, same wording (only when `head` is emitted; without `head` no JSON-LD is written)
+- [ ] `draft: true` present (stripped later by the publish adapter, not by the writer); absent iff `publish.astro.draft_mechanism` is `none`
+- [ ] no key outside `publish.astro.frontmatter_keys` plus the draft key (when `draft_mechanism` is not `none`) when that list is set (§Which keys to emit)
