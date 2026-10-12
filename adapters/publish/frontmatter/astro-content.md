@@ -71,7 +71,7 @@ If a specific blog's layout has NOT yet implemented this extraction (a wizard/se
 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `description` ≤160 chars
-- [ ] `author` is a plain display string (or co-signed byline), not an `author_voice` slug and not an array
+- [ ] `author` is a plain display string (or co-signed byline), not an `author_voice` slug and not an array (only when `author` is emitted, §Which keys to emit)
 - [ ] `heroImage` path resolves to a file that actually exists at `{assets_dir}/<slug>/featured.png`
 - [ ] `## FAQ` body section carries the `<!-- schema:faq -->` note and one Q&A pair per outline FAQ question, same order
 - [ ] `draft: true` present (stripped later by the publish adapter, not by the writer); absent iff `publish.astro.draft_mechanism` is `none`

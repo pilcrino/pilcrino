@@ -59,9 +59,9 @@ In the app's zip both become `./<file>` (`./featured.png`); always write the rep
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `excerpt` is 160 chars at most
 - [ ] `published_at` is `YYYY-MM-DD`
-- [ ] `tags` has 2-4 entries from the taxonomy
-- [ ] every `authors` entry matches `{profile_dir}/authors.md`
-- [ ] `feature_image` resolves to `{assets_dir}/<slug>/featured.png`
+- [ ] `tags` has 2-4 entries from the taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] every `authors` entry matches `{profile_dir}/authors.md` (only when `authors` is emitted, §Which keys to emit)
+- [ ] the cover key (`feature_image`, or `publish.markdown.cover_key` when set) resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body
 - [ ] no draft key present
 - [ ] the cover sits under `publish.markdown.cover_key` when set, and no key outside `publish.markdown.frontmatter_keys` when that list is set (§Which keys to emit)

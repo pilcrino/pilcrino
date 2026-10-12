@@ -42,6 +42,7 @@ wp_key() {
       else                  { sub(/[ \t]+#.*$/, "", v); sub(/[ \t]+$/, "", v) }
       return v
     }
+    { sub(/\r$/, "") }
     /^[ \t]*(#|$)/ { next }
     {
       ind = indent($0)

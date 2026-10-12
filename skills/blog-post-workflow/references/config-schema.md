@@ -125,9 +125,11 @@ publish:
                                                     #   works for a site that copies the assets folder next to the post
     platform: hugo                                  # astro | hugo | jekyll | ghost | nextjs | eleventy | generic
     frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md   # derived from platform at setup; plugin-relative
-    frontmatter_keys: [title, description, date, cover, draft]
+    frontmatter_keys: [title, description, date, featured_image]
                                                     # OPTIONAL; the keys the theme reads; absent: every key
-                                                    #   of the markdown-<platform>.md template (invariant 16)
+                                                    #   of the markdown-<platform>.md template (invariant 16).
+                                                    #   The cover key named by cover_key below must be in it;
+                                                    #   the draft key is never listed (draft_key decides it)
     cover_key: featured_image                       # OPTIONAL; the top-level frontmatter key the theme reads the
                                                     #   cover image from (Ananke: featured_image). One scalar key
                                                     #   only, no dots: a nested cover such as PaperMod's
@@ -378,8 +380,10 @@ validation step (`blog-setup`) both check:
     template, per the table in §Fitting the site's frontmatter (`title`, the
     description key, the date key, the cover key; `layout` too for jekyll;
     no cover key for wordpress). With `publish.markdown.cover_key` set, that
-    key is the cover key the list must include. The draft key may appear or
-    not; `draft_mechanism` / `draft_key` govern it.
+    key is the cover key the list must include. The draft key does not belong
+    in this list: a listed draft key is ignored by every reader, and
+    `draft_mechanism` / `draft_key` alone decide whether the draft line is
+    emitted (`none`: never).
 
 Two further profile docs are registered here but not added as numbered
 invariants above, because their requirement depends on wizard-time state

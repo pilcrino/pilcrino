@@ -69,8 +69,8 @@ The `## FAQ` body section converts to regular HTML like any other section (§Sta
 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `excerpt` ≤160 chars
-- [ ] `tags` has 2-4 entries from this blog's tag taxonomy
-- [ ] every `authors:` entry matches an author in `{profile_dir}/authors.md`
+- [ ] `tags` has 2-4 entries from this blog's tag taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] every `authors:` entry matches an author in `{profile_dir}/authors.md` (only when `authors` is emitted, §Which keys to emit)
 - [ ] no `cover`/`heroImage` field present — the featured image ships via media upload, not frontmatter
 - [ ] `draft: true` present
 - [ ] no key outside `publish.wordpress.frontmatter_keys` when that list is set (§Which keys to emit)

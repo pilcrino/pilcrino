@@ -111,9 +111,9 @@ The `mainEntity` array must have exactly one entry per `## FAQ` question in the 
 ## Quality gates (self-check before Gate 2)
 
 - [ ] `title` matches the outline's "Final title" exactly
-- [ ] `excerpt` ≤160 chars, identical string in `head[]` meta description
-- [ ] `authors:` casing matches the site's authors map exactly (see §Authors map)
+- [ ] `excerpt` ≤160 chars; identical string in `head[]` meta description when `head` is emitted
+- [ ] `authors:` casing matches the site's authors map exactly (see §Authors map) (only when `authors` is emitted, §Which keys to emit)
 - [ ] `cover.image` path resolves to a file that actually exists at `{assets_dir}/<slug>/featured.png`
-- [ ] FAQPage JSON-LD `mainEntity` has exactly one entry per `## FAQ` question, same order, same wording
+- [ ] FAQPage JSON-LD `mainEntity` has exactly one entry per `## FAQ` question, same order, same wording (only when `head` is emitted; without `head` no JSON-LD is written)
 - [ ] `draft: true` present (stripped later by the publish adapter, not by the writer); absent iff `publish.astro.draft_mechanism` is `none`
 - [ ] no key outside `publish.astro.frontmatter_keys` when that list is set (§Which keys to emit)

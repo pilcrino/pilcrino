@@ -71,9 +71,9 @@ In the app's zip both shapes become `./<file>` (`./featured.png`); always write 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `description` is 160 chars at most
 - [ ] `date` is `YYYY-MM-DD`
-- [ ] `tags` has 2-4 entries from the taxonomy
-- [ ] `author` is a plain display string, not an array
-- [ ] `cover` resolves to `{assets_dir}/<slug>/featured.png`
+- [ ] `tags` has 2-4 entries from the taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] `author` is a plain display string, not an array (only when `author` is emitted, §Which keys to emit)
+- [ ] the cover key (`cover`, or `publish.markdown.cover_key` when set) resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body
 - [ ] `draft: true` present (stripped at staging, not by the writer); absent iff `publish.markdown.draft_key` is `none`
 - [ ] the cover sits under `publish.markdown.cover_key` when set, and no key outside `publish.markdown.frontmatter_keys` when that list is set (§Which keys to emit)

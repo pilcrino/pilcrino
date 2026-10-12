@@ -110,6 +110,14 @@ test('neither key set: exit 1 with the invariant named', () => {
   assert.match(r.stderr, /neither publish\.wordpress\.app_password_env nor app_password_keychain is set .*invariant 15/)
 })
 
+test('CRLF line endings: the env var is still found', () => {
+  const crlf = (base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n').replace(/\n/g, '\r\n')
+  const r = run(crlf, { env: { FIELDSTACK_WP_APP_PASSWORD: 'crlf-secret' } })
+  assert.equal(r.status, 0)
+  assert.equal(r.stdout, 'crlf-secret\n')
+  assert.equal(r.stderr, '')
+})
+
 test('both keys set: exit 1, nothing printed even though both would resolve', () => {
   const r = run(base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n    app_password_keychain: pilcrino-wp-fieldstack\n', {
     env: { FIELDSTACK_WP_APP_PASSWORD: 'env-secret' },
