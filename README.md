@@ -112,7 +112,8 @@ files, "Yes, and don't ask again" is safe.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
-   while it runs.
+   while it runs. Comparison posts about competitors that have no fact sheet
+   yet are in the plan too, marked to research the competitor first.
 4. **Write a post:** `/pilcrino:blog-post-workflow new`. A few questions at the
    start, then about 40 minutes of work ending in a pull request. Best-of,
    alternatives and comparison posts need a research profile for every
@@ -388,6 +389,14 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.51.0 - comparison posts go into the plan
+
+- `plan-content`, standalone blogs: an alternatives, vs, review or export post whose competitor has no fact sheet yet is added to `content-plan.md` as `planned`, with a `Profile first: <name>, <name>` line after its `Mention:` line in the Details block. A test run had held nine such posts, the core of a product blog, in `strategy.md` until five research runs and a re-plan; now they are in the plan, the post workflow copies the line into the brief and offers to research the competitors when the post is started. Registered blogs keep today's rule (the console owns that check); autopilot is unchanged.
+- One order. The report's "write these first" list is the plan's own order (score order within the batch, the row order in the file), a post waiting for a fact sheet keeps its place, and a later question about what to write first is answered from the plan file's order, never re-ranked. The test run gave two different top-five lists.
+- The report ends with the plan file path (standalone), preceded by the sentence about the app importing the file, so the path is the last thing on screen when the report scrolls.
+- The first message of an interactive run says "This takes about 30 minutes and asks no questions while it runs."
+- Plain words in the report: "competitor fact sheet" for a profile, the actual reason for a skipped competitor instead of "below the cap", and the competitors block says which names the owner gave and which research added.
 
 ### 0.50.0 - the first post on a fresh Mac
 

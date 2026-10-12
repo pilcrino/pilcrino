@@ -116,7 +116,7 @@ pricing page; "unverified" means the page could not be read.
 
 ## Skipped
 
-<competitor: reason (no evidence, below the cap, already has a comparison post), one per line>
+<competitor: the actual reason (no evidence found, fewer search results than the six chosen, already has a comparison post), one per line>
 
 ## Profiles to run
 
@@ -135,6 +135,10 @@ pricing page; "unverified" means the page could not be read.
 
 - Pillars, one line each.
 - Posts added: <n>, slugs.
-- First ten posts, slug and one clause.
-- Competitors: chosen and skipped with evidence and reason, at most eight lines.
-- What the owner must supply.
+- Write these first: the first ten posts in plan order, slug and one clause;
+  a post waiting for a competitor fact sheet keeps its place and says so.
+- Competitors: which names the owner gave and which research added; chosen
+  and skipped with evidence and the actual reason, at most eight lines.
+- What the owner must supply (fact sheets wanted, in plain words).
+- Standalone, last two lines: the app imports the file once when connected;
+  then "Your plan: `<plan file>`, <n> posts." as the final line.

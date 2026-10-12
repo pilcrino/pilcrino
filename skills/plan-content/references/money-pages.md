@@ -27,8 +27,9 @@ independently verified.
    `competitors`. With `modules.competitors` on they are chosen only from
    competitors that have a profile, and go on the idea's `Mention:` line after
    the subjects. Every idea with a non-empty list gets the `Mention:` line
-   and, with the module on, the profile gate (SKILL.md Step 8), whatever its
-   slug.
+   and, with the module on, the profile check (SKILL.md Step 8: standalone, a
+   `Profile first:` line for subjects with no profile and the post is still
+   added; registered and autopilot, the console's gate), whatever its slug.
 
 2. **Candidates in a `new` batch**, in this order (bible 3.2, 2026-09-14; caveat:
    "5 to 20 pages drive 90%" has no data behind it). Rank the eligible
