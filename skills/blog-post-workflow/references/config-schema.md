@@ -228,8 +228,10 @@ key above. Nested covers (PaperMod's `cover.image`, a map with `image` and
 and such a site keeps the default key.
 
 **`publish.site_live`**: whether the site is online and rebuilds from the base
-branch. Adapters read it for wording only (merging publishes vs. merging files
-the post), in a later release; here it is defined and type-checked.
+branch. The workflow reads it for the Gate 2 wording (merging publishes vs.
+merging files the post) and for the image gate: on a live site a post pauses
+before staging while any image is still missing, so no pending-image note can
+be merged live.
 
 **`publish.wordpress.permalink_structure`**: the WordPress permalink setting as
 setup read it from `/wp-json/wp/v2/settings` or inferred from a post's `link`.

@@ -120,7 +120,7 @@ If the outline planned none: "None."
 After the post is live, run the standalone repurpose skill for X thread / X short / LinkedIn / newsletter:
 
 ```
-/repurpose-blog-post <slug>
+/pilcrino:repurpose-blog-post <slug>
 ```
 
 The skill writes four platform-native outputs under `{drafts_dir}/_archive/<slug>/repurpose/`. Copy each into your scheduler. See `${CLAUDE_PLUGIN_ROOT}/skills/repurpose-blog-post/SKILL.md` for the full contract.

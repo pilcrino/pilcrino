@@ -40,7 +40,7 @@ None. This adapter never reads the site. `publish.markdown.platform` and `publis
 
 ## Relationship to the git repo
 
-The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner pastes the post into the platform first (the zip the Pilcrino app builds: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
+The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner pastes the post into the platform first (§Staging step 6 puts the formatted text on the clipboard and opens the image folder; a blog registered with the Pilcrino app can also download the app's zip: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
 
 ## Staging (Stage 4b.5)
 
@@ -48,7 +48,7 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
 
 `REPO=$(git rev-parse --show-toplevel)`. Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets_dir}/$SLUG"`.
 
-1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 1, 2 and 3 as written. Every embed destination is written as `$PREFIX/<slug>/<file>` (`$PREFIX` bound and checked per §Config inputs) when `publish.markdown.image_url_prefix` is set, else as the relative path from `{content_dir}` to `{assets_dir}/<slug>/<file>`, per the configured `markdown-<platform>.md` §Cover path computation. The cover goes under `COVER_KEY` (§Config inputs: `publish.markdown.cover_key` when set, else that doc's own key, `heroImage`, `cover`, `image` or `feature_image`) with the same destination (`$PREFIX/<slug>/featured.<ext>` when the prefix is set, else the relative path), replacing any value the draft carried under that key; if the draft carries the cover under the doc's default key while `cover_key` names another, move it: write `COVER_KEY` and remove the default-key line, so the theme finds exactly one cover. A missing `featured.<ext>` stops staging exactly as step 3a there says. The staged copy now in the main tree is not a published post for the image-builder guard, which counts only `origin/{git.base_branch}`.
+1. **Copy the post, resolve the images, set the cover, look at the renders.** Run astro-git-pr.md §Staging steps 0, 1, 2 and 3 as written (step 0 is the ownership check before the first copy). Every embed destination is written as `$PREFIX/<slug>/<file>` (`$PREFIX` bound and checked per §Config inputs) when `publish.markdown.image_url_prefix` is set, else as the relative path from `{content_dir}` to `{assets_dir}/<slug>/<file>`, per the configured `markdown-<platform>.md` §Cover path computation. The cover goes under `COVER_KEY` (§Config inputs: `publish.markdown.cover_key` when set, else that doc's own key, `heroImage`, `cover`, `image` or `feature_image`) with the same destination (`$PREFIX/<slug>/featured.<ext>` when the prefix is set, else the relative path), replacing any value the draft carried under that key; if the draft carries the cover under the doc's default key while `cover_key` names another, move it: write `COVER_KEY` and remove the default-key line, so the theme finds exactly one cover. A missing `featured.<ext>` stops staging exactly as step 3a there says. The staged copy now in the main tree is not a published post for the image-builder guard, which counts only `origin/{git.base_branch}`.
 2. **Strip the draft key** (replaces astro-git-pr.md §Staging step 4), per the configured platform doc. When `publish.markdown.draft_key` is the literal `none`, skip this step: the site has no draft flag and the writer emitted no draft line (a stray `draft: true` or `published: false` in the staged post is still removed with the platform's command below, since the site would publish it as literal frontmatter). Otherwise, only the leading frontmatter block (line 1 `---` to the next `---` line) is touched; every body line, code fences included, stays byte for byte. Run exactly:
    - `astro`, `hugo`: remove `draft: true`:
      ```bash
@@ -60,13 +60,27 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
      ```
    - `ghost`, `nextjs`, `eleventy`, `generic`: no draft key; nothing to strip.
 3. **Apply the planned inbound links.** astro-git-pr.md §Staging step 5 VERBATIM (ownership check, Link-only diff verification, dirty-file guard, write-ahead record, `<edited inbound posts>` admission, soundness invariant, resume rule), with `$P = {content_dir}/<existing-slug>.md`, found by grep over `{content_dir}`. If the outline planned none, skip this step.
-4. **Open the PR.** astro-git-pr.md §Staging steps 6a to 6h VERBATIM: collision guard, worktree off `origin/<base>`, rebase on reuse, whole-file copies (post, images, inbound-link edits, Remotion sources, featured-log entry, early archive snapshot), sentinel removal, scoped commit and push, `gh pr create`, `pr-monitor.json`, then the main-tree cleanup. Its parks (`slug_collision`, `staging_conflicted`, `pr_create_failed`) apply unchanged.
+4. **Open the PR.** astro-git-pr.md §Staging steps 6a to 6h VERBATIM: collision guard, worktree off `origin/<base>`, rebase on reuse, whole-file copies (post, images, inbound-link edits, Remotion sources, featured-log entry, early archive snapshot without the `research/_raw/*.json` captures), sentinel removal, scoped commit and push, `gh pr create` with the post-first body, `pr-monitor.json`, then the main-tree cleanup that removes only files identical to the branch copies. Its parks (`slug_collision`, `staging_conflicted`, `pr_create_failed`) apply unchanged.
 5. **`pr-monitor.json`.** astro-git-pr.md §Staging step 7's schema, `mode: pr`. This adapter adds no fields.
-6. **Preview line for the Gate 2 banner.** `Preview: <pr_url>` (the diff) and, when the blog is registered with the Pilcrino app, the app's preview page for this post. There is no staging site. For a paste platform the banner then carries this instruction, before any approval:
+6. **Preview line for the Gate 2 banner.** `Preview: <pr_url>` (the diff) and, when the blog is registered with the Pilcrino app (SKILL.md Step 2.5's test), the app's preview page for this post. There is no staging site.
 
-   > Download the zip from the app, or copy `{content_dir}/<slug>.md` and `{assets_dir}/<slug>/` from the worktree, and paste the post into <Platform> now; then approve. The zip's date is the download day; a copy from the worktree still carries the drafting date, so set <Platform>'s date field to today when you copy by hand.
+   **Paste platforms (`jekyll`, `ghost`, `generic`): hand the post over ready to paste, before any approval.** A rich-text editor such as Webflow's does not convert markdown (pasting the `.md` file gives literal `##` and `**`), the worktree folder is hidden from Finder, and the frontmatter fields go into separate CMS fields. So, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
+   ```bash
+   node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/post-to-clipboard.mjs" "$WT_ABS/{content_dir}/<slug>.md" <--cover-key "$COVER_KEY" when publish.markdown.cover_key is set>
+   open "$WT_ABS/{assets_dir}/<slug>"
+   ```
+   The script renders the body (frontmatter left out) to HTML, puts it on the clipboard as formatted text, and prints one line per frontmatter field (`title: ...`, `description: ...`, `date: ...`, `tags: ...`, `author: ...`, `cover: <file>`); `open` shows the image folder in Finder. The banner then says, with the printed values filled in and only the fields the script printed:
 
-   For `jekyll` add: "Name the file `YYYY-MM-DD-<slug>.md` when you put it in `_posts`." The order matters: after the merge and cleanup the app serves the published copy from the owner's checkout, which only has the post once they pull.
+   > To put the post on <Platform>: I copied the post's text to your clipboard, already formatted, and opened its image folder in Finder. In <Platform>, create a new post and paste into the post body. Then fill these fields one by one:
+   > - Title: <title>
+   > - Description: <description>
+   > - Date: today, <today's date> (the date in the file is the drafting day)
+   > - Tags: <tags>
+   > - Author: <author>
+   > - Cover image: <cover file>, from the folder I opened
+   > Each picture in the text shows its file name: replace it with the file of that name from the same folder. When it looks right in <Platform>, tell me "approve". If the clipboard has changed since, say "copy the post again".
+
+   Registered blogs only, add: "Or download the post as a zip from the Pilcrino app." Never mention the app to an owner whose blog is not registered with it. For `jekyll` add: "Name the file `YYYY-MM-DD-<slug>.md` when you put it in `_posts`." "Copy the post again" re-runs the two commands above. When the script exits 1, give its one-line reason, still run `open`, and name the post file to open instead (`$WT_ABS/{content_dir}/<slug>.md`). The order matters: after the merge and cleanup the app serves the published copy from the owner's checkout, which only has the post once they pull.
 7. **Layout line for the Gate 2 banner.** `Layout: not checked (the markdown adapter has no site preview)`. Never omit the line.
 
 ## On review-loop edit
@@ -75,7 +89,7 @@ astro-git-pr.md §On review-loop edit as written: edit `$worktree/{content_dir}/
 
 ## On Gate 2 approval
 
-astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge: for a repo platform "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site", for a paste platform "merging it files the post in the repository; <Platform> has it only if you pasted it in". Never auto-merge.
+astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge, in SKILL.md Step 15.5's words, with the date sentence from astro-git-pr.md step 2b (that step dates the post on the branch here too): for a repo platform with `publish.site_live: true`, "merging it publishes the post; check the first post's page on the site"; with `publish.site_live: false`, "merging files the post in the repository; the site is not live yet"; absent, "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site"; for a paste platform, whatever `site_live` says, "merging it files the post in the repository; <Platform> has it only if you pasted it in". Never auto-merge.
 
 ## On abandon
 
@@ -103,13 +117,13 @@ There is no authors map to reconcile: write "§6. N/A for the markdown adapter."
 
 Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`):
 
-- [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links). The frontmatter date does not need checking: the app rewrites it to the day of the merge on the branch, immediately before merging.
+- [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links). The frontmatter date is the approval day (set on the branch at approval; the Pilcrino app re-dates it to the merge day when it merges). Merged on a later day by hand: run `/pilcrino:blog-post-workflow published <slug>` afterwards and it corrects the date.
 - [ ] Merge the pull request; your site builds from `{git.base_branch}`.
 - [ ] After the build finishes, verify the live post per action-items §8.
 
 Paste platform (`jekyll`, `ghost`, `generic`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
-- [ ] Paste the zip (or `{content_dir}/<slug>.md` and `{assets_dir}/<slug>/`, setting the date field to today) into <Platform>, then merge the pull request.
+- [ ] Paste the post into <Platform> as the Gate 2 banner says (formatted text from the clipboard, then each field and image; set the date field to today), then merge the pull request. Registered with the Pilcrino app: the app's zip works too.
 - [ ] Jekyll only (emit this item only when `platform` is `jekyll`): name the file `YYYY-MM-DD-<slug>.md` in `_posts`.
 - [ ] Once <Platform> shows the post, verify it per action-items §8.

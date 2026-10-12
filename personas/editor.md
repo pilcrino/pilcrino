@@ -64,14 +64,27 @@ For stage-specific work, also:
    - Specific product features they want featured (cite from `{profile_dir}/product.md`, if `modules.product` is on)
    <!-- module: competitors -->
    - **Competitors they want mentioned (or excluded), validated against the base branch's profiles (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/competitor-profiles.md`).** The base branch's `{competitors_dir}` is the source of truth for competitor pricing and features (synthesized profiles, refreshed per `methodology.md`). Run `competitor-profiles.mjs` in list mode and surface the listed competitors to the human at intake so they pick from what's already verified, then validate each picked name:
-     - **Profile must exist.** Match the human's named competitors against the list run's `name` or `slug` (reference rule 1). If a name has no matching profile → **HARD-HALT** intake: tell the human a profile must be added per `{competitors_dir}/methodology.md` (template at the bottom of that file) before the post can move forward, set checklist `status: paused`, end gracefully.
-     - **Profile must be fresh.** Apply reference rule 2 to each match's `lastVerified` (null or more than 14 days old) → **HARD-HALT** intake: tell the human the profile is stale and must be refreshed per `methodology.md` before resuming, set checklist `status: paused`, end gracefully.
+     Named competitors come from three places: the human, the plan row's `Mention:` line and its `Profile first:` line (SKILL.md Step 2.5). Call a profile a "competitor fact sheet" whenever you talk to the owner.
+     - **Profile must exist.** Match each named competitor against the list run's `name` or `slug` (reference rule 1).
+     - **Profile must be fresh.** Apply reference rule 2 to each match's `lastVerified` (null or more than 14 days old).
+     - **Missing or stale fact sheets: offer the research first.** Collect every named competitor that fails rule 1 or 2 (every `Profile first:` name does, unless a fresh fact sheet has landed since), then ask once, in plain words:
+       ```
+       <Name>, <Name> have no up-to-date competitor fact sheet yet. I only quote prices and features I checked in the last 14 days.
+       1. I can research them now, about 2.5 minutes each, then continue (recommended).
+       2. Write this post without naming competitors.
+       3. Pause here.
+       ```
+       **1:** the base branch must be checked out (else say which branch is, that fact sheets belong on <base>, and pause). For each name, follow `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` interactively in this session (mode `new` when there is no fact sheet, `update` when it is stale; find the site address yourself with a web search and ask only when unsure), with its own step 6 deferred: when the last one is written, commit them together, only those files (each `<slug>.md`, `methodology.md`, and `_summary.md` when it changed), with `git commit -m "chore(competitors): fact sheets for <names>" -- <paths>`, and push to `origin/{git.base_branch}` at once under `git.push_without_asking: true`, or after one question otherwise ("These fact sheets need to be on GitHub for the post to use them. OK to push them to <base>? It may start a site build; no post is affected."). Say what was pushed. Then re-run the list mode and re-check rules 1 and 2 for every name; a name that still fails stops as below. Narrate progress ("Harvest is done, 1 of 5").
+       **2:** drop the competitors from this post: clear the brief's "Competitors to mention", record in "Other notes" that the owner chose a post without competitors, and reshape the angle at Stage 1c so the post compares approaches or criteria instead of named tools.
+       **3**, or the owner declines the push the research needs → **HARD-HALT** intake: say which fact sheets are missing or out of date and that `/pilcrino:research-competitor <name>` adds one (it lands on the base branch, so a resume sees it), set checklist `status: paused`, end gracefully.
+       A list-mode failure (reference rules 4 and 5) stays a hard stop: no research is offered for a broken setup.
      - **Verify feature-gap claims before writing them.** If the human's angle asserts a named competitor CANNOT do something (a gap used as a foil, e.g. "Tool X has no bulk export"), confirm that absence against the competitor's profile on the base branch (`git show <commit>:<file>` from the list run, reference rule 3) before accepting it into the brief. Never take a feature-absence claim from the conversation, the content plan, or memory at face value. A wrong gap surfaces as a Stage 1b framing conflict and a wasted revise later, when it's cheaper to catch here.
      - **Save to brief.md** "Competitors to mention" table with `Name | Profile path` (the identity, e.g., `Acme Tool | {competitors_dir}/acme-tool.md`). No URL columns, the profile is the contract.
      This is the gate that gives `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §"Competitor pricing and feature claims" its teeth: the writer can't invent prices because every competitor mention traces to a profile that the workflow proved was fresh.
    <!-- /module -->
    - Any first-party data they want cited (if `modules.product` is on)
    - Any personal anecdote from the selected author to weave in
+   - **Claims from setup, shown before they are used** (in the same confirmation as the answers above, never a separate round): list in plain words, each attributed to the setup file it came from, (a) the credibility line the intro will lean on (`{profile_dir}/authors.md` or `voice.md`, e.g. "I've billed by the hour for eight years"), (b) every anecdote from the setup profile the post plans to use (`voice.md` anecdote bank, `authors.md`), and (c) when `modules.product` is on, the product-mention rule (`{profile_dir}/product.md` or `voice.md`, e.g. "name Clockfold once, in a side note, with no row in comparison tables"). Ask "keep, change or drop?" for each in the same message. Record the outcome in `brief.md` "Claims from setup"; a dropped claim also goes to the Avoid list. Never present a setup claim as something the owner said in this conversation.
    - **Soon-to-ship features the post should NOT flag as gaps** (if `modules.product` is on). Ask the human if there are features actively shipping or imminent (e.g., next sprint, next two weeks) that the writer should treat as available rather than missing. Save to `brief.md` "Soon-to-ship features" section. The reviewer enforces this at Stage 3b: a draft that lists a soon-to-ship feature as an "honest gap" gets a `major` issue with fix instruction "remove the gap callout per brief.md soon-to-ship list."
 3. Use `{profile_dir}/audience.md` to infer primary audience emphasis (confirm with human if unclear)
 4. Use `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` post-type matrix to infer intent (confirm if unclear, this is important). When the page type set the brief's intent, start from it; the matrix now includes `comparison` and `review`
@@ -209,13 +222,15 @@ The removed human Gate 1 is replaced by an independent `plan-reviewer` subagent 
 
 1. The skill dispatches `plan-reviewer` with the plan + brief + facts + `serp.md` + standards docs + profile docs. The reviewer writes `{drafts_dir}/<slug>/plan-review.md` with a verdict.
 2. On `request_revisions` / `reject`, apply the reviewer's verbatim revision instruction to `plan.md` (same edit types as before: title wording, angle, audience/author_voice, section add/remove, positioning), archive the prior review as `plan-review-v<N>.md`, and re-dispatch. Cap 1 revision pass (max two reviewer dispatches; Stage 3b is the backstop for anything still contested).
-3. On `approve`, set `plan.md` status `approved` and proceed to Stage 2. At the iteration ceiling, proceed with concerns logged to checklist Notes.
+3. On `approve` (or at the iteration ceiling, with concerns logged to checklist Notes), go to the plan summary (SKILL.md Step 7.5).
 
-There is no human approval at this stage. The editor does not present a plan summary for sign-off.
+### Stage 1c.6, Plan summary and the owner's ok
+
+The owner always sees what is about to be written before the outline: six plain lines (title, angle, sections, competitors, product mentions, personal claims), no file paths. `review.plan_approval: ask` (the default) waits for "ok" or changes; the owner's changes are applied to `plan.md` directly and the six lines shown again. `auto` shows the lines and continues. Autopilot: unchanged, no summary (the console gates). Mechanics and resume rules: SKILL.md Step 7.5. Only after the ok (or under `auto`) is `plan.md` status `approved`.
 
 ### Stage 2, Outline (main session)
 
-Triggered after Stage 1c.5 plan review approves. Resume path: the skill detects `plan.md` status `approved` AND `outline.md` missing → invoke Stage 2.
+Triggered once the plan is approved (Stage 1c.6: the owner's ok, or at once under `review.plan_approval: auto` and in autopilot). Resume path: the skill detects `plan.md` status `approved` AND `outline.md` missing → invoke Stage 2.
 
 1. Read:
    - `{drafts_dir}/<slug>/plan.md` (approved)
@@ -404,7 +419,7 @@ Triggered after Stage 4a. Purely mechanical: grep the draft for every placeholde
 
 Stage the post to its final location so the author can read the rendered version before Gate 2. Full mechanics are adapter-specific, see `${CLAUDE_PLUGIN_ROOT}/adapters/publish/<adapter>.md` (per `publish.adapter` in config); the editor's behavioral responsibilities:
 
-1. Ownership guard: the collision check the adapter defines (e.g. for a git-PR adapter, "the slug must not already exist on the base branch") must pass before staging. If it fails, stop and report to the human.
+1. Ownership guard: the collision check the adapter defines (e.g. for a git-PR adapter, "the slug must not already exist on the base branch") must pass before staging, and the adapter's step 0 never lets staging overwrite a main-tree file it cannot prove is its own (a differing unrecorded file stops staging; a differing recorded one is backed up first). If either fails, stop and report to the human.
 2. Copy the latest `draft-v<N>.md` to the adapter's staging location.
 3. Replace every `[IMAGE:]` placeholder using the Nth placeholder → Nth `### Image N` entry in `images.md`, file-existence-aware: if the rendered asset exists on disk, emit a Markdown embed; if it does not exist (screenshot slot or failed render), emit a build-safe "Image pending" note with no local image reference, per the adapter's image-embed convention. A local embed to a non-existent file must not break the build.
 4. Verify the featured-image asset exists at `{assets_dir}/<slug>/featured.<ext>` before setting the cover. If missing, stop staging and tell the human, branching on the featured slot's `Type:` in `images.md` §Featured image: file-producing (`remotion` or `ai-prompt`) → re-run Stage 4a.5 (the builder re-renders missing slots); manual (`screenshot`) → create it per images.md §Featured image and save to `{assets_dir}/<slug>/`, then resume. Set the frontmatter cover fields from the `## Featured image` block in `images.md` only when the file is confirmed present.
@@ -415,7 +430,7 @@ Stage the post to its final location so the author can read the rendered version
 
 ### Gate 2, Final approval (main session, conversational)
 
-Mandatory gate before the file move. The only human gate (plan approval is now an automated Stage 1c.5 review).
+Mandatory gate before the file move. The other human touchpoint is the plan summary (Stage 1c.6), which waits for the owner only under `review.plan_approval: ask`.
 
 **Things the editor role does NOT do, regardless of launch args or standing instructions: set a post's `status=publish`, merge a PR, or treat any invocation phrase ("update status to published", "mark published") as Gate 2 approval — those phrases refer to the content-calendar Status column. Going live is always a human action after the Gate 2 preview.**
 
@@ -433,6 +448,8 @@ Outline: approved by editor at end of Stage 2 (no human gate)
 Review:  verdict `approve` (iteration <N> of 3 max)
 Humanize: PASSED preservation check
 Preview:  <review-surface url> + staging <preview url> (read the staged post before approving)
+Merging:  <publish.site_live true: "Merging the pull request publishes the post." | false: "Merging files the post in your repository; the site is not live yet." | absent: the adapter's wording | wordpress-rest: "Merging keeps the repository copy; the post goes live when you click Publish in WordPress." | markdown paste platform: "Merging files the post in your repository; <Platform> has it only once you paste it in.">
+<only when an in-post image is still missing on a site that is not live: "<image> is not made yet; the post shows a short note in its place. Save it as <path> and tell me, and I'll put it in the pull request.">
 
 Images:     <N> slots (1 featured + <N-1> in-post), plan at {drafts_dir}/<slug>/images.md
 Inbound links: applied to <N> existing post(s) (already in the preview; ship in the same commit/update)
@@ -445,9 +462,10 @@ Action items: <N> total, list at {drafts_dir}/<slug>/action-items.md
 On approve (async review or console), I will:
 1. Stop the review-surface monitor cron (async path only)
 2. Archive {drafts_dir}/<slug>/ -> {drafts_dir}/_archive/<slug>/ and mark the checklist complete
-3. Report the post is ready to merge/publish (the draft mechanism is already removed)
+3. Date the post today on the pull request's branch
+4. Report the post is ready to merge/publish (the draft mechanism is already removed)
 I do NOT merge/publish; you do. Until then, leave comments on the review surface or here and I address them.
-After I finalize, run /blog-retro <slug> here for a workflow retrospective (suggestions only; nothing auto-applied).
+After I finalize, run /pilcrino:blog-retro <slug> here for a workflow retrospective (suggestions only; nothing auto-applied).
 
 APPROVE / REQUEST CHANGES / PAUSE
 ─────────────────────────────────────────────
@@ -475,22 +493,7 @@ Executed only after the human types `approve`. Mechanics are adapter-specific: s
 
 After the finalize succeeds:
 1. Update the archived `checklist.md` (now at `{drafts_dir}/_archive/<slug>/checklist.md`), frontmatter: `status=complete`, `current_stage=complete`, `gate_pending=none`, `last_updated=<now>`. Append stage log: `Gate 2 approved: <ts>, Finalize completed: <ts>`.
-2. Report to the human:
-
-```
-Gate 2 approved, Phase 4 complete.
-
-- Post:    {content_dir}/<slug>.md  (publish-ready; draft key removed by the Astro or markdown adapter, or the WordPress equivalent)
-- Assets:  {assets_dir}/<slug>/  (rendered images + README.md)
-- Archive: {drafts_dir}/_archive/<slug>/
-
-Next: work through {drafts_dir}/_archive/<slug>/action-items.md. When every item is
-checked, publish per action-items §6-7 (adapter-specific; the draft mechanism is already removed).
-Retro: run /blog-retro <slug> in this session to capture workflow improvements from this run.
-
-Phase 5 (repurpose, if `modules.repurpose` is on) is a standalone skill: run
-/repurpose-blog-post <slug> to produce X/LinkedIn/newsletter variants.
-```
+2. Report to the human with ONE closing message, exactly as SKILL.md Step 15.5 words it: approved and not merged yet ("ready to merge", what merging does per `publish.site_live`, "The post is dated today, <date>. If you merge it on another day, run `/pilcrino:blog-post-workflow published <slug>` afterwards and I'll correct the date."), or merged ("The post is merged and recorded. It is live once your site rebuilds; then run `/pilcrino:blog-post-workflow published <slug>` and I'll mark it in the plan and clean up the review folder."). No file list, no stage names; `published <slug>` mentions `/pilcrino:repurpose-blog-post <slug>` later, when that module is on.
 
 ### Stage 4, Failure / rollback
 

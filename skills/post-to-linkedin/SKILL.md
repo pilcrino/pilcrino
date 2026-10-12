@@ -19,7 +19,7 @@ It does not publish, approve, or go live the underlying blog post itself — per
 
 ## Step 0, Config preamble (guard first, before anything else)
 
-1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root, per `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule. If missing or does not parse as YAML → **HARD-STOP**: "No valid blog-ops/config.yaml, run /blog-setup first."
+1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root, per `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule. If missing or does not parse as YAML → **HARD-STOP**: "No valid blog-ops/config.yaml, run /pilcrino:blog-setup first."
 2. **Check the LinkedIn gate.** Read `social.linkedin.company_id`. If `social.linkedin` is absent, or `company_id` is empty → **HARD-STOP**: "social.linkedin.company_id is not configured in blog-ops/config.yaml — this skill requires it. Add a social.linkedin block (see config-schema.md §Schema) by hand, then retry." Do not proceed, do not open a browser.
 3. **Resolve `{company_id}`** = `social.linkedin.company_id`. It is a public LinkedIn page id, not a secret: config never carries LinkedIn credentials; this skill relies entirely on the operator's LinkedIn session in the Pilcrino browser for auth.
 4. **Resolve path variables**: `{drafts_dir}` (`blog-ops/drafts`), `{profile_dir}` (`blog-ops/profile`), `{route_prefix}` (`blog.route_prefix`), and read `blog.url` and `blog.trailing_slash`. Canonical post URL = `{blog.url}{route_prefix}<slug>`, with a trailing `/` appended iff `blog.trailing_slash: true`.
@@ -29,7 +29,7 @@ It does not publish, approve, or go live the underlying blog post itself — per
 Resolve the post body + first-comment (teaser line + blog URL) from, in order of preference:
 
 1. **A `linkedin.md` path** (a `repurpose-blog-post` output): parse the `## Body` code block (the full post text) and the `## First comment, the link` block.
-2. **A slug**: read `{drafts_dir}/_archive/<slug>/repurpose/linkedin.md`, else `{drafts_dir}/<slug>/repurpose/linkedin.md`. If neither exists, tell the human to run `/repurpose-blog-post <slug>` first.
+2. **A slug**: read `{drafts_dir}/_archive/<slug>/repurpose/linkedin.md`, else `{drafts_dir}/<slug>/repurpose/linkedin.md`. If neither exists, tell the human to run `/pilcrino:repurpose-blog-post <slug>` first.
 3. **Inline text** the human pastes in chat.
 
 Confirm the resolved body is link-free and the first-comment URL is a plain canonical `{blog.url}{route_prefix}<slug>` (trailing slash per `blog.trailing_slash`; no tracking params). Present the exact body + first comment to the human and wait for approval.
