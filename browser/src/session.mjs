@@ -54,9 +54,16 @@ export function createSession({ cwd = process.cwd(), env = process.env } = {}, d
     /**
      * Quits that sign-in window gracefully (signin.mjs closeSignIn). Never
      * connects, so it works while every other tool fails with
-     * signin_window_open. `deps.closeSignIn` is a test seam.
+     * signin_window_open. Passes the resolved Chrome so only Chrome is
+     * signalled. `deps.closeSignIn` is a test seam.
      */
-    async closeSignIn() { return (deps.closeSignIn ?? closeSignIn)({ profile }) },
+    async closeSignIn() {
+      // The resolved Chrome only widens what counts as Chrome beyond the
+      // by-name match; a Chrome that cannot be resolved leaves the name match.
+      let resolved
+      try { resolved = exe() } catch {}
+      return (deps.closeSignIn ?? closeSignIn)({ profile, exe: resolved })
+    },
     async closeOwned() { if (current) await current.registry.closeAll().catch(() => {}) },
   }
 }

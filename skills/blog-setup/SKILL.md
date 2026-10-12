@@ -172,6 +172,18 @@ resolves to."
    the first line (create the folder if needed); on a resumed run, append
    "Setup resumed <date and time>". The completion message reports how long
    setup took from this.
+9. **List every path setup writes.** Each time setup creates or edits a
+   file in the repository (`blog-ops/` docs, `config.yaml`,
+   `.gitattributes`, `.gitignore`, the Remotion project, `.gitkeep` files,
+   competitor profiles, a site file Phase 5 edits with consent), append its
+   repo-relative path to the list in git's own folder, once:
+   ```bash
+   P="$(git -C "<blog folder>" rev-parse --git-path pilcrino-setup-paths)"
+   grep -qxF -- "<path>" "$P" 2>/dev/null || printf '%s\n' "<path>" >> "$P"
+   ```
+   A folder setup created whole (it did not exist before this run) may be
+   listed as one path; a folder that already held files never is: list
+   each file. Phase 6's commit stages exactly this list and nothing else.
 
 ## Phase 0: Preflight and finding the blog
 
@@ -335,9 +347,46 @@ Whichever answer: from here on every command runs from the blog folder
 (`cd <blog folder> && ...` at the top of each Bash call, or `git -C`).
 There is no restart. Say: "I'll continue in `<folder>` for the rest of
 setup. Next time, start Claude Code there: in Terminal, `cd <folder>` then
-`claude`." If the repository is not empty and `git -C <folder> status
---porcelain` shows uncommitted changes the owner did not make in this
-session, mention them once and leave them alone.
+`claude`."
+
+**Put the folder on its main branch, before setup writes anything.** Setup
+commits its files to the repository's main branch (the base branch every
+post's pull request goes against), so the folder must be on that branch
+before the first file is written (Global rule 8's `setup-notes.md` in 0d is
+the first). In the blog folder, in this order:
+
+1. **Record what the owner already changed.** Save the status as it is
+   now, before setup writes anything, in git's own folder (never committed):
+   ```bash
+   B="$(git -C "<blog folder>" rev-parse --git-path pilcrino-setup-before)"
+   [ -f "$B" ] || git -C "<blog folder>" status --porcelain > "$B"
+   ```
+   A resumed run keeps the file an earlier run saved. If it lists
+   anything, mention it once ("You have unsaved changes in <files>; I'll
+   leave them alone and they stay out of setup's commit") and leave them
+   alone.
+2. **Find the base branch.** `gh repo view --json defaultBranchRef -q
+   .defaultBranchRef.name` (an empty repository has none: `main`). This is
+   `git.base_branch` in Phase 5.
+3. **Switch to it.** `git -C "<blog folder>" branch --show-current`. Already
+   on it: nothing to do. On another branch: when step 1 listed changes,
+   say so first and ask before switching: "You are on the branch
+   `<current>` with changes you have not saved in git yet. Setup needs to
+   work on `<base>`. Switching keeps your changes in the folder as they
+   are; shall I switch? (Or stop here, and you save or move them first.)"
+   No → stop setup here and say how to resume. Yes, or nothing listed:
+   `git switch <base>` when the branch exists locally; otherwise
+   `git fetch origin <base>` then `git switch -c <base> --track
+   origin/<base>`. An empty repository has no commit yet: check
+   `git symbolic-ref --short HEAD` names `<base>`, else run `git
+   symbolic-ref HEAD refs/heads/<base>`; the setup commit creates it. A
+   failed switch (a change that would be overwritten): say which file in
+   plain words, and stop until the owner has dealt with it.
+4. **Bring it up to date.** When `origin/<base>` exists, `git pull
+   --ff-only origin <base>`; if that fails, say so in one line and
+   continue (the push at the end will tell).
+
+Say in one line: "Setup works on `<base>`, your repository's main branch."
 
 ### 0c. Earlier Pilcrino setups on this Mac
 
@@ -1598,11 +1647,24 @@ Netlify, Vercel, Cloudflare Pages and GitHub Pages do that)?"
 
 For a WordPress or a hosted CMS (Webflow, Ghost(Pro)) blog the rebuild part
 does not apply: ask only "Is the site online now?" and write the answer.
-Say what the value changes, in one sentence: live → "when you merge a
-post's pull request, your site publishes it"; not live → "merging files
-the post in the repository; nothing is published until the site is".
+Say what the value changes, in one sentence that fits how posts reach this
+site (the adapter is confirmed next; use the detected one, and say the
+sentence again if the owner picks another):
+- Astro, or a markdown site the repository builds (Hugo, Next.js,
+  Eleventy): live → "When you merge a post's pull
+  request, your site rebuilds and publishes it"; not live → "Merging files
+  the post in the repository; nothing is published until the site is
+  online."
+- WordPress: "Approving a post leaves it as a draft in your WordPress;
+  you click Publish in WordPress. Merging the pull request only files the
+  text in the repository." (The same sentence, live or not.)
+- A platform you paste into (Jekyll, Webflow, Ghost, Squarespace, another
+  hosted CMS): "You paste each post into <Platform> before you approve it; merging
+  the pull request only files it in the repository." (The same sentence,
+  live or not.)
+Never tell a WordPress or paste-platform owner that merging publishes.
 Then, when the site is built by Hugo, Astro, Jekyll or another generator,
-add: "Pilcrino never builds your site on this Mac, so <Hugo/Astro> does not
+add: "Pilcrino does not need to build your site on this Mac, so <Hugo/Astro> does not
 need to be installed here" (do not report a missing `hugo` binary as a
 problem).
 
@@ -1681,21 +1743,80 @@ problem).
    schema, write the list of keys the chosen template defines that the
    schema accepts, always including the template's required keys (`title`,
    the description key, the date key, the cover key; config-schema.md
-   §Fitting the site's frontmatter). Example: the official template's
-   schema is `title, description, pubDate, updatedDate, heroImage` →
-   `frontmatter_keys: [title, description, pubDate, heroImage]`. When the
-   schema lacks `tags` or `author`/`authors`, say so in plain words and ask
-   once: "Your site's post format has no place for tags (or the author's
-   name), so the site would drop them. I can add both as optional fields to
-   the site's post format in the setup commit, or leave them out of posts.
-   Which do you prefer?" Add → edit the schema file (append
-   `tags: z.array(z.string()).optional()` and `author: z.string().optional()`
-   inside the collection's `z.object({...})`, matching the file's style;
-   show the lines you added) and include the keys in the list. Leave out →
-   the list omits them. When the schema lacks a required key (no cover
-   field at all), say the post will still carry it and the site will ignore
-   it, and keep it in the list (invariant 16). When the schema accepts
-   every key of the template, still write the full list.
+   §Fitting the site's frontmatter) and never the draft key (`draft`: step
+   6 decides it, and the list never holds it). Example: the official
+   template's schema is `title, description, pubDate, updatedDate,
+   heroImage` → `frontmatter_keys: [title, description, pubDate,
+   heroImage]`. The template's field names and types are fixed; compare
+   each against the schema:
+
+   | Template | Cover | Tags | Byline |
+   |---|---|---|---|
+   | `astro-content.md` | `heroImage`, one path | `tags`, a list of strings | `author`, one string |
+   | `astro-starlight.md` | `cover`, a group with `image` and `alt` | `tags`, a list of strings | `authors`, a list of strings |
+
+   **The cover field, when the schema lacks it.** The template always
+   writes a cover, and a site whose schema has no field for it drops it
+   (or fails the build), so this is settled before anything is written.
+   Say: "Your site's post format has no place for a cover image, so every
+   post's cover would be thrown away. I can add one optional field for it
+   to the site's post format in the setup commit. Add it?" Add → edit the
+   schema file, adding only that field, matching the file's style, and show
+   the lines you added:
+   - `astro-content.md`: `heroImage: image().optional()`. The `image()`
+     helper needs the function form of the schema: when the file has
+     `schema: z.object({...})`, change it to `schema: ({ image }) =>
+     z.object({...})`; when it already takes a parameter object, add
+     `image` to it.
+   - `astro-starlight.md`: `cover: z.object({ image: image(), alt:
+     z.string().optional() }).optional()`, in the same function form; on a
+     Starlight site whose schema is `docsSchema({ extend: ... })`, it goes
+     inside the `extend` object, as Starlight's docs on extending the
+     schema show (`extend: ({ image }) => z.object({...})`).
+   Leave out → do not write this template choice. Say: "Without that
+   field your site would drop every post's cover, so I can't set up posts
+   this way. You can pick the other post format, if your site has a place
+   for its cover, or stop here and come back after a change to the site;
+   your answers so far are saved." Then ask the step 5 menu again, or stop
+   Phase 5. Never write a `frontmatter_keys` list holding a key the schema
+   would drop.
+
+   **Tags and byline.** For each of the template's tags and byline fields
+   (the table above) that the schema lacks, say so in plain words and ask
+   once, naming only what is missing: "Your site's post format has no
+   place for <tags / the author's name / either>, so the site would drop
+   them. I can add <it / them> as optional fields to the site's post
+   format in the setup commit, or leave them out of posts. Which do you
+   prefer?" Add → edit the schema file, adding only the missing fields,
+   with the selected template's names and types, inside the collection's
+   `z.object({...})` and matching the file's style; never add a field the
+   schema already has, and show the lines you added:
+   - `astro-content.md`: `tags: z.array(z.string()).optional()`,
+     `author: z.string().optional()`.
+   - `astro-starlight.md`: `tags: z.array(z.string()).optional()`,
+     `authors: z.array(z.string()).optional()`.
+   Then include those keys in the list. Leave out → the list omits them. A
+   field the schema has under the template's name but with another type
+   (for example `author` as a list where the template writes one string):
+   leave the schema alone, leave the key out of the list, and say why in
+   one sentence.
+
+   **Check every schema edit.** After any edit in this step or step 6,
+   read the schema file again and confirm that every key in the list is a
+   field there with the type the template writes (the table above), and
+   that no field appears twice. Then, only when the site's packages are
+   already installed (`<site_dir>/node_modules` exists; never install
+   them for this), run a check from `<site_dir>`: `npx --no-install astro
+   check` when `node_modules/@astrojs/check` exists, else `npm run build`
+   (a long timeout; leave the build output alone, it is not staged). A
+   failure that names the schema file: fix your edit and run the check
+   once more; any other failure: say in one line that the site's own check
+   failed for a reason outside setup's change. No packages installed: say
+   "The first post's pull request preview is the check that your site
+   accepts the new fields." Record each edited schema file under Global
+   rule 9.
+   When the schema accepts every key of the template, still write the
+   full list.
 6. **Draft switch → `publish.astro.draft_mechanism`.** Check two things:
    `draft` in the schema, and a filter on it where the site lists posts
    (`grep -rn "draft" src/pages src/components src/layouts`: a
@@ -1712,7 +1833,8 @@ problem).
    out, in which case a merged post is live at once. Add it?" Add → edit
    the schema (`draft: z.boolean().optional()`) and add
    `.filter((post) => !post.data.draft)` to each `getCollection(...)` call
-   on those pages (keep the file's style; show every changed line), then
+   on those pages (keep the file's style; show every changed line; record
+   each file under Global rule 9; step 5a's check covers it), then
    `"draft: true"`. Leave out → `draft_mechanism: none`, and say once more:
    "Noted: a merged post is live at once." Never write `"draft: true"` for
    a site that would build the post anyway.
@@ -1811,10 +1933,16 @@ Verify the directories exist on disk:
    PASTE-PASSWORD-HERE (all of it, not the quote marks) and paste your
    password over it, save with Cmd+S, close TextEdit, then tell me." On
    the reply check that the placeholder is gone (`grep -c
-   PASTE-PASSWORD-HERE ~/.zshrc`), never print the line. A variable in
-   `~/.zshrc` only reaches commands started from a new Terminal, so the
-   probe below reads it with `zsh -lc` once; say that the Pilcrino app, if
-   used later, needs the same value in its own settings.
+   PASTE-PASSWORD-HERE ~/.zshrc`), never print the line. Then say why a
+   restart is needed, in these words or close to them: "Your Mac's
+   terminal reads that file only when a new Terminal window opens, and
+   Claude Code keeps the settings it started with. Before your first post,
+   quit Claude Code, open a new Terminal window, and start Claude Code
+   again in `<blog folder>`; otherwise the post can't log in to WordPress.
+   I'll check the password now in a way that reads the file." (The
+   wizard's own Bash calls do not see the new line either: the probe below
+   runs in a shell that reads `~/.zshrc`.) Say also that the Pilcrino app,
+   if used later, needs the same value in its own settings.
 8. `default_status` — state, don't ask: this is always `draft` in v1; the
    adapter never publishes past draft, the human clicks Publish in WP
    admin. To the owner: "Pilcrino uploads each post as a WordPress draft;
@@ -1845,10 +1973,20 @@ WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh"
 curl -sf -u "$WP_USER:$WP_APP_PASSWORD" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null \
   && echo "auth OK" || echo "auth FAILED"
 ```
-(For the environment-variable route the value lives in `~/.zshrc`, which
-this non-login shell does not read: wrap the same lines in `zsh -lc '...'`
-for this one probe, and expect the post workflow to run under a shell that
-has it.) If `wp-secret.sh` itself fails, its one stderr line says why (no
+For the environment-variable route the value lives in `~/.zshrc`, which
+this shell has not read, and which zsh reads only in an interactive shell
+(`zsh -lc` is not one). Run the same probe through `zsh -lic`, so the new
+export is read; the password still only passes from `wp-secret.sh` to
+`curl` inside that shell and is never printed:
+```bash
+cd "<blog folder>" || exit 1
+PLUGIN="${CLAUDE_PLUGIN_ROOT}" WP_USER="<username>" WP_BASE="<base_url>" zsh -lic '
+  WP_APP_PASSWORD="$("$PLUGIN/adapters/publish/scripts/wp-secret.sh")" || exit 1
+  curl -sf -u "$WP_USER:$WP_APP_PASSWORD" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null \
+    && echo "auth OK" || echo "auth FAILED"' </dev/null
+```
+The settings read under **Permalinks** below binds the password the same
+way on this route. If `wp-secret.sh` itself fails, its one stderr line says why (no
 keychain item, variable unset): report that line in plain words and treat
 it as `auth FAILED` without running `curl`.
 
@@ -1889,8 +2027,11 @@ above.
 - **`auth OK`** → report it, continue to the `git:` block below (and, if
   Phase 1.5's research ran, straight into the deferred site inspection
   right after it).
-- **`auth FAILED`** → STOP here. Do NOT re-run the curl command, do not
-  attempt any second check "just to be sure." Report the lockout guidance
+- **`auth FAILED`** → stop credential probing and site inspection for
+  this run; continue the wizard; Phase 6 repeats the warning. Do NOT
+  re-run the curl command, do not attempt any second check "just to be
+  sure", and skip the authenticated settings read under Permalinks and
+  the deferred site inspection. Report the lockout guidance
   verbatim, quoting `wordpress-rest.md` §Staging step 2's own lockout
   sentence word for word, with exactly one adapted clause (**bolded**
   below — the source is written for the real per-post workflow's staging
@@ -1921,7 +2062,8 @@ above.
   this pass (it reuses this same credential, never a fresh probe of its
   own) — `{profile_dir}/site-conventions.md` stays unwritten until a later
   run's probe succeeds (see the crash-note above and the Resume check at
-  the top of this phase, which is how that later run finds out).
+  the top of this phase, which is how that later run finds out). Then
+  continue with the `git:` block below.
 
 ### If `markdown`
 
@@ -1963,7 +2105,9 @@ above.
    Hugo site): ask the owner to paste the first lines (the part between
    the `---` or `+++` markers) of one existing post, or keep the default
    and say the first post's page is the check.
-   Then `publish.markdown.frontmatter_keys`: the template's keys, with
+   Then `publish.markdown.frontmatter_keys`: the template's keys minus the
+   draft key (`draft` for Hugo, `published` for Jekyll: the list never
+   holds it, `draft_key` decides it; config-schema.md invariant 16), with
    `cover` replaced by `cover_key` when set, dropping `tags` and `author`
    only when neither the theme's layouts nor its archetype nor an existing
    post uses them (Ananke uses `tags`; its author comes from site config,
@@ -1979,13 +2123,24 @@ above.
    `astro-git-pr` branch's steps 5a and 6 against this repo's content
    collection and write `publish.markdown.frontmatter_keys` and, when the
    owner declines the draft switch, `publish.markdown.draft_key: none`,
-   with the same owner-facing wording.
+   with the same owner-facing wording. The template is
+   `markdown-astro.md`, whose fields match `astro-content.md`'s row in
+   step 5a's table (`heroImage`, `tags`, `author`), except the cover's
+   type: it depends on step 5 below, so a missing cover field is settled
+   after step 5. With an `image_url_prefix` the cover is a web address
+   and the field to add is `heroImage: z.string().optional()`; with
+   relative images it is `heroImage: image().optional()` in the function
+   form, as in step 5a. Declined → as in step 5a: do not write this
+   platform choice, explain, and let the owner pick again or stop. The
+   list never holds the draft key (`draft`).
 4c. **Other platforms.** `jekyll` honours `published: false` and
    `nextjs`/`eleventy`/`generic`/`ghost` have no draft flag: for the
    repo-built ones, say once "Your site has no draft switch, so a merged
    post is live once the site rebuilds; the pull request is where you
    check it before that." For paste platforms, say nothing about drafts.
-   Write no `frontmatter_keys` (absent means every key of the template).
+   Write no `frontmatter_keys` (absent means every key of the template;
+   any list setup does write for a markdown platform is built the same
+   way as Hugo's: the template's keys minus the draft key).
 5. Repo platforms only (`astro`, `hugo`, `nextjs`, `eleventy`; skip for
    `jekyll`, `ghost`, `generic`): "How does your site serve a post's
    images?" → `publish.markdown.image_url_prefix`. Offer two answers, the
@@ -2017,7 +2172,9 @@ above.
    `static/images` for Hugo, `public/images` for Next.js). When the answer
    is relative: write no `image_url_prefix`. Either way, say: "Pilcrino
    does not inspect your site, so the first post's page on the site is the
-   check: open it after the merge and confirm the images load."
+   check: open it after the merge and confirm the images load." Platform
+   `astro` with no cover field in the schema: settle it now, as step 4b
+   says, before writing anything for this platform.
 6. `frontmatter_template`: state, don't ask:
    `adapters/publish/frontmatter/markdown-<platform>.md`.
 
@@ -2050,10 +2207,11 @@ Detect, don't ask:
 10. `git.branch_prefix`: `blog/`. State it in one line ("Each post gets its
     own branch named `blog/<post>`") and move on; change it only if the
     owner objects.
-11. `git.base_branch`: the repository's default branch from `gh repo view
-    --json defaultBranchRef -q .defaultBranchRef.name` (fallback: the
-    current branch; an empty repository: `main`). State it ("Pull requests
-    go against `<branch>`, your repository's main branch").
+11. `git.base_branch`: the base branch Phase 0b found and switched to
+    (the repository's default branch from `gh repo view --json
+    defaultBranchRef -q .defaultBranchRef.name`; an empty repository:
+    `main`). State it ("Pull requests go against `<branch>`, your
+    repository's main branch").
 
 Merge into `config.yaml`:
 
@@ -2351,30 +2509,51 @@ recorded, in this order:
    say in one sentence: "Commits will show as <name>, through your GitHub
    account, with GitHub's private address." Set the author name to the
    owner's own name from `authors.md` only if they ask.
-2. **What goes in.** Stage by path, never `git add -A`: `blog-ops/`
-   (minus `blog-ops/reference/image-samples/` and any `_setup-shots/`),
-   `.gitattributes`, `.gitignore`, the Remotion project folder (its
-   `node_modules/` and `out/` are ignored), the created post and image
-   folders with their `.gitkeep`, the competitor profiles, and the site
-   files Phase 5 edited with consent (the content schema, the pages that
-   got a draft filter). Anything else the owner had changed before setup
-   stays unstaged; name it in one line if there is any.
-3. **Ask once.** Show the list in owner words and ask, as a menu:
+2. **What goes in.** Stage only the paths setup created or edited, from
+   Global rule 9's list, one file at a time, never `git add -A`, `git add
+   .` or a folder that held the owner's files:
+   ```bash
+   P="$(git rev-parse --git-path pilcrino-setup-paths)"
+   B="$(git rev-parse --git-path pilcrino-setup-before)"
+   ```
+   For each path in `$P`: skip it when it is under
+   `blog-ops/reference/image-samples/` or a `_setup-shots/` folder; skip
+   it when `$B` lists it, or lists a folder it is in, as changed before
+   setup started (the owner's own unsaved change in that file stays
+   unstaged with setup's edit, and is named in step 3); otherwise `git add
+   -- <path>`. (The Remotion project's `node_modules/` and `out/` are
+   ignored, so listing that folder whole is safe when setup created it.)
+   Then show what is actually staged: `git diff --cached --stat`. Anything
+   else in `git status --porcelain` stays unstaged.
+3. **Ask once.** Show the staged list from `git diff --cached --stat` in
+   owner words (the files, grouped: settings and profile in `blog-ops/`,
+   the image tool project, each site file setup changed), name in one line
+   any file left out because it also holds the owner's own unsaved change,
+   and ask, as a menu:
    "Pilcrino's setup files are ready: the settings and profile in
    `blog-ops/`, <the image tool project>, <the two small changes to your
    site: a draft switch and optional tags>. Shall I commit them and push
    them to `<base branch>` on GitHub now? If your site rebuilds from
    GitHub, this push starts a build; no post is affected. Options: push
    now (recommended) / commit here only, push later / not yet."
+   Right before committing (either answer that commits), re-check the
+   branch: `git branch --show-current` must print `<base branch>` (in an
+   empty repository, `git symbolic-ref --short HEAD`). Anything else: do
+   not commit; say "Your folder is on the branch `<name>`, not
+   `<base branch>`; setup's files belong on `<base branch>`", and switch
+   back as Phase 0b step 3 does (asking first) before committing.
    - **Push now**: `git commit -m "Set up Pilcrino for <blog name>"`, then
-     `git push -u origin <base branch>` (an empty repository: the first
-     push creates the branch). On a push rejected for authentication,
+     `git push -u origin <base branch>`, which pushes that commit (an empty
+     repository: the first push creates the branch). On a push rejected for authentication,
      offer `gh auth setup-git` again (Phase 0a check 4) and retry once. Say
      "Pushed. <If live:> Your site is rebuilding; nothing on it changes
      visibly, the new files are settings only."
    - **Commit only**: commit, say the first post will ask to push before it
      can open a pull request.
    - **Not yet**: say the same, and that nothing is lost.
+   After a commit, empty the paths list (`: > "$P"`) and keep `$B` for
+   Phase 7; on "not yet" keep both, so the next run stages the same
+   files.
    Run this before Phase 7 so the `console:` block, when added there, gets
    its own small commit under the same consent (push it too when the owner
    chose "push now" and `git.push_without_asking` or a one-line question
@@ -2421,7 +2600,12 @@ If yes:
    invariants 10 and 11's console part no longer vacuous since the
    `console:` block now exists).
 5. Commit `blog-ops/content-plan.md` and the config change under the
-   consent given in Phase 6 (push too when the owner chose "push now").
+   consent given in Phase 6 (push too when the owner chose "push now"):
+   stage those two files by name (`git add -- blog-ops/content-plan.md
+   blog-ops/config.yaml`), skipping one that held the owner's own unsaved
+   change before setup, re-check `git branch --show-current` prints the
+   base branch as in Phase 6, then commit and `git push origin <base
+   branch>`.
 6. Then print the terminal completion message (below).
 
 **Resume:** if `blog-ops/content-plan.md` and/or `config.yaml`'s `console:`
@@ -2435,7 +2619,11 @@ the terminal completion message (below).
 ### Completion (printed at the end of Phase 7, both branches)
 
 Whether the operator accepted or declined the console, close the wizard
-with a short recap in owner words and then the exact last line. The recap,
+with a short recap in owner words and then the exact last line. When the
+setup files were committed, first delete the two lists (Phase 0b's and Global rule 9's) in
+git's own folder (`pilcrino-setup-paths` and `pilcrino-setup-before`, via
+`git rev-parse --git-path`); when they were not, keep them for the next
+run. The recap,
 at most eight lines, in this order:
 
 1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
@@ -2451,7 +2639,10 @@ at most eight lines, in this order:
    research <names> the first time a post names them."
 5. Anything the owner must still do, only if real (a placeholder domain to
    replace, a date-based permalink setting to change, a skipped sign-in,
-   a declined draft switch meaning merged posts are live at once). Never
+   a declined draft switch meaning merged posts are live at once, and for
+   a WordPress password kept in the settings file: "Before your first
+   post: quit Claude Code, open a new Terminal window, and start Claude
+   Code again in `<folder>`, so it can read your WordPress password"). Never
    a git task, never a file to edit by hand.
 6. If the app was set up: "The Pilcrino app is at https://pilcrino.com;
    connect this folder from its dashboard."

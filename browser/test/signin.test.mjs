@@ -217,7 +217,40 @@ test('closeSignIn: a process that quit between the listing and the signal (ESRCH
   assert.equal(out.closed, true)
 })
 
-test('session.closeSignIn passes the profile and never connects', async () => {
+test('closeSignIn: a non-Chrome process carrying the profile argument is never signalled and is named in detail', async () => {
+  const sent = []
+  const impostor = { pid: 4100, command: '/usr/local/bin/backup-tool --user-data-dir=/p --watch' }
+  const out = await closeSignIn({
+    profile: '/p',
+    exe: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    processes: () => [impostor],
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+  })
+  assert.deepEqual(sent, [])
+  assert.equal(out.closed, false)
+  assert.ok(out.detail.startsWith(CLOSE_LOGIN_NONE))
+  assert.match(out.detail, /not Chrome: pid 4100 \(\/usr\/local\/bin\/backup-tool\)/)
+})
+
+test('closeSignIn: the resolved Chrome binary is signalled under any name; a non-Chrome beside it is left and named', async () => {
+  const sent = []
+  const custom = { pid: 3520, command: '/opt/My Chrome/chrome-bin --user-data-dir=/p --no-first-run' }
+  const impostor = { pid: 4100, command: '/usr/bin/python3 --user-data-dir=/p' }
+  let polls = 0
+  const out = await closeSignIn({
+    profile: '/p',
+    exe: '/opt/My Chrome/chrome-bin',
+    processes: () => (polls++ === 0 ? [custom, impostor] : [impostor]),
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+  })
+  assert.deepEqual(sent, [[3520, 'SIGTERM']])
+  assert.equal(out.closed, true)
+  assert.match(out.detail, /pid 4100 \(\/usr\/bin\/python3\)/)
+})
+
+test('session.closeSignIn passes the profile and the resolved Chrome, and never connects', async () => {
   const seen = []
   const session = createSession({ env: { PILCRINO_CHROME: '/env/chrome' }, cwd: '/nowhere' }, {
     connect: async () => { throw new Error('must not connect') },
@@ -225,5 +258,5 @@ test('session.closeSignIn passes the profile and never connects', async () => {
   })
   const out = await session.closeSignIn()
   assert.equal(out.closed, true)
-  assert.deepEqual(seen, [{ profile: session.profile }])
+  assert.deepEqual(seen, [{ profile: session.profile, exe: '/env/chrome' }])
 })

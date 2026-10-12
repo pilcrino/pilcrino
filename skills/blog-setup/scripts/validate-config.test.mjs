@@ -74,7 +74,7 @@ publish:
     image_url_prefix: /images
     platform: hugo
     frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md
-    frontmatter_keys: [title, description, date, featured_image, draft]
+    frontmatter_keys: [title, description, date, featured_image]
     cover_key: featured_image
     draft_key: draft
 
@@ -155,14 +155,27 @@ test('WordPress with one password source passes 15', () => {
 })
 
 test('frontmatter_keys that drops a required key fails check 16 and names the key', () => {
-  const r = run(repo(HUGO.replace('[title, description, date, featured_image, draft]', '[title, date, featured_image]'), { remotion: false, gitattributes: null }))
+  const r = run(repo(HUGO.replace('[title, description, date, featured_image]', '[title, date, featured_image]'), { remotion: false, gitattributes: null }))
   assert.equal(r.status, 1)
   assert.deepEqual(failing(r.out), [16])
   assert.match(r.out, /frontmatter_keys is missing description, which the post template always writes/)
 })
 
+test('frontmatter_keys that lists the draft key fails check 16 in plain words', () => {
+  const r = run(repo(HUGO.replace('[title, description, date, featured_image]', '[title, description, date, featured_image, draft]'), { remotion: false, gitattributes: null }))
+  assert.equal(r.status, 1)
+  assert.deepEqual(failing(r.out), [16])
+  assert.match(r.out, /frontmatter_keys lists draft: the draft switch is set by draft_key, not listed here/)
+})
+
+test('frontmatter_keys that lists published fails check 16', () => {
+  const r = run(repo(HUGO.replace('[title, description, date, featured_image]', '[title, published, description, date, featured_image]'), { remotion: false, gitattributes: null }))
+  assert.deepEqual(failing(r.out), [16])
+  assert.match(r.out, /lists published: the draft switch is set by draft_key/)
+})
+
 test('frontmatter_keys without the configured cover key fails check 16', () => {
-  const r = run(repo(HUGO.replace('[title, description, date, featured_image, draft]', '[title, description, date, cover]'), { remotion: false, gitattributes: null }))
+  const r = run(repo(HUGO.replace('[title, description, date, featured_image]', '[title, description, date, cover]'), { remotion: false, gitattributes: null }))
   assert.deepEqual(failing(r.out), [16])
   assert.match(r.out, /missing featured_image/)
 })

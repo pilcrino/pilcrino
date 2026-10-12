@@ -1,6 +1,6 @@
 import * as nodeFs from 'node:fs'
 import { spawn as nodeSpawn } from 'node:child_process'
-import { codedError, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, sleepMs } from './chrome.mjs'
+import { codedError, commandExecutable, isChromeCommand, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, sleepMs } from './chrome.mjs'
 import { SIGN_IN_URLS } from './login.mjs'
 
 export const SIGNIN_NEXT = 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.'
@@ -9,6 +9,10 @@ export const CLOSE_LOGIN_NONE = 'No Pilcrino sign-in window is open.'
 export const CLOSE_LOGIN_CLOSED = 'The Pilcrino sign-in window is closed and your sign-ins are kept.'
 export const closeLoginTimedOut = (secs) => `The Pilcrino sign-in window did not quit within ${secs} seconds. Quit it with Cmd+Q (it is the Chrome window with the sign-in pages, not your own Chrome), then try again.`
 
+/** Names processes that carry the Pilcrino profile but are not Chrome, so the owner can check them. */
+export const notChromeNote = (entries) =>
+  `Left alone because it is not Chrome: ${entries.map((e) => `pid ${e.pid} (${commandExecutable(e.command)})`).join(', ')}.`
+
 /**
  * Quits the sign-in window `openSignIn` opened: the Chrome that holds the
  * Pilcrino profile without the remote-control port, found the same way the
@@ -16,31 +20,38 @@ export const closeLoginTimedOut = (secs) => `The Pilcrino sign-in window did not
  * from the launch, which may be stale). Each such process gets SIGTERM, which
  * Chrome treats as a normal quit, so the Google, Reddit and X sign-ins are
  * written to the profile; SIGKILL would lose them, so it is never sent. A
- * Chrome on any other profile is never touched. Resolves `{ closed, detail }`
+ * Chrome on any other profile is never touched, and neither is a process whose
+ * executable is not Chrome (`exe`, the binary the session resolved, or a
+ * Chrome binary by name): it is named in `detail` instead. Resolves `{ closed, detail }`
  * and never rejects for an absent window or a slow quit: both are states the
  * owner can act on, not errors.
  */
 export async function closeSignIn({
   profile,
+  exe,
   processes = profileProcessEntries,
   kill = process.kill.bind(process),
   sleep = sleepMs,
   now = Date.now,
   quitTimeoutMs = 10000,
 } = {}) {
-  const plain = () => processes(profile).filter((e) => isPlainCommand(e.command))
-  const targets = plain()
-  if (targets.length === 0) return { closed: false, detail: CLOSE_LOGIN_NONE }
+  const plainAll = () => processes(profile).filter((e) => isPlainCommand(e.command))
+  const plain = () => plainAll().filter((e) => isChromeCommand(e.command, exe))
+  const first = plainAll()
+  const targets = first.filter((e) => isChromeCommand(e.command, exe))
+  const others = first.filter((e) => !isChromeCommand(e.command, exe))
+  const note = others.length ? ' ' + notChromeNote(others) : ''
+  if (targets.length === 0) return { closed: false, detail: CLOSE_LOGIN_NONE + note }
   for (const { pid } of targets) {
     // ESRCH: it quit between the listing and the signal, which is what we want.
     try { kill(pid, 'SIGTERM') } catch {}
   }
   const start = now()
   while (plain().length > 0) {
-    if (now() - start >= quitTimeoutMs) return { closed: false, detail: closeLoginTimedOut(quitTimeoutMs / 1000) }
+    if (now() - start >= quitTimeoutMs) return { closed: false, detail: closeLoginTimedOut(quitTimeoutMs / 1000) + note }
     await sleep(250)
   }
-  return { closed: true, detail: CLOSE_LOGIN_CLOSED }
+  return { closed: true, detail: CLOSE_LOGIN_CLOSED + note }
 }
 
 /**

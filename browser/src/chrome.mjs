@@ -129,6 +129,28 @@ export function profileProcesses(dir, opts) {
   return profileProcessEntries(dir, opts).map((e) => e.command)
 }
 
+/**
+ * The executable a `ps` command line starts with: everything before the first
+ * ` --`, since a macOS Chrome path carries spaces ("Google Chrome.app").
+ */
+export function commandExecutable(command) {
+  const at = command.indexOf(' --')
+  return (at < 0 ? command : command.slice(0, at)).trim()
+}
+
+/**
+ * Whether a command line runs Chrome: its executable is the Chrome binary this
+ * session resolved (`exe`), or a Chrome binary by name: macOS's
+ * `.../Google Chrome` and Linux's `.../chrome` (what the `google-chrome`
+ * wrapper execs). Any other program that happens to carry the profile argument
+ * is not Chrome and is never signalled.
+ */
+export function isChromeCommand(command, exe) {
+  const bin = commandExecutable(command)
+  if (exe && bin === exe) return true
+  return bin.endsWith('/Google Chrome') || bin.endsWith('/chrome')
+}
+
 /** A command line without the remote-control port names the sign-in window. */
 export const isPlainCommand = (command) => !command.includes('--remote-debugging-port')
 

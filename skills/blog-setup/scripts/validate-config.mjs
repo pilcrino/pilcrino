@@ -214,6 +214,11 @@ export function runChecks(cfg, { repo, fs = { existsSync, readFileSync, statSync
   const fk = block?.frontmatter_keys
   check(16, 'The list of front matter keys, when given, includes every key the post template needs', fk !== undefined && (() => {
     if (!(Array.isArray(fk) && fk.length > 0 && fk.every(nonEmpty))) return 'frontmatter_keys must be a list of key names with at least one entry'
+    // The draft switch never belongs in this list: draft_mechanism / draft_key
+    // alone decide whether the draft line is written.
+    const draftNames = new Set(['draft', 'published', tpl?.draft, nonEmpty(draftKey) && draftKey !== 'none' ? draftKey : undefined].filter(Boolean))
+    const listedDraft = fk.filter((k) => draftNames.has(k))
+    if (listedDraft.length > 0) return `frontmatter_keys lists ${listedDraft.join(', ')}: the draft switch is set by draft_key, not listed here`
     if (!tpl) return `the template ${block?.frontmatter_template ?? '(missing)'} is not one Pilcrino knows, so its required keys cannot be checked`
     const cover = adapter === 'markdown' && nonEmpty(coverKey) ? coverKey : tpl.cover
     const required = cover ? [...tpl.required, cover] : tpl.required

@@ -207,6 +207,18 @@ test('real Chrome: launch, identity, reuse, two clients', { skip: !existsSync(re
   }
 })
 
+test('isChromeCommand: the resolved binary or a Chrome binary by name, never another program', async () => {
+  const { isChromeCommand, commandExecutable } = await import('../src/chrome.mjs')
+  const mac = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+  assert.equal(commandExecutable(`${mac} --user-data-dir=/p`), mac)
+  assert.equal(isChromeCommand(`${mac} --user-data-dir=/p`), true)
+  assert.equal(isChromeCommand('/opt/google/chrome/chrome --user-data-dir=/p'), true)
+  assert.equal(isChromeCommand('/opt/custom/browser --user-data-dir=/p', '/opt/custom/browser'), true)
+  assert.equal(isChromeCommand('/opt/custom/browser --user-data-dir=/p'), false)
+  assert.equal(isChromeCommand('/usr/bin/python3 --user-data-dir=/p', mac), false)
+  assert.equal(isChromeCommand('/x/Google Chrome Helper --user-data-dir=/p'), false)
+})
+
 test('profileProcessEntries: pid and command per main process on exactly this profile', async () => {
   const { profileProcessEntries, isPlainCommand } = await import('../src/chrome.mjs')
   const ps = [
