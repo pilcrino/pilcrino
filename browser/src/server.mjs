@@ -11,7 +11,7 @@ const text = (obj) => ({ content: [{ type: 'text', text: JSON.stringify(obj) }] 
 const fail = (err) => ({ isError: true, content: [{ type: 'text', text: JSON.stringify({ code: err.code ?? 'error', message: String(err.message ?? err).slice(0, 500) }) }] })
 
 export function buildServer(session) {
-  const server = new McpServer({ name: 'pilcrino-browser', version: '0.40.0' })
+  const server = new McpServer({ name: 'pilcrino-browser', version: '0.41.0' })
   const guard = (fn) => async (args) => {
     try {
       return text(await fn(args))
@@ -55,7 +55,8 @@ export function buildServer(session) {
   tool('type', 'Type text into a selector in an owned tab.', { tabId: z.string(), selector: z.string(), text: z.string(), clear: z.boolean().optional() }, async ({ tabId, selector, text: t, clear }) => typeTool(await page(tabId), selector, t, clear))
   tool('wait', 'Wait for milliseconds or for a selector in an owned tab. ms is capped at 30000; for a longer delay, call wait again.', { tabId: z.string(), ms: z.number().optional(), selector: z.string().optional(), timeoutMs: z.number().optional() }, async ({ tabId, ...rest }) => waitTool(await page(tabId), rest))
   tool('login_status', 'Per site: signed_in, signed_out, blocked or error. Sites: google, reddit, x, linkedin.', { sites: z.array(z.enum(SITES)) }, async ({ sites }) => loginStatus(await session.getBrowser(), validSites(sites)))
-  tool('open_login', 'Quit the Pilcrino browser and open the sign-in pages in a Chrome window on its profile without remote control (Google refuses sign-in under remote control). Returns {opened, mode, next}: tell the owner `next`, to sign in and quit that window with Cmd+Q. Until they quit it, every other tool fails with signin_window_open.', { sites: z.array(z.enum(SITES)) }, async ({ sites }) => session.openSignIn(validSites(sites)))
+  tool('open_login', 'Quit the Pilcrino browser and open the sign-in pages in a Chrome window on its profile without remote control (Google refuses sign-in under remote control). Returns {opened, mode, next}: tell the owner `next`, to sign in and say when they are done, then call close_login. Until that window is closed, every other tool fails with signin_window_open.', { sites: z.array(z.enum(SITES)) }, async ({ sites }) => session.openSignIn(validSites(sites)))
+  tool('close_login', 'Quit the sign-in window that open_login opened, gracefully, so the Google, Reddit and X sign-ins are kept. Works while other tools fail with signin_window_open. Returns {closed, detail}: closed false with a detail when no sign-in window is open (not an error) or when it did not quit within 10 seconds (then relay the detail: the owner quits it with Cmd+Q).', {}, async () => session.closeSignIn())
   return server
 }
 

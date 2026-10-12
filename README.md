@@ -38,12 +38,10 @@ Accounts:
 - Reddit and X, only if you turn those research sources on in setup.
 - WordPress: an application password (in WordPress admin, Users, Profile,
   Application Passwords). Pilcrino creates drafts with it and never publishes.
-  Setup asks for the name of an environment variable that holds it, never for
-  the password itself, so before you start Claude Code add one line to the
-  file `~/.zshrc` in your home folder, for example
-  `export MYBLOG_WP_APP_PASSWORD="paste the password here"`, then open a new
-  Terminal window. The password stays on your Mac; it never goes into the
-  repository or the chat.
+  Setup asks for it once through a hidden prompt (a small macOS dialog) and
+  stores it in your Mac's keychain; it never goes into a file, the
+  repository or the chat. If you prefer an environment variable, setup
+  offers that route too.
 - LinkedIn, only for `post-to-linkedin`: you must be an admin of the company
   page.
 
@@ -92,24 +90,25 @@ files, "Yes, and don't ask again" is safe.
 
 ## Quickstart
 
-1. **Open Claude Code in your site's folder.** In Terminal, `cd` into the
-   folder that holds your site's repository and run `claude`. If the site is
-   not on this Mac yet, download it first: `gh repo clone <you>/<your-site>`,
-   then `cd` into it. A WordPress, Webflow or other blog that is not built from
-   a repository still needs a GitHub repository, which can be empty: create it
-   on github.com, clone it the same way and run setup there. Pilcrino keeps the
-   post files in it.
-2. **Set the blog up:** `/pilcrino:blog-setup`. Setup asks one question at a
-   time, each with a recommended answer, and saves as it goes, so you can stop
-   and run it again later to continue. It opens the sign-in window for the
-   Pilcrino browser once (see below) and installs what it needs. Allow 1 to
-   1.5 hours on a new Mac, installs included. Setup writes a `blog-ops/`
-   folder in your repository, plus a `tools/remotion/` image project and a
-   `.gitattributes` file when you turn on drawn images. Setup does not commit
-   them yet, and every post needs them on your main branch on GitHub, so
-   before the first post tell Claude Code: "commit the Pilcrino setup files
-   and push them to main". For an empty repository that is also its first
-   commit.
+1. **Start Claude Code and run `/pilcrino:blog-setup`.** Start it in your
+   site's folder if the site is on this Mac; otherwise anywhere. Setup first
+   checks the Mac (Apple's developer tools, Node, the GitHub tool and its
+   sign-in, Chrome) and offers to install what is missing. Then it asks where
+   the blog is: a folder on this Mac, a repository on GitHub (it downloads
+   it), or nowhere yet (it creates a GitHub repository with your consent). A
+   WordPress, Webflow or other blog that is not built from a repository still
+   gets a GitHub repository, because every post is reviewed as a pull request
+   and the repository keeps the post files.
+2. **Answer the interview.** One question at a time, each with a recommended
+   answer (reply `default` to take it); setup saves as it goes, so you can
+   stop and run it again later to continue. It reads your site (which
+   fields your posts can carry, whether there is a draft switch, how the
+   site goes live) and asks before changing anything in it. It opens the
+   sign-in window for the Pilcrino browser once (see below). Allow 1 to 1.5
+   hours on a new Mac, installs included. Setup writes a `blog-ops/` folder
+   in your repository (plus a `tools/remotion/` image project when you turn
+   on drawn images) and, at the end, asks before committing and pushing
+   those files to your main branch; every post needs them there.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
@@ -156,9 +155,10 @@ Chrome is untouched; setup opens a sign-in window once, and if a sign-in
 expires later, the skill that needs it opens the window again and stops. That
 sign-in window is a second Chrome next to your own, with an empty profile (no
 bookmarks, none of your extensions) and only the sign-in tabs open: sign in
-there, then quit that Chrome with Cmd+Q while it is the front window, because
-closing the window is not enough and quitting your own Chrome by mistake
-leaves Pilcrino waiting. If Google asks you to prove you are not a robot,
+there, then tell Pilcrino you are done and it closes that window for you,
+keeping the sign-ins. If that fails, click inside that window and press
+Cmd+Q; closing it with the red button is not enough, and quitting your own
+Chrome by mistake leaves Pilcrino waiting. If Google asks you to prove you are not a robot,
 Pilcrino brings its window forward with a tab titled "Pilcrino: pass the
 check": pass it there and retry.
 
@@ -386,6 +386,19 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.49.0 - setup for a first run
+
+- `blog-setup` starts with a preflight on a fresh Mac, in a safe order: Apple's command line tools (checked with `xcode-select -p`, never a bare `git` that would pop up Apple's dialog unexplained), Node 22.13 or newer, the GitHub CLI, `gh auth status` before any look at a repository, `gh auth setup-git` with consent, Chrome. Each miss gets plain words, the reason, one route and an offer to run the official installer; `! gh auth login -h github.com -p https -w` is described as it behaves inside Claude Code (a code and a URL, no questions, no browser opened for you).
+- Setup finds the blog instead of assuming the current folder: a folder on this Mac, a GitHub repository it clones (default folder named after the blog), or a repository it creates on GitHub with consent; never a local-only `git init`. A WordPress or paste-platform blog is told in one sentence why it still needs a GitHub repository and asked whether one exists before one is offered. Setup continues in the blog folder in the same session.
+- Earlier Pilcrino setups on the same Mac are found (`blog-ops` folders, the app's registry) and each part offers to reuse that blog's answers.
+- The wizard speaks the owner's language: a rule at the top bans phase numbers and internal vocabulary, each part names itself by what it does, every "press Enter" became "reply `default`" or a menu, and `/` is never offered as something to type.
+- No invented facts: product claims come only from the owner's own answers, never from a personal story; the pricing page and the call to action are asked with no made-up default; the example byline is never the Mac's git identity; the product-mention rule is a plain-words menu read back in one sentence.
+- Competitors are asked for by name, written into `methodology.md`'s "Competitors currently profiled" table as "not profiled yet", and setup offers to research them right after the browser sign-in (about 2.5 minutes each) or at the first post that names them.
+- Browser sign-in checks `login_status` first and skips sites already signed in, explains the second Chrome window and "blocked by a challenge", and closes the sign-in window for you through the new `close_login` tool (Cmd+Q is the fallback). The test image is opened on screen before you are asked about it, with the font fallback explained.
+- Publishing fits the site: a "is the site live and does it rebuild from GitHub" question writes `publish.site_live`; an Astro site's content schema is read into `frontmatter_keys`, and a missing draft switch is explained and offered as a consent-gated edit to the site (schema line plus a filter on the listing pages) or recorded as `draft_mechanism: none`; a Hugo theme's cover key (Ananke's `featured_image`) and `uglyURLs` are read, not asked; a WordPress site's permalink structure is read from the site, with a recommendation to switch a date-based one to "Post name".
+- The WordPress application password goes into the Mac's keychain through a hidden dialog in one shell command (service `pilcrino-wp-<blog>`, never a variable-name question); the auth probe reads it through `wp-secret.sh`; the environment-variable route stays as the alternative.
+- Final checks run `scripts/validate-config.mjs` (invariants 1 to 16, no improvised YAML installs), then two standing decisions in plain words, `review.plan_approval` (default: you approve each plan) and `git.push_without_asking`, then one consent to commit and push the setup files to main (saying that a site build may run and no post is affected). The hand-off prints `/pilcrino:blog-post-workflow new`; `authors.md` writes "none, byline only".
 
 ### 0.48.0 - the plugin fits the site's frontmatter
 

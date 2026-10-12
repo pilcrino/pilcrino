@@ -150,16 +150,16 @@ test('connectChrome: an identity match connects without asking about the profile
 
 test('profileProcesses: main processes on exactly this profile; held means one without the port', () => {
   const ps = [
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/u/.pilcrino/browser --no-first-run https://accounts.google.com/',
-    '/Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper --type=renderer --user-data-dir=/u/.pilcrino/browser',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/u/.pilcrino/browser2',
-    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    ' 3512 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/u/.pilcrino/browser --no-first-run https://accounts.google.com/',
+    ' 3513 /Applications/Google Chrome.app/Contents/Frameworks/Google Chrome Helper --type=renderer --user-data-dir=/u/.pilcrino/browser',
+    ' 3700 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome --user-data-dir=/u/.pilcrino/browser2',
+    ' 3800 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   ].join('\n')
-  const exec = (bin, args) => { assert.equal(bin, 'ps'); assert.deepEqual(args, ['-axww', '-o', 'command=']); return ps }
+  const exec = (bin, args) => { assert.equal(bin, 'ps'); assert.deepEqual(args, ['-axww', '-o', 'pid=,command=']); return ps }
   assert.equal(profileProcesses('/u/.pilcrino/browser', { exec }).length, 1)
   assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec }), true)
   assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec }), true)
-  const cdp = () => '/x/Google Chrome --user-data-dir=/u/.pilcrino/browser --remote-debugging-port=0 --no-first-run about:blank\n'
+  const cdp = () => ' 3600 /x/Google Chrome --user-data-dir=/u/.pilcrino/browser --remote-debugging-port=0 --no-first-run about:blank\n'
   assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec: cdp }), false)
   assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec: cdp }), true)
   const broken = () => { throw new Error('ENOENT') }
@@ -205,4 +205,20 @@ test('real Chrome: launch, identity, reuse, two clients', { skip: !existsSync(re
     }
     rmSync(dir, { recursive: true, force: true })
   }
+})
+
+test('profileProcessEntries: pid and command per main process on exactly this profile', async () => {
+  const { profileProcessEntries, isPlainCommand } = await import('../src/chrome.mjs')
+  const ps = [
+    ' 3512 /x/Google Chrome --user-data-dir=/u/.pilcrino/browser --no-first-run https://accounts.google.com/',
+    ' 3513 /x/Google Chrome Helper --type=renderer --user-data-dir=/u/.pilcrino/browser',
+    ' 3600 /x/Google Chrome --user-data-dir=/u/.pilcrino/browser --remote-debugging-port=0 about:blank',
+    ' 3700 /x/Google Chrome --user-data-dir=/u/.pilcrino/browser2',
+    'garbage line',
+  ].join('\n')
+  const exec = (bin, args) => { assert.equal(bin, 'ps'); assert.deepEqual(args, ['-axww', '-o', 'pid=,command=']); return ps }
+  const entries = profileProcessEntries('/u/.pilcrino/browser', { exec })
+  assert.deepEqual(entries.map((e) => e.pid), [3512, 3600])
+  assert.deepEqual(entries.map((e) => isPlainCommand(e.command)), [true, false])
+  assert.deepEqual(profileProcessEntries('/u/.pilcrino/browser', { exec: () => { throw new Error('no ps') } }), [])
 })

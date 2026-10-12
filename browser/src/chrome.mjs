@@ -98,25 +98,39 @@ export function launchChrome(exe, dir, { spawn = nodeSpawn } = {}) {
 export const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * The command lines of Chrome's main processes on this profile (helpers carry
+ * Chrome's main processes on this profile as `{ pid, command }` (helpers carry
  * `--type=` and are left out). Read through `ps`, so a missing `ps` or any
- * other failure reads as nothing running.
+ * other failure reads as nothing running. The profile flag must end the
+ * argument exactly, so `.../browser2` never matches `.../browser`.
  */
-export function profileProcesses(dir, { exec = execFileSync } = {}) {
+export function profileProcessEntries(dir, { exec = execFileSync } = {}) {
   let out
   try {
-    out = String(exec('ps', ['-axww', '-o', 'command='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    out = String(exec('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
   } catch {
     return []
   }
   const flag = `--user-data-dir=${dir}`
-  return out.split('\n').filter((line) => {
-    const at = line.indexOf(flag)
-    if (at < 0) return false
-    const next = line[at + flag.length]
-    return (next === undefined || next === ' ') && !/ --type=/.test(line)
-  })
+  const entries = []
+  for (const raw of out.split('\n')) {
+    const m = /^\s*(\d+)\s+(.*)$/.exec(raw)
+    if (!m) continue
+    const command = m[2]
+    const at = command.indexOf(flag)
+    if (at < 0) continue
+    const next = command[at + flag.length]
+    if ((next === undefined || next === ' ') && !/ --type=/.test(command)) entries.push({ pid: Number(m[1]), command })
+  }
+  return entries
 }
+
+/** The command lines of Chrome's main processes on this profile. */
+export function profileProcesses(dir, opts) {
+  return profileProcessEntries(dir, opts).map((e) => e.command)
+}
+
+/** A command line without the remote-control port names the sign-in window. */
+export const isPlainCommand = (command) => !command.includes('--remote-debugging-port')
 
 /** Any Chrome still runs on the profile, with or without the debugging port. */
 export function isProfileRunning(dir, opts) {
@@ -130,7 +144,7 @@ export function isProfileRunning(dir, opts) {
  * never mistaken for it.
  */
 export function isProfileHeld(dir, opts) {
-  return profileProcesses(dir, opts).some((line) => !line.includes('--remote-debugging-port'))
+  return profileProcesses(dir, opts).some(isPlainCommand)
 }
 
 export const SIGNIN_WINDOW_OPEN = 'The Pilcrino sign-in window is still open. Quit it with Cmd+Q, then try again.'

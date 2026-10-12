@@ -1,9 +1,47 @@
 import * as nodeFs from 'node:fs'
 import { spawn as nodeSpawn } from 'node:child_process'
-import { codedError, isProfileRunning, probeIdentity, sleepMs } from './chrome.mjs'
+import { codedError, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, sleepMs } from './chrome.mjs'
 import { SIGN_IN_URLS } from './login.mjs'
 
-export const SIGNIN_NEXT = 'Sign in, then quit that Chrome window with Cmd+Q. Pilcrino restarts the browser on its next call.'
+export const SIGNIN_NEXT = 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.'
+
+export const CLOSE_LOGIN_NONE = 'No Pilcrino sign-in window is open.'
+export const CLOSE_LOGIN_CLOSED = 'The Pilcrino sign-in window is closed and your sign-ins are kept.'
+export const closeLoginTimedOut = (secs) => `The Pilcrino sign-in window did not quit within ${secs} seconds. Quit it with Cmd+Q (it is the Chrome window with the sign-in pages, not your own Chrome), then try again.`
+
+/**
+ * Quits the sign-in window `openSignIn` opened: the Chrome that holds the
+ * Pilcrino profile without the remote-control port, found the same way the
+ * `signin_window_open` check finds it (the process list, never a pid kept
+ * from the launch, which may be stale). Each such process gets SIGTERM, which
+ * Chrome treats as a normal quit, so the Google, Reddit and X sign-ins are
+ * written to the profile; SIGKILL would lose them, so it is never sent. A
+ * Chrome on any other profile is never touched. Resolves `{ closed, detail }`
+ * and never rejects for an absent window or a slow quit: both are states the
+ * owner can act on, not errors.
+ */
+export async function closeSignIn({
+  profile,
+  processes = profileProcessEntries,
+  kill = process.kill.bind(process),
+  sleep = sleepMs,
+  now = Date.now,
+  quitTimeoutMs = 10000,
+} = {}) {
+  const plain = () => processes(profile).filter((e) => isPlainCommand(e.command))
+  const targets = plain()
+  if (targets.length === 0) return { closed: false, detail: CLOSE_LOGIN_NONE }
+  for (const { pid } of targets) {
+    // ESRCH: it quit between the listing and the signal, which is what we want.
+    try { kill(pid, 'SIGTERM') } catch {}
+  }
+  const start = now()
+  while (plain().length > 0) {
+    if (now() - start >= quitTimeoutMs) return { closed: false, detail: closeLoginTimedOut(quitTimeoutMs / 1000) }
+    await sleep(250)
+  }
+  return { closed: true, detail: CLOSE_LOGIN_CLOSED }
+}
 
 /**
  * Sends CDP `Browser.close` to the browser endpoint and resolves once Chrome

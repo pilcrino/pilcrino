@@ -122,7 +122,7 @@ script_tests() {
   local out
   out=$(node --test "$1"/*.test.mjs 2>&1) || { printf '%s\n' "$out" | grep -E '^not ok|^#|Error|error' | head -40; err "$1 tests failed"; }
 }
-for dir in adapters/images/scripts adapters/publish/scripts skills/blog-post-workflow/scripts; do
+for dir in adapters/images/scripts adapters/publish/scripts skills/blog-post-workflow/scripts skills/blog-setup/scripts; do
   ls "$dir"/*.test.mjs >/dev/null 2>&1 && script_tests "$dir"
 done
 

@@ -1,7 +1,7 @@
 ---
 name: blog-setup
-description: Interactive wizard that creates or updates a blog-ops/ workspace. Six resumable phases (identity & niche, voice & authors, modules, images, publishing, validation) plus Phase 3.5, a one-time sign-in to the Pilcrino browser, interview the blog owner one question at a time and write blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). An optional Phase 1.5, offered when the blog already has live content, runs consent-gated research against the live site (fetched pages, sampled images, and, once the adapter is chosen, its site-inspection procedure) to pre-fill audience/voice/image-style from evidence instead of a blank interview. Scaffolds the Remotion image project and rewrites its theme tokens when remotion is enabled, and probes the configured publish adapter's auth (for WordPress, at most once per run, with lockout guidance on failure, never retried). Re-running detects existing artifacts per phase and offers update-or-skip. Ends by running config-schema.md's validation invariants 1-14 and handing off to `/blog-post-workflow new`. An optional Phase 7 offers to prepare the blog for the Pilcrino app (background writes plus a browser approval dashboard), scaffolding blog-ops/content-plan.md and a config.yaml console block, then re-running invariants 1-14. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login
+description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then interviews the owner one question at a time (identity and niche, voice and authors, modules, images, publishing, final checks) plus a one-time sign-in to the Pilcrino browser, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). An optional research pass, offered when the blog already has live content, pre-fills audience, voice and image style from the live site with consent. Reads the site to fit it (Astro content schema and draft flag, Hugo theme cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain through a hidden prompt, scaffolds the Remotion image project when remotion is enabled, and probes the publish adapter's auth at most once per run. Ends by running scripts/validate-config.mjs (config-schema.md invariants 1 to 16), committing and pushing the setup files with consent, and handing off to `/pilcrino:blog-post-workflow new`. An optional last step prepares the blog for the Pilcrino app. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
 ---
 
 # blog-setup
@@ -10,15 +10,73 @@ Builds the `blog-ops/` workspace that every other component in this plugin
 reads: `blog-post-workflow`'s Step 0 config preamble, the personas, the
 agents, `review-blog-post`, `humanize-text`, `suggest-images`,
 `generate-images`, `repurpose-blog-post`, and `blog-retro` all consume the
-files this wizard writes. Run this FIRST, in the blog's own repository (or
-an empty directory that will become one).
+files this wizard writes. Run this FIRST. It may be started from any folder:
+Phase 0 finds the blog (a folder on this Mac, a GitHub repository it clones,
+or a new repository it creates with consent) and continues inside it.
 
 The authoritative contract for everything this skill produces is
 `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md`
-(the full `config.yaml` schema, both example configs, validation invariants
-1-14, and the path-variable table). If anything below and that file
+(the full `config.yaml` schema, the example configs, validation invariants
+1 to 16, and the path-variable table). If anything below and that file
 disagree, that file wins; re-read it before making a judgment call this
 skill doc doesn't cover explicitly.
+
+## How to talk to the owner
+
+The person answering is the blog's owner, usually not a developer, usually
+on their first day with Claude Code. Every message they read follows these
+rules; they override the wording of any example in this file.
+
+1. **Plain words only.** The owner never sees internal vocabulary. Banned in
+   anything printed to them: phase numbers ("Phase 3.5", "Phase 0"),
+   "artifacts", "adapter" or "publish adapter", "assets_dir", "content_dir",
+   "archetypes", "base branch", "staging-preview", "frontmatter", "schema",
+   "invariant", "config block", "env var", "bootstrap", "resume run", raw
+   config lines or keys (`apply_inbound_links_live: false`), and hex colour
+   codes unless the owner asks for them. Say what a value means instead of
+   quoting it: "images are uploaded to WordPress when the post is staged",
+   not "`assets_dir: blog-ops/assets`". The phase headings below are for the
+   model; each phase names itself to the owner by what it does:
+
+   | Phase in this file | What the owner hears |
+   |---|---|
+   | Phase 0 | "Checking this Mac" and "Finding your blog" |
+   | Phase 1 | "What your blog is about" and "Who reads it" |
+   | Phase 1.5 | "Reading your live site" |
+   | Phase 2 | "How your blog sounds" and "Who writes it" |
+   | Phase 3 | "Research sources, your product, your competitors" |
+   | Phase 3.5 | "Signing in to Pilcrino's browser" |
+   | Phase 4 | "Images" |
+   | Phase 5 | "Where your posts go" |
+   | Phase 6 | "Final checks" |
+   | Phase 7 | "The Pilcrino app (optional)" |
+
+2. **One question per message.** A message ends with exactly one question.
+   Never a numbered list of questions, never "also, ..." with a second one.
+   When a question has a fixed set of answers, ask it with `AskUserQuestion`
+   as a menu; when it needs free text, ask it in prose.
+3. **Defaults are a word, never a key press.** An empty Enter does nothing
+   in Claude Code, so never write "press Enter for X" or "hit return".
+   Write: "reply `default` for X" (the word `default`, spelled out) or
+   offer the default as the first menu option. Accept `default`, `keep`,
+   `use the default`, `ok` and the like as the default.
+4. **Never offer `/` or any slash-prefixed text as an answer.** Typing `/`
+   opens Claude Code's command menu and restarts the skill. A URL path such
+   as `/`, `/blog/` or `/posts/` is offered as a menu option or asked as
+   "reply `root` for no prefix, or give the word, for example `blog`";
+   the model adds the slashes.
+5. **Suggest, never invent.** A suggested default comes from evidence (a
+   file in the repo, the live site, an earlier answer, an earlier setup on
+   this Mac) or is a plain convention. Never suggest a product claim, a
+   price, a free trial, a sign-up page or a pricing page the owner has not
+   mentioned; ask instead. Never derive a product claim from a personal
+   story. Never use the Mac's git or GitHub identity as an example name for
+   the owner or an author.
+6. **Read back every rule you record.** When an answer becomes a standing
+   rule (how the product is mentioned, which competitors exist, who may push
+   to GitHub), repeat it in one sentence before moving on.
+7. **Say what you did, not how.** "Saved your answers" rather than file
+   paths and keys, except for the final summary, which names the folder.
 
 ## What gets produced
 
@@ -50,7 +108,7 @@ project at `images.remotion.project_dir` (scaffolded from
 `blog-ops/templates/` (optional same-named overrides of this plugin's
 `templates/*.md`) and `blog-ops/drafts/` are NOT created by this wizard;
 they come into existence on demand (an override the blog owner adds later,
-or the first `/blog-post-workflow new` run creating a slug directory).
+or the first `/pilcrino:blog-post-workflow new` run creating a slug directory).
 
 ## Path variables
 
@@ -68,8 +126,10 @@ resolves to."
 1. **One question at a time.** Never dump a numbered list of questions and
    ask the user to answer all of them in one message. Ask, wait for the
    reply, ask the next one. Offer a sensible default in most questions
-   ("press enter for `<default>`") so the interview moves fast for a user
-   who's happy with conventions.
+   ("reply `default` for `<default>`", or the default as the first menu
+   option, per §How to talk to the owner rule 3) so the interview moves fast
+   for a user who's happy with conventions. Where an older line in this
+   file still says "press enter", read it as "reply `default`".
 2. **Write artifacts immediately**, at the end of each phase, not batched
    at the very end of the whole wizard. A crash or an intentional stop
    after Phase 3 leaves Phases 1-3's files on disk, ready for a resumed run
@@ -89,10 +149,13 @@ resolves to."
    key(s) into the in-memory structure, and writes the complete file back.
    This keeps the file valid YAML at every checkpoint, not just at the end.
 5. **Never write a secret VALUE anywhere** — not in `config.yaml`, not in
-   any profile doc, not in a status message. Only environment-variable
-   NAMES (e.g. `app_password_env`). If a question could produce a
-   secret answer, phrase it as "what environment variable holds this?" not
-   "what is this?".
+   any profile doc, not in a status message, not in a tool result. Only
+   where a secret lives: a macOS keychain service name
+   (`app_password_keychain`) or an environment-variable NAME
+   (`app_password_env`). Never ask the owner to paste a secret into the
+   chat: Phase 5's WordPress step collects it through a hidden macOS
+   dialog that stores it straight into the keychain, in one shell command,
+   so the value never passes through a tool result.
 6. **No placeholder tokens left behind.** Every doc this wizard writes must
    be fully filled from the interview; never leave a literal `<...>`
    template placeholder in a file presented as finished. If the user has
@@ -102,31 +165,219 @@ resolves to."
 7. **`blog-ops/` is fixed at the workspace repo root.** Never ask the user
    where to put it, never make it configurable. Every path this wizard
    writes into `config.yaml` or discusses with the user is relative to the
-   repo root (the current working directory).
+   repo root (the blog folder Phase 0 settled on; run every later command
+   from there).
+8. **Note the start time.** On a fresh run, write
+   `{profile_dir}/setup-notes.md` with "Setup started <date and time>" as
+   the first line (create the folder if needed); on a resumed run, append
+   "Setup resumed <date and time>". The completion message reports how long
+   setup took from this.
 
-## Phase 0, Bootstrap
+## Phase 0: Preflight and finding the blog
 
-Runs once, before Phase 1, on every invocation (resumed or fresh).
+Runs once, before Phase 1, on every invocation (resumed or fresh). To the
+owner this is "Checking this Mac", then "Finding your blog". Open with one
+sentence: "Before any questions, I'll check that this Mac has what Pilcrino
+needs, then find your blog."
 
-1. **Git repo check.** `git rev-parse --is-inside-work-tree` (from the cwd).
-   - If it fails (not a git repo): tell the user this workspace needs to be
-     a git repo (the publish adapters and the shared Gate 2 shell both
-     assume one), and ask permission: "Initialize a git repo here with
-     `git init`?" Only run `git init` after an explicit yes. If the user
-     declines, stop the wizard, tell them to `git init` (or `cd` into an
-     existing repo) and re-run `/blog-setup`.
-2. **Resume detection.** `Glob: blog-ops/config.yaml` and
-   `Glob: blog-ops/profile/*.md`.
-   - Neither exists → fresh run, proceed to Phase 1.
-   - Either exists → this is a resume/update run. Read what's there,
-     summarize which phases already have artifacts (config.yaml keys
-     present; which profile docs exist), and tell the user: "Found an
-     existing blog-ops/ workspace. I'll walk through all six phases
-     (plus the optional existing-blog research pass between Phases 1 and
-     2, if this blog already has live content); each one will offer to
-     keep, update, or redo what's already there."
-     Then proceed to Phase 1 (each phase's own resumability check per
-     Global rule 3 handles the skip-vs-update decision).
+### 0a. Preflight: the tools, in this order
+
+Run the checks in exactly this order. **Never run a bare `git`, `python3`,
+`gcc` or `make` before check 1 has passed:** on a Mac without Apple's
+Command Line Tools each of those is a stub that pops up Apple's install
+dialog with no explanation. `xcode-select -p` is safe; so are `node`,
+`gh`, `command -v`, `ls`, `find` and `curl`.
+
+For every miss, the message has four parts and nothing else: what is
+missing, in plain words; why Pilcrino needs it (one sentence); one route to
+fix it (never a menu of package managers); and an offer to do it for you
+where that is possible. Then wait. After the owner says it is done, re-run
+the same check before moving on. A miss never ends setup: fix it, re-check,
+continue.
+
+1. **Apple's Command Line Tools (git).** `xcode-select -p >/dev/null 2>&1
+   && echo ok || echo missing`.
+   - Missing: "This Mac does not have Apple's command line tools yet. They
+     include git, which Pilcrino uses to keep your posts in your GitHub
+     repository. Installing them opens an Apple window: click Install, then
+     Agree; it takes a few minutes and comes straight from Apple. Shall I
+     start that install?" On yes, run `xcode-select --install` and say: "The
+     Apple window should be on your screen now (it can hide behind other
+     windows). Click Install and Agree, wait until it says the software was
+     installed, then tell me." On the reply, re-run the check. Only after
+     `ok` may any `git` command run.
+2. **Node.js 22.13 or newer.** `command -v node >/dev/null 2>&1 && node
+   --version || echo missing`. Parse the major and minor: 22.13 or newer
+   passes; 24 is fine.
+   - Missing or too old: "Pilcrino's browser, its diagram images and an
+     Astro site all run on Node.js, which this Mac does not have (or has an
+     old version of). I can download the official installer from nodejs.org
+     and run it; macOS will ask for your Mac password in its own window,
+     which I never see. Or you can download the macOS installer from
+     https://nodejs.org yourself and double-click it. Which do you prefer?"
+     On "do it": download the current LTS `.pkg` from nodejs.org's download
+     page to a new empty folder under `$(mktemp -d)` with `curl -fsSL -o`,
+     then run it through `osascript -e 'do shell script "installer -pkg
+     <file> -target /" with administrator privileges'` (macOS shows its
+     password dialog; the Bash call needs a long timeout). Re-check with
+     `node --version`.
+   - If Node was missing when this session started, Pilcrino's browser
+     could not start with it, and an MCP server starts only with Claude
+     Code. Say so now, once: "One more thing: because Node.js was missing
+     when Claude Code started, Pilcrino's browser is not running in this
+     session. The questions up to the sign-in step do not need it. Before
+     that step I'll ask you to quit Claude Code and start it again in your
+     blog's folder; every answer is saved as we go." Do that restart only
+     if the first browser tool call in Phase 1.5 or Phase 3.5 actually
+     fails (never pre-emptively), and give the exact three lines then: quit
+     with `/exit`, in Terminal `cd <blog folder>` then `claude`, then
+     `/pilcrino:blog-setup`.
+3. **GitHub CLI (`gh`).** `command -v gh >/dev/null 2>&1 && gh --version |
+   head -1 || echo missing`.
+   - Missing: "Pilcrino uses GitHub's command line tool to open each post
+     as a pull request for you to review, and to sign in to GitHub from
+     this Mac. It is not installed. I can download the official installer
+     and run it (macOS asks for your Mac password in its own window), or
+     you can get it from https://cli.github.com. Shall I install it?"
+     On yes: if `command -v brew` succeeds, run `brew install gh`;
+     otherwise download the latest macOS `.pkg` from
+     `https://github.com/cli/cli/releases/latest` (the asset named
+     `gh_<version>_macOS_universal.pkg`) with `curl -fsSL -o` into a new
+     empty folder under `$(mktemp -d)` and run it through the same
+     `osascript ... installer -pkg ... with administrator privileges`
+     command as for Node; `installer` is not gated by Gatekeeper. If the
+     owner installs it by double-clicking instead and macOS says the
+     package is from an unidentified developer, tell them: right-click the
+     file, choose Open, then Open again; or System Settings, Privacy &
+     Security, "Open Anyway". Re-check with `gh --version`.
+4. **GitHub sign-in.** `gh auth status >/dev/null 2>&1 && echo ok || echo
+   signed-out`. Run this BEFORE any look at a repository: an
+   unauthenticated check cannot tell a private repository from a wrong
+   address, so never say "private or wrong link" before this passes.
+   - Signed out: "Next, sign in to GitHub from this Mac. Type exactly this
+     into Claude Code, with the exclamation mark first:
+     `! gh auth login -h github.com -p https -w`
+     It prints a one-time code (also copied to your clipboard) and a web
+     address, https://github.com/login/device. It asks no questions and
+     does not open the browser for you: open that address in Chrome, sign
+     in to GitHub if asked, paste the code, click Continue, then Authorize.
+     Tell me when it says you are signed in." Claude Code picks the
+     finished command up by itself; either way, re-run `gh auth status` and
+     report the account in one line: "Signed in to GitHub as <login>."
+   - Then: "Shall I let git use this GitHub sign-in too? Without it, the
+     pull and push steps later ask for a username and password that GitHub
+     no longer accepts." On yes, run `gh auth setup-git`. On no, continue
+     and expect to repeat the offer at the first push.
+5. **Google Chrome.** `[ -d "/Applications/Google Chrome.app" ] || [ -d
+   "$HOME/Applications/Google Chrome.app" ] && echo ok || echo missing`.
+   - Missing: "Pilcrino researches in its own copy of Google Chrome, which
+     this Mac does not have. Install it from https://www.google.com/chrome
+     when you can; the questions up to the sign-in step do not need it."
+     Continue; Phase 3.5 re-checks.
+
+When everything passes, say so in one line ("This Mac has everything
+Pilcrino needs: git, Node.js <version>, the GitHub tool signed in as
+<login>, and Chrome.") and move on.
+
+### 0b. Finding the blog
+
+The goal is one folder on this Mac that is a git repository with a GitHub
+remote: Pilcrino keeps its files in `blog-ops/` there, and every post is a
+pull request against it. Decide where the session is first:
+
+- If the current folder is inside a git repository that is not the home
+  folder and holds either `blog-ops/` or a site (`astro.config.*`,
+  `hugo.toml`/`config.toml`, `package.json`, `_config.yml`, `content/`),
+  ask once: "Is this folder your blog, <folder name>?" Yes: that is the
+  blog folder; skip to 0c. No: ask the menu below.
+- If the current folder is the home folder, or not a git repository, or a
+  repository that is clearly something else: never run `git init` here and
+  never offer to. Ask the menu below.
+
+Ask with `AskUserQuestion`: "Where is your blog's website right now?"
+
+1. **"In a folder on this Mac."** Ask for the folder (a path, or "it's in
+   my home folder called X"). Check it exists and is a git repository
+   (`git -C <folder> rev-parse --is-inside-work-tree`) with a GitHub
+   remote (`git -C <folder> remote get-url origin`). A folder that is a
+   repository without a remote: say so and offer to create the GitHub
+   repository for it as in answer 3 (`gh repo create <name> --private
+   --source <folder> --push`, after consent). That folder is the blog
+   folder.
+2. **"On GitHub, but not on this Mac."** Ask for the GitHub address or
+   `owner/name`. Check it with `gh repo view <owner/name> --json
+   name,viewerPermission`: a failure after sign-in means the signed-in
+   account cannot see it; say "Your GitHub account <login> cannot see that
+   repository. Ask whoever set it up to add <login> as a collaborator with
+   write access, then tell me." Permission below write: same message. Then
+   clone it: "I'll download it to `~/<name>` (reply `default`) or give me
+   another folder." The default folder is named after the repository or
+   the blog, never `my-blog`. Run `gh repo clone <owner/name> <folder>`.
+   State what it holds in one sentence from its files ("a Hugo site with
+   the Ananke theme, no posts yet"; "an Astro site"; "empty").
+3. **"Nowhere yet, or it is on WordPress / Webflow / another platform
+   that hosts it for me."** First the one-sentence reason, then a question:
+   "Pilcrino still needs a GitHub repository for this blog: every post is
+   reviewed there as a pull request before it goes anywhere, and the
+   repository keeps your posts and Pilcrino's settings. Do you already have
+   one for this blog, maybe one someone made for you?" Yes: continue as
+   answer 2. No: "Shall I create a private GitHub repository called
+   `<blog-slug>` under your account <login> and download it to
+   `~/<blog-slug>`? Reply `default`, or give another name." Derive the
+   name from the blog's name (ask for the name first if it is not known
+   yet; it is reused as Phase 1's first answer). On consent run `gh repo
+   create <name> --private --clone` from the home folder, which creates the
+   repository and the local folder in one step. Never create a local-only
+   repository (`git init` without a remote): no pull request could ever be
+   opened from it.
+
+Whichever answer: from here on every command runs from the blog folder
+(`cd <blog folder> && ...` at the top of each Bash call, or `git -C`).
+There is no restart. Say: "I'll continue in `<folder>` for the rest of
+setup. Next time, start Claude Code there: in Terminal, `cd <folder>` then
+`claude`." If the repository is not empty and `git -C <folder> status
+--porcelain` shows uncommitted changes the owner did not make in this
+session, mention them once and leave them alone.
+
+### 0c. Earlier Pilcrino setups on this Mac
+
+Look for other blogs set up with Pilcrino, so the owner is not asked
+thirty questions twice:
+
+```bash
+find ~ -maxdepth 3 -type d -name blog-ops -not -path '*/node_modules/*' -not -path '*/.worktrees/*' 2>/dev/null
+cat ~/.pilcrino/console/blogs.json 2>/dev/null
+```
+
+Drop the current blog folder from the list. If anything remains, read each
+one's `blog-ops/profile/blog.md` (name, niche) and say: "You already set up
+Pilcrino for <blog name> in `<folder>`. Where an answer carries over (who
+reads it, how it sounds, who writes it, your product, competitors, image
+style) I'll show you that blog's answer and you can keep or change it.
+What must be new: this blog's address, where posts go, and whether it has
+posts already." Remember the list; each phase's resume check below offers
+the reuse. When the two blogs turn out to cover the same niche, say once:
+"Two blogs chasing the same searches compete with each other in Google;
+fine if one replaces the other, worth a thought if both stay live."
+
+Nothing found: say nothing about it.
+
+### 0d. Resume detection
+
+`Glob: blog-ops/config.yaml` and `Glob: blog-ops/profile/*.md` in the blog
+folder.
+
+- Neither exists → fresh run: write the start time (Global rule 8) and
+  proceed to Phase 1.
+- Either exists → this is a resume/update run. Read what's there, work out
+  which phases already have their files (config.yaml keys present; which
+  profile docs exist), append the resume time (Global rule 8), and tell
+  the owner in their words: "I found an earlier setup for this blog here.
+  I'll go through each part (what the blog is about, how it sounds, your
+  sources and product, images, where posts go) and for each one you can
+  keep what is there, change it, or start it over." Then proceed to Phase
+  1 (each phase's own resumability check per Global rule 3 handles the
+  skip-vs-update decision).
 
 ## Phase 1: Identity & niche
 
@@ -135,13 +386,26 @@ Runs once, before Phase 1, on every invocation (resumed or fresh).
 `blog-ops/config.yaml` with the `blog:` block.
 
 **Resume check:** `{profile_dir}/blog.md` and `{profile_dir}/audience.md`.
+**Reuse from another blog (Phase 0c):** the identity questions are always
+asked (a different blog has a different name, address and niche); the
+audience questions are offered as "Use <other blog>'s readers for this
+blog? reuse as is / change / start fresh" when the niche is the same.
+
+Open with the owner's name for this part: "First, what your blog is
+about."
 
 ### Interview: blog identity
 
 Ask one at a time:
 
-1. Blog name (e.g. "Trail Notes")
-2. Blog URL (e.g. `https://trailnotes.example`)
+1. Blog name (e.g. "Trail Notes"). Offer what the repository already says
+   as the default: `title` in `hugo.toml`, `site`/title in the Astro
+   config, the WordPress site title from `/wp-json` (`name`), or the name
+   given in Phase 0.
+2. Blog URL (e.g. `https://trailnotes.example`). Offer `baseURL` /
+   `site` from the same files when present. A `.example` or placeholder
+   address: say in one sentence that it is a stand-in and where to change
+   it later; keep going.
 3. Language code (default `en`)
 4. Niche/topic: what is this blog about, in one or two sentences?
 5. Mission: why does this blog exist? What transformation does a reader
@@ -156,35 +420,56 @@ Ask one at a time:
 9. Primary CTA target + hook: what should every post's closing CTA point
    to (newsletter signup, product trial, app download, etc.), and what's
    the one-line hook for it (e.g. "Subscribe for weekly trail reports")?
+   **No invented default here**: never suggest a free trial, a sign-up
+   page or a URL path the owner has not mentioned (a waitlist-only product
+   has no `/signup`). Ask what exists; draft the hook from their answer and
+   read it back.
 10. Publish cadence: how often does this blog publish? (Informational,
     not consumed by any downstream check, but useful context for anyone
     reading this doc later.)
 11. Route prefix: the URL path prefix this blog's posts are served under
-    (default `/blog/`; use `/` for a root-routed blog with no prefix). This
+    (default `/blog/`; `/` for a root-routed blog with no prefix). This
     drives every internal link, canonical URL, and inbound-link ownership
-    grep the rest of the plugin emits — get it right up front.
+    grep the rest of the plugin emits, so get it right up front. Ask it in
+    owner words and never offer `/` as a thing to type (§How to talk to
+    the owner rule 4): "Posts on your site have an address like
+    `https://<domain>/blog/some-post`. What comes between the domain and
+    the post? Reply `default` for `blog`, `root` for nothing, or the word
+    your site uses." Offer evidence as the default when there is any: a
+    Hugo site with `content/posts/` serves `/posts/`; WordPress with the
+    "Post name" permalink setting serves posts right after the domain
+    (`root`); Phase 5 reads the real WordPress setting from the site and
+    corrects this if needed. Write the value with both slashes.
 12. Trailing slash: do (or will) this blog's post URLs end with a trailing
-    slash (e.g. `/blog/my-post/`) or not (`/blog/my-post`)? **Gate — press
-    the user for a real answer here only if this is a brand-new blog with
-    no live posts yet, or you already know Phase 1.5's research offer (the
-    very next thing this wizard asks, right after this interview) will be
-    declined.** In both of those cases Phase 1.5(a) will never fetch real
-    post URLs to detect the actual convention from, so this is the only
-    chance to pin it down. If this blog already exists and there's a real
-    chance its research offer will be accepted, don't press for an answer
-    here — write the default below as a provisional placeholder and let
-    Phase 1.5(a) detect the real convention from the fetched post URLs,
-    presenting it for the SAME single confirmation as its other pre-fills
-    (§Phase 1.5(f)) instead of asking the user twice. Default `yes`
-    (`true`) if unsure — most sites do. Whichever path sets it, Phase 5's
-    adapter site inspection remains the final cross-check: if the live
-    site's actual convention disagrees with whatever value is on file, that
-    step flags it loudly and corrects `blog.trailing_slash` to match
-    reality rather than leaving the mismatch silent.
-    For an Astro site, don't press at all: the site's Astro config already
-    answers it, and Phase 5 step 2a reads `trailingSlash` and `build.format`
-    from that config and sets this value from evidence. Write the default
-    here as a placeholder.
+    slash (e.g. `/blog/my-post/`) or not (`/blog/my-post`)? **Read it
+    before asking it.** Evidence beats a question for a non-technical
+    owner:
+    - Astro: do not ask. Phase 5 step 2a reads `trailingSlash` and
+      `build.format` from the Astro config. Write the default here as a
+      placeholder.
+    - Hugo: do not ask. Read `uglyURLs` from `hugo.toml` (or
+      `config.toml`/`hugo.yaml`): `uglyURLs = true` means no trailing
+      slash (`false`); absent or `false` means `true`. State what you
+      found in one line.
+    - WordPress: do not ask. Phase 5 reads a published post's link and the
+      permalink setting from the site and sets this; write the default
+      `true` here as a placeholder (WordPress permalinks end in `/` unless
+      a custom structure drops it).
+    - Everything else, brand-new with no live posts, or the owner has
+      already said Phase 1.5's research offer (the very next thing this
+      wizard asks) will be declined: ask, as a menu ("Yes, with a slash" /
+      "No, without"), default yes. Webflow and most hosted CMS platforms
+      serve pages without one; say so when the platform is known.
+    - Existing blog with a real chance the research offer is accepted:
+      don't ask; write the default as a provisional placeholder and let
+      Phase 1.5(a) detect the convention from the fetched post URLs,
+      presenting it for the SAME single confirmation as its other pre-fills
+      (§Phase 1.5(f)).
+    Whichever path sets it, Phase 5's adapter site inspection remains the
+    final cross-check: if the live site's actual convention disagrees with
+    whatever value is on file, that step flags it loudly and corrects
+    `blog.trailing_slash` to match reality rather than leaving the mismatch
+    silent.
 
 Write `{profile_dir}/blog.md`:
 
@@ -226,6 +511,11 @@ Write `{profile_dir}/blog.md`:
 ```
 
 ### Interview: audience
+
+Owner's name for this part: "Who reads it." When Phase 0c found another
+blog with the same niche, offer its `audience.md` first as a menu ("Reuse
+as is" / "Reuse and change some answers" / "Start fresh"); "reuse as is"
+copies the file and skips the questions.
 
 Ask one at a time:
 
@@ -391,7 +681,9 @@ Screenshots use the Pilcrino browser: `tabs open <live post URL>`, `wait`
 `Read` the PNG, `tabs close`. Delete `{profile_dir}/_setup-shots/` when
 Phase 1.5 ends. If `tabs open` fails (Chrome not found), write the note
 'Pilcrino browser could not start, no screenshots' to `site-research.md`
-and continue.
+and continue. If the tool itself is unavailable because Node.js was
+installed during this session (Phase 0a check 2), skip the screenshots,
+write the same note, and continue; the restart happens before Phase 3.5.
 
 Resolve the repo root once with Bash (`git rev-parse --show-toplevel`) and
 reuse it: `screenshot`'s `outFile` must be an absolute path. Take the
@@ -483,6 +775,12 @@ above; it's written later, by Phase 5.
 `{profile_dir}/voice.md` and `{profile_dir}/authors.md`.
 
 **Resume check:** `{profile_dir}/voice.md` and `{profile_dir}/authors.md`.
+**Reuse from another blog (Phase 0c):** offer that blog's voice and
+authors first as one menu ("Reuse both as is" / "Reuse and change some
+answers" / "Start fresh"), since the same company usually sounds the same
+and has the same writers.
+
+Owner's name for this part: "How your blog sounds", then "Who writes it."
 
 ### Writing-sample path (offer first)
 
@@ -524,10 +822,20 @@ Ask one at a time (skip any already answered by the writing-sample pass):
    trail shoes over 200 miles, here's what held up.")
 3. Lexicon: words or phrases this blog uses often, signature phrasing
 4. Personal-anecdote bank: 3-5 short personal stories or experiences an
-   author can draw on across posts
+   author can draw on across posts. Say "I'll only use what you tell me; I
+   won't invent stories." **A story is never a product claim.** Record each
+   story as told. When a story seems to imply something about the owner's
+   product ("I lost a week of hours when a tracker's sync failed" does not
+   mean their product syncs reliably), do not turn it into a feature or a
+   lead point; the product interview in Phase 3 asks about features
+   directly, and only the owner's answers there count.
 5. Positioning: what value proposition should posts lead with, and in
    what priority order (most relevant if `modules.product` will be on,
-   but useful for any blog with an opinion to push)
+   but useful for any blog with an opinion to push). Suggest only points
+   the owner has already stated as facts about the product or the blog,
+   never ones derived from a story in answer 4; when the product module
+   will be on, say that the detailed product questions come later and
+   keep this to the order of emphasis.
 6. Additional forbidden phrases: any phrases, beyond the generic AI-tell
    list in `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, this
    blog specifically wants banned
@@ -591,7 +899,12 @@ for these literal section names.
    sentence bio, area of expertise, voice notes (how this author's tone
    differs from the blog's general voice — sentence-length habits,
    reading-level default, any jargon they're allowed to keep), byline
-   format, sign-off pattern (for co-signed content)
+   format, sign-off pattern (for co-signed content). Offer the name the
+   owner has already used in this interview (the credibility message, the
+   niche answer) as the default. **Never use the Mac's git or GitHub
+   identity** (`git config user.name`, the `gh` login's display name) as an
+   example or default: it is often not the owner. With no name yet, ask
+   plainly ("What name goes on your posts?") with no example.
 3. If more than 1 author: ask when to use "we" (co-signed) vs. a specific
    author's voice — write this into a Selection rubric.
 
@@ -606,7 +919,7 @@ Write `{profile_dir}/authors.md`:
 **Expertise:** <expertise>
 **Voice notes:** <tone, sentence-length defaults, reading level, jargon rules>
 **Byline:** <how this author's name appears in frontmatter/body>
-**Sign-off:** <sign-off pattern, or "none — byline only" for single-voice posts>
+**Sign-off:** <sign-off pattern, or "none, byline only" for single-voice posts>
 
 ## <slug 2> — <Display Name>
 
@@ -670,12 +983,21 @@ only delete on an explicit yes.
 
 ### Interview: modules
 
+Owner's name for this part: "Research sources, your product, your
+competitors." **Reuse from another blog (Phase 0c):** offer that blog's
+module settings, `product.md` and competitor files first as one menu
+("Reuse all as is" / "Reuse and change some answers" / "Start fresh");
+when a copied competitor profile is older than 14 days or will be soon,
+say the date it stops being usable.
+
 Ask one at a time, in plain language (no internal jargon — a blog owner
 shouldn't need this doc open to answer):
 
 1. "Should this blog's research stage search Reddit for the target
-   keyword?" (`modules.reddit_research`)
-2. "Should this blog's research stage also search X (Twitter)?"
+   keyword? You'd sign in to Reddit once, in Pilcrino's own browser
+   window, a few questions from now." (`modules.reddit_research`)
+2. "Should this blog's research stage also search X (Twitter)? It is
+   noisier than Reddit and needs an X account you sign in with once."
    (`modules.x_research`)
 3. "Does this blog promote its own product?" (`modules.product`). If yes,
    run the product interview below.
@@ -728,12 +1050,30 @@ competitors:
    yet verified — brainstorming only, writers must never cite this in a
    published post)
 7. Positioning recommendations: where in a post the product should appear,
-   and in what order relative to educational content
+   and in what order relative to educational content. Ask this as a menu
+   in plain words, with the product's name in each option and no jargon
+   ("positioning", "CTA", "transactional"):
+   - "Teach first; name <product> once, in a side note near the end"
+   - "Teach first; name <product> where it fits, at most once or twice,
+     and give it a fair row in every comparison table, never ranked first
+     by default"
+   - "Mention <product> wherever it fits, including the opening"
+   - "Something else" (free text)
+   Then read the chosen rule back in one sentence ("So: posts teach first,
+   mention <product> at most twice, and in comparisons it gets a fair row
+   without being ranked first.") and write that sentence into
+   `product.md` §Positioning recommendations. The post workflow shows this
+   rule at every intake, so it must read well on its own.
 8. Existing posts: title + URL + which feature each covers (skip / write
    "none yet" for a blog with no posts yet)
-9. Pricing page URL (posts never state specific prices; they link here
-   instead, per `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §Own-product
-   pricing claims)
+9. Pricing page: "Does <product> have a public pricing page? Give me its
+   address, or reply `none`." **No invented default**: never assume one
+   exists or that none does, never propose a URL. Posts never state
+   specific prices; they link to this page instead, per
+   `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §Own-product pricing
+   claims. With `none`, write "No public pricing page yet. Posts never
+   state a price; they point to <Primary CTA target from blog.md>
+   instead." Record the answer in the same section.
 
 Write `{profile_dir}/product.md`:
 
@@ -767,38 +1107,67 @@ Write `{profile_dir}/product.md`:
 
 ## Positioning recommendations
 
-<answer 7>
+<the rule read back in answer 7, one sentence, then any detail the owner added>
 
 ## Existing posts
 
 | Title | URL | Feature covered |
 |---|---|---|
 | <title> | <url> | <feature> |
-(or: "None yet — this is a new blog.")
+(or: "None yet. This is a new blog.")
 
 ## Pricing page
 
-<answer 9>
+<answer 9: the URL, or "No public pricing page yet. Posts never state a price; they point to <CTA target> instead.">
 ```
 
-### If `modules.competitors` is on: seed methodology.md
+**Features and differentiators come from the owner only.** Every line under
+Features, Differentiators and Unique-in-category is something the owner
+stated about the product in this interview. A capability implied by a
+story in `voice.md`'s anecdote bank, a guess from the product's category
+("time trackers usually sync"), or an "obvious" benefit is never written
+here; when such a candidate comes up, ask "Does <product> actually do
+<X>?" and write it only on a yes. Before writing the file, read the
+feature list back in full and ask for corrections.
 
-Explain to the user, in plain language, before writing anything: "This
-blog will keep a synthesized profile per competitor at
-`{competitors_dir}/<slug>.md`. Every post that names a competitor
-must point at a profile that's no more than 14 days old — the workflow
-hard-halts otherwise. I'm going to write the methodology doc that defines
-the profile shape and this freshness rule; you (or a research skill) add
-actual competitor profiles later, whenever you want to name one in a
-post."
+### If `modules.competitors` is on: the competitor list, then methodology.md
 
-No interview needed — this doc is a fixed contract, not per-blog content.
-If `{competitors_dir}/methodology.md` already exists (the external-dir case
+Explain to the owner, in plain language, before anything else: "Before a
+post can name a competitor, Pilcrino needs a fact sheet on them (their
+pricing, features and how they describe themselves) that is no more than
+14 days old, so that comparisons are checked facts rather than memory.
+Pilcrino researches those fact sheets itself, in its own browser; each
+takes about two and a half minutes."
+
+**Ask which competitors the owner knows (one question):** "Which
+competitors should posts be able to name? Give me their names, and their
+website addresses if you know them. Reply `none` if you'd rather decide
+post by post." For each name, note the name and, when given, the site; a
+missing site is found by the research skill later, not guessed now. Read
+the list back.
+
+**Then offer to profile them, as a menu with two timings:**
+- "Research them now, right after the browser sign-in step (about 2.5
+  minutes each, <N> competitors, roughly <N × 2.5> minutes)."
+- "Research each one the first time a post names it; Pilcrino offers it
+  then."
+Record the choice. On "now", Phase 3.5 ends by running
+`${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` in this
+session once per competitor, in the order given, after the sign-in check
+passes (that skill needs the Pilcrino browser signed in to Google). The
+profiles land in `{competitors_dir}/` and are committed with the rest of
+the setup files in Phase 6, so they reach the base branch where the post
+workflow reads them. On "at the first post", nothing more happens now; the
+post workflow's intake offers it.
+
+No further interview: the methodology doc is a fixed contract, not
+per-blog content, plus the index of competitors below. If
+`{competitors_dir}/methodology.md` already exists (the external-dir case
 from question 4a, an existing corpus shared with non-blog tooling), leave
-it as-is and skip writing it — apply Global rule 3 (keep as-is / update /
-start over) instead of silently overwriting a corpus this blog doesn't own
-alone. Otherwise, create the directory and write
-`{competitors_dir}/methodology.md`:
+its text as-is and only add the missing rows to its "Competitors currently
+profiled" table (apply Global rule 3 to anything beyond that) instead of
+silently overwriting a corpus this blog doesn't own alone. Otherwise,
+create the directory and write `{competitors_dir}/methodology.md`:
 
 ```markdown
 # Competitor profile methodology
@@ -815,6 +1184,17 @@ days is stale: the workflow hard-halts and asks a human to refresh it
 before the post can proceed. To refresh a profile, re-visit the
 competitor's own pricing/features pages, update every section below with
 current information, and set `**Last verified:**` to today's date.
+
+## Competitors currently profiled
+
+One row per competitor this blog may name. `research-competitor` adds or
+updates a row when it writes a profile; a row with "not profiled yet" is a
+competitor the owner named at setup whose profile does not exist yet.
+
+| Competitor | Slug | Site | Last verified | Status |
+|---|---|---|---|---|
+| <name from the owner> | <slug> | <site or "unknown"> | | not profiled yet |
+(or a single line: "None named yet.")
 
 ## Profile shape
 
@@ -895,20 +1275,27 @@ excludes this nested block explicitly (see that section).
 
 ## Phase 3.5: Sign in to the Pilcrino browser
 
-Pilcrino researches in its own Chrome window, the Pilcrino browser. Google and Reddit block a browser that has never signed in, so this one-time step opens the window and checks each site when you say you are done.
+Pilcrino researches in its own Chrome window, the Pilcrino browser. Google and Reddit block a browser that has never signed in, so this one-time step opens the window and checks each site when you say you are done. Owner's name for this part: "Signing in to Pilcrino's browser."
 
-Resumable: on re-run, call `login_status` first; if every needed site is `signed_in`, say so and offer to skip.
+**Always check first, then skip what is signed in.** Call `mcp__plugin_pilcrino_pilcrino-browser__login_status` with the needed sites before anything else, on every run (an earlier setup on this Mac, or a resumed one, has often done this already). Every site `signed_in`: say "Pilcrino's browser is already signed in to <sites>; nothing to do here", record it (step 6) and move to Phase 4. Otherwise continue with only the sites that are not `signed_in`.
+
+If that first call fails because the browser tool is unavailable and Node.js was installed during this session (Phase 0a check 2), this is the one restart: "Pilcrino's browser needs a fresh start of Claude Code now that Node.js is installed. Type `/exit`, then in Terminal: `cd <blog folder>` and `claude`, then `/pilcrino:blog-setup`. Everything so far is saved; setup will offer to keep each part and come straight here." Stop and wait. If Chrome itself is missing (Phase 0a check 5), say so again with the download address and offer to skip this step; research will park later until it is done.
 
 1. Sites needed: `google` always; `reddit` when `modules.reddit_research`; `x` when `modules.x_research`; `linkedin` when `social.linkedin` is configured.
-2. Call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with those sites. It quits the Pilcrino browser and opens the sign-in pages in a Chrome window on the Pilcrino profile without remote control (Google refuses to sign in a browser under remote control). Tell the owner: "A Chrome window on the Pilcrino profile is open with one tab per site. Sign in to each, then quit that Chrome with Cmd+Q (closing the window is not enough) and tell me when you are done." Then wait for the owner's reply. Do not poll and do not sleep.
-3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__login_status` once with the same sites and report each site's state in one line per site. It restarts the Pilcrino browser with remote control. If it fails with `signin_window_open`, the sign-in window is still running: say "The Pilcrino sign-in window is still open. Quit it with Cmd+Q and tell me when you have." and check again on the reply.
-4. A site still `signed_out`: ask "Sign in to <site> and tell me when you are done, or skip <site> for now?" On "done", check once more (step 3); repeat only when the owner asks. Skipping is allowed; research for that source parks later with a card until the owner signs in.
-5. `blocked`: "<site> is showing a challenge in the Pilcrino window. Pass it and tell me when you are done." `error`: "The Pilcrino browser could not reach <site>. Check the connection and tell me when to check again." Offer a check again or a skip.
-6. Record the outcome in `blog-ops/profile/setup-notes.md` as "Pilcrino browser: signed in to <sites> on <date>".
+2. Call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the sites that are not signed in. It quits the Pilcrino browser and opens the sign-in pages in a Chrome window on the Pilcrino profile without remote control (Google refuses to sign in a browser under remote control). Tell the owner, in this order and in these words or close to them:
+   "A second Chrome has just opened: that is Pilcrino's own copy of Chrome, separate from the Chrome you normally use. It has one tab per site: <sites>. You can tell it apart because it has only those tabs and no bookmarks or history of yours; it may sit behind your other windows. Sign in to each tab with your own accounts (Reddit and Google sometimes show a 'verify you are human' check first; that is normal, pass it). Then tell me you are done and I'll close that window for you so the sign-ins are kept. Don't close it yourself: closing it the usual way can quit the wrong Chrome."
+   Then wait for the owner's reply. Do not poll and do not sleep.
+3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__close_login` (no arguments). It quits the sign-in Chrome gracefully so the sign-ins persist and returns `{ "closed": true|false, "detail": "<one line>" }`. On `closed: true`, go on to the check. On `closed: false`, read `detail`; tell the owner in plain words what it says and, as the fallback only, how to quit it by hand: "Click once inside Pilcrino's Chrome window (the one with only the <sites> tabs), then press Cmd+Q. That quits only that copy of Chrome; your own Chrome keeps running. Closing the window with the red button is not enough. Tell me when it is gone." Then call `close_login` once more on the reply before checking.
+   Then call `mcp__plugin_pilcrino_pilcrino-browser__login_status` once with the same sites and report each site's state in one line per site. It restarts the Pilcrino browser with remote control. If it fails with `signin_window_open`, the sign-in window is still running: run `close_login` again and, if it still reports `closed: false`, give the Cmd+Q fallback above and check again on the reply.
+4. A site still `signed_out`: ask "Sign in to <site> and tell me when you are done, or skip <site> for now?" On "done", repeat from step 2 for that site only (the sign-in window must be reopened: `login_status` restarted the browser under remote control). Skipping is allowed; research for that source parks later with a card until the owner signs in, and setup says so in one sentence.
+5. `blocked`: "<site> is showing a 'verify you are human' or unusual-traffic check in Pilcrino's Chrome window. That is the site being careful with a browser it has not seen before. Open that window, pass the check, then tell me and I'll look again." `error`: "The Pilcrino browser could not reach <site>. Check the connection and tell me when to check again." Offer a check again or a skip.
+6. Record the outcome in `blog-ops/profile/setup-notes.md` as "Pilcrino browser: signed in to <sites> on <date>" (and "skipped <sites>" when any were).
+7. If Phase 3 recorded "research the competitors now", run `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` once per named competitor here, in this session, after saying "Now the competitor fact sheets: <names>, about 2.5 minutes each." Each run writes `{competitors_dir}/<slug>.md` and its row in `methodology.md`'s index; report each in one line when done. They are committed in Phase 6 with everything else, never pushed separately here.
 
 ```
-mcp__plugin_pilcrino_pilcrino-browser__open_login    { "sites": ["google", "reddit"] }
 mcp__plugin_pilcrino_pilcrino-browser__login_status  { "sites": ["google", "reddit"] }   -> { "google": "signed_in", "reddit": "signed_out" }
+mcp__plugin_pilcrino_pilcrino-browser__open_login    { "sites": ["reddit"] }
+mcp__plugin_pilcrino_pilcrino-browser__close_login   {}                                  -> { "closed": true, "detail": "..." }
 ```
 
 ## Phase 4: Images
@@ -919,14 +1306,24 @@ mcp__plugin_pilcrino_pilcrino-browser__login_status  { "sites": ["google", "redd
 
 **Resume check:** `images:` in `config.yaml`, `{profile_dir}/image-style.md`,
 and (if remotion was previously enabled) `images.remotion.project_dir`.
+**Reuse from another blog (Phase 0c):** offer that blog's image choices and
+style as one menu ("Reuse as is" / "Reuse and change some answers" /
+"Start fresh"); "reuse as is" still scaffolds a fresh Remotion project in
+this repository and test-renders it.
+
+Owner's name for this part: "Images." Ask in the owner's words, as the
+examples below do: "diagram images drawn by code", "AI-generated
+pictures", "screenshots you take"; never "strategy", "adapter", "slot",
+"archetype" or a hex code unless the owner asks for one.
 
 ### Interview: images: block
 
-1. "Which image strategies should this blog use? Any subset of `remotion`
-   (React-rendered diagrams/hero images, needs Node), `ai-prompt`
-   (automated AI image generation via codex's built-in gpt-image — needs
-   the `codex` CLI logged in, no API key), `screenshot` (manual UI/page
-   captures)." → `images.enabled`, must be non-empty (invariant 1).
+1. "Which kinds of images should posts have? Any of: diagrams and cover
+   images drawn by code (Remotion; needs Node.js, which this Mac has),
+   AI-generated pictures (needs the `codex` command signed in to ChatGPT;
+   <installed / not installed on this Mac>), screenshots you take yourself
+   when a post needs one." Ask it as a multi-select menu. → `images.enabled`
+   (`remotion`, `ai-prompt`, `screenshot`), must be non-empty (invariant 1).
 2. "Which of those should be the default for a post's featured image?" —
    if only one strategy was enabled, skip this question and set
    `images.featured_default` to it. If more than one, offer "let the
@@ -962,10 +1359,20 @@ silently accepted.
    `muted`, `primary`, `accent`, `warn`. Offer the scaffold's defaults
    (`#FAFAFA`, `#FFFFFF`, `#E5E7EB`, `#1F2937`, `#6B7280`, `#2563EB`,
    `#0E9F8E`, `#E11D48`) as the starting point — or, if Phase 1.5 extracted
-   hexes from the live site's CSS, offer those instead; let the user
-   override any subset either way.
+   hexes from the live site's CSS, or the site's stylesheet in the repo
+   declares colours, offer those instead; let the user override any subset
+   either way. Ask it in colour words, not codes: "Images use a light
+   off-white background, dark grey text, a blue main colour and a teal
+   highlight (that is the standard set / that is what your site's
+   stylesheet uses). Keep these, or tell me your brand colours?" Show the
+   codes only when asked or when the owner gives their own.
 2. Fonts: sans-serif stack and monospace stack. Defaults:
-   `Inter, ui-sans-serif, sans-serif` and `ui-monospace, monospace`.
+   `Inter, ui-sans-serif, sans-serif` and `ui-monospace, monospace`, or
+   the site's own fonts when the repo or Phase 1.5 names them. Say now,
+   once, that a webfont the site loads from its own files is usually not
+   installed on this Mac, so the test image will show a standard system
+   font in its place; that is expected and the posts' own pages are not
+   affected.
 3. Mood words: 3-5 adjectives describing the visual mood (e.g. "clean,
    confident, technical") — pre-fill from Phase 1.5's image-set
    characterization if it ran.
@@ -977,16 +1384,20 @@ silently accepted.
 6. Aspect-ratio default for `ai-prompt` images (default `3:2`,
    matching the Remotion canvas so a mixed featured/in-post set stays
    visually consistent)
-7. Featured-image variation archetypes: offer the default list below
-   (mirrors the built-in list in
+7. Featured-image variation archetypes (to the owner: "cover image
+   layouts"): offer the default list below (mirrors the built-in list in
    `${CLAUDE_PLUGIN_ROOT}/skills/suggest-images/SKILL.md` §Featured-slot
-   archetype) and let the user drop, rename, or add archetypes. Explain the
-   mechanism in one line: the image-planner rotates these across posts
-   (never repeating the archetype of the previous 2 posts, tracked in
-   `{ops_dir}/featured-log/`, one entry file per post) so covers stay on-brand but don't all look
-   the same. Defaults: `object-metaphor`, `split-contrast`, `diagram-lite`,
-   `big-number`, `pattern-break`, `scene-vignette`, `negative-space`. Keep
-   at least 4 (fewer starves the rotation).
+   archetype) and let the user drop, rename, or add layouts. Explain the
+   mechanism in one line: "Pilcrino rotates these layouts so covers stay
+   on-brand but don't all look the same" (the image-planner never repeats
+   the archetype of the previous 2 posts, tracked in
+   `{ops_dir}/featured-log/`, one entry file per post). Defaults, each with
+   a three-word description for the owner: `object-metaphor` (one object
+   standing for the idea), `split-contrast` (before and after, side by
+   side), `diagram-lite` (a tiny diagram), `big-number` (one large figure),
+   `pattern-break` (a pattern with one odd element), `scene-vignette` (a
+   small scene), `negative-space` (mostly empty, one element). Keep at
+   least 4 (fewer starves the rotation). Default answer: keep all seven.
 
 Write `{profile_dir}/image-style.md`:
 
@@ -1091,15 +1502,26 @@ title band never vary; only the composition does.
    **Scope it to generated registries only.** Never add a prose path (anything
    under `{content_dir}`) to this file: union-merging two edits to the same
    paragraph keeps both sides and silently publishes a mangled sentence.
-5. `npm install`, from inside `REMOTION_DIR`.
+5. `npm install`, from inside `REMOTION_DIR`. Make sure the repo-root
+   `.gitignore` lists `<REMOTION_DIR>/node_modules/` and
+   `<REMOTION_DIR>/out/` (append the two lines when missing), so the
+   installed packages and test renders never reach the commit.
 6. Test-render the sample composition:
    ```bash
    cd "<REMOTION_DIR>" && npx remotion still SampleDiagram --output=out/preview-sample-v1.png
    ```
-7. `Read` the rendered PNG and show it to the user: "Here's a test render
-   with your palette/fonts/watermark applied. Look right?" If not, go
-   back to the image-style.md interview, adjust, rewrite `theme.ts`, and
-   re-render.
+7. `Read` the rendered PNG yourself, then **open it for the owner before
+   asking anything**: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
+   (macOS opens it in Preview). Then ask, giving the path too: "I've opened
+   the test image on your screen (it is also at
+   `<REMOTION_DIR>/out/preview-sample-v1.png`). It uses your colours and
+   watermark. <If a webfont is not installed: 'The text is in a standard
+   system font because <font> is not installed on this Mac; that is
+   expected and does not affect your posts.'> Does it look right, or should
+   a colour change?" Never recommend "looks right" on the owner's behalf.
+   If not right, go back to the image-style.md interview, adjust, rewrite
+   `theme.ts`, re-render and open it again. The test render is not
+   committed (`out/` is ignored, step 5).
 
 ### If `ai-prompt` is enabled: check codex + offer a test generation
 
@@ -1117,7 +1539,8 @@ title band never vary; only the composition does.
    output path (its optional caller input) under a temp dir
    (`$(mktemp -d)/codex-test.png`) — the explicit path bypasses all
    `{assets_dir}` resolution, so no blog asset folder is touched. `Read`
-   the result and show it, then remove the temp dir.
+   the result, `open` it so the owner sees it, give the path, then remove
+   the temp dir after the owner has answered.
 
 ## Phase 5: Publishing
 
@@ -1158,22 +1581,63 @@ interview itself. Only once `site-conventions.md` exists (or the check
 above finds it genuinely isn't required) does "keep as-is" mean "nothing
 left to do in Phase 5."
 
+Owner's name for this part: "Where your posts go." The word "adapter" is
+never said to the owner; the three adapters are described by what happens
+to a post.
+
+### Interview: how the site goes live (every adapter)
+
+Ask this first, before the adapter, as a menu: "Is your blog online now,
+and does it update itself when the GitHub repository changes (hosts such as
+Netlify, Vercel, Cloudflare Pages and GitHub Pages do that)?"
+
+- "Yes, it is online and rebuilds from GitHub" → `publish.site_live: true`.
+- "No, it is not online yet" → `publish.site_live: false`.
+- "I don't know" → `publish.site_live: false`; say: "I'll treat it as not
+  live for now. Once it is, run this setup again and change the answer."
+
+For a WordPress or a hosted CMS (Webflow, Ghost(Pro)) blog the rebuild part
+does not apply: ask only "Is the site online now?" and write the answer.
+Say what the value changes, in one sentence: live → "when you merge a
+post's pull request, your site publishes it"; not live → "merging files
+the post in the repository; nothing is published until the site is".
+Then, when the site is built by Hugo, Astro, Jekyll or another generator,
+add: "Pilcrino never builds your site on this Mac, so <Hugo/Astro> does not
+need to be installed here" (do not report a missing `hugo` binary as a
+problem).
+
 ### Interview: adapter choice
 
-1. "Which publish adapter? `astro-git-pr` (an Astro site, posts land as
-   markdown in the site repo via a PR), `wordpress-rest` (posts publish
-   to a WordPress site via its REST API, with the markdown still living in
-   this repo as the source of truth), or `markdown` (a markdown file per
-   post for any platform: Hugo, Jekyll, Ghost, Next.js, Eleventy, or
-   anything else that takes one)." → `publish.adapter`.
+1. Detect first, then confirm. Read the repo root (and `site_dir` when a
+   subfolder holds the site): `astro.config.*` or an `astro` dependency in
+   `package.json` → `astro-git-pr`; `hugo.toml`/`config.toml` with Hugo
+   keys, `_config.yml` (Jekyll), a `next` dependency, `.eleventy.js` →
+   `markdown` with that platform; a WordPress address from Phase 1
+   (`/wp-json` answers) or the owner said WordPress → `wordpress-rest`;
+   Webflow, Squarespace, Ghost or another hosted CMS → `markdown` with
+   `generic` (or `ghost`). Then confirm as a menu with the detected choice
+   first, each option in owner words:
+   - Astro: "Your site runs on Astro, so each post lands in it as a file
+     through a GitHub pull request; merging publishes it (when the site is
+     live)."
+   - WordPress: "Posts are uploaded to your WordPress site as drafts for
+     you to publish, and the text is also kept in this repository."
+   - Markdown, repo platform: "Your site runs on <Hugo/...>, so each post
+     lands in this repository as a file through a pull request; merging
+     publishes it when the site rebuilds from GitHub."
+   - Markdown, paste platform: "Each post becomes text plus images that you
+     paste into <Platform> before you approve it; the repository keeps a
+     copy."
+   → `publish.adapter`.
 
 ### If `astro-git-pr`
 
 2. "Is this repo the Astro site itself, or does the site live in a
-   subdirectory (a monorepo)?" Repo root, omit `publish.astro.site_dir`.
-   Subdirectory, ask for its repo-relative path (the directory holding
-   `package.json` and `astro.config.mjs`) and write it to
-   `publish.astro.site_dir`. Every other path key stays repo-relative.
+   subdirectory (a monorepo)?" Read it, don't ask: `astro.config.*` at the
+   repo root → root, omit `publish.astro.site_dir`; found in a
+   subdirectory → that path (the directory holding `package.json` and
+   `astro.config.mjs`) → `publish.astro.site_dir`; state it in one line.
+   Every other path key stays repo-relative.
 2a. **Page style and trailing slash (read, don't ask).** Read the Astro
    config in `<site_dir>` (default the repo root): `astro.config.mjs`,
    `.ts` or `.cjs`. Find `build.format` and `trailingSlash`, and state what
@@ -1193,24 +1657,76 @@ left to do in Phase 5."
    `config.yaml`, show both values and the Astro config line, and write the
    derived one once the user confirms (rewrite the whole file, Global rule
    4). If they already agree, record nothing new and move on.
-3. `content_dir` (default `src/content/blog`)
-4. `assets_dir` (default `src/assets/blog`)
-5. Frontmatter template: "Does this site use Starlight, or plain Astro
-   content collections?" Starlight →
-   `adapters/publish/frontmatter/astro-starlight.md` (supports a `head[]`
-   JSON-LD FAQ schema injection). Plain content collections →
-   `adapters/publish/frontmatter/astro-content.md` (the FAQ schema is the
-   site layout's job instead, this template leaves a marker comment for
-   it). → `publish.astro.frontmatter_template`.
-6. `draft_mechanism` (default `"draft: true"`, the literal frontmatter
-   line marking a post excluded from production builds)
-7. "Does this site have an authors-map file (e.g. `astro.config.mjs`) that
-   maps author keys to display info?" If yes, ask its repo-relative path
-   → `publish.astro.authors_map_check`. If no, omit the key.
-8. "Does your CI post a PR comment with a staging-preview URL? If so,
-   what's the HTML comment marker it upserts?" (e.g.
-   `<!-- blog-preview -->`) If none, omit
-   `publish.astro.preview_comment_marker`.
+3. `content_dir` (default `src/content/blog`; read where the blog
+   collection's entries live, `src/content/<name>/`, and offer that). To
+   the owner: "Posts go in the folder `<path>`, where your existing posts
+   are. Reply `default` or give another folder."
+4. `assets_dir` (default `src/assets/blog`). To the owner: "Images go in
+   `<path>`."
+5. Frontmatter template: read the content collection schema before asking
+   anything. Find it in `src/content.config.ts` or `src/content/config.ts`
+   (the `defineCollection({ schema: z.object({...}) })` for the blog
+   collection) and list its top-level keys.
+   - Keys `pubDate` and `heroImage` (the official Astro blog template, and
+     most plain content-collection sites) →
+     `adapters/publish/frontmatter/astro-content.md` (the FAQ schema is
+     the site layout's job; this template leaves a marker comment for it).
+   - Keys `date`, `excerpt`, `cover` and a `head` array (a Starlight-style
+     site) → `adapters/publish/frontmatter/astro-starlight.md` (supports a
+     `head[]` JSON-LD FAQ schema injection).
+   - Neither shape: ask once, as a menu ("Starlight" / "plain content
+     collections"), with what you read as context.
+   → `publish.astro.frontmatter_template`.
+5a. **Accepted keys → `publish.astro.frontmatter_keys`.** From the same
+   schema, write the list of keys the chosen template defines that the
+   schema accepts, always including the template's required keys (`title`,
+   the description key, the date key, the cover key; config-schema.md
+   §Fitting the site's frontmatter). Example: the official template's
+   schema is `title, description, pubDate, updatedDate, heroImage` →
+   `frontmatter_keys: [title, description, pubDate, heroImage]`. When the
+   schema lacks `tags` or `author`/`authors`, say so in plain words and ask
+   once: "Your site's post format has no place for tags (or the author's
+   name), so the site would drop them. I can add both as optional fields to
+   the site's post format in the setup commit, or leave them out of posts.
+   Which do you prefer?" Add → edit the schema file (append
+   `tags: z.array(z.string()).optional()` and `author: z.string().optional()`
+   inside the collection's `z.object({...})`, matching the file's style;
+   show the lines you added) and include the keys in the list. Leave out →
+   the list omits them. When the schema lacks a required key (no cover
+   field at all), say the post will still carry it and the site will ignore
+   it, and keep it in the list (invariant 16). When the schema accepts
+   every key of the template, still write the full list.
+6. **Draft switch → `publish.astro.draft_mechanism`.** Check two things:
+   `draft` in the schema, and a filter on it where the site lists posts
+   (`grep -rn "draft" src/pages src/components src/layouts`: a
+   `.filter(... !post.data.draft ...)` or equivalent on the blog index, the
+   post route and the RSS page). Both present → `"draft: true"` and say
+   "Your site has a draft switch; Pilcrino keeps each post marked as a
+   draft until you approve it." Either missing → say what it means, in
+   plain words: "Your site has no draft switch: anything merged into the
+   repository is built and shown<, and your site is live>. Pilcrino
+   normally marks a post as a draft until you approve it, so it can never
+   go live by accident. I can add that switch to the site in the setup
+   commit: one line in the post format and a filter on the pages that list
+   posts (the blog index, the post pages and the RSS feed). Or leave it
+   out, in which case a merged post is live at once. Add it?" Add → edit
+   the schema (`draft: z.boolean().optional()`) and add
+   `.filter((post) => !post.data.draft)` to each `getCollection(...)` call
+   on those pages (keep the file's style; show every changed line), then
+   `"draft: true"`. Leave out → `draft_mechanism: none`, and say once more:
+   "Noted: a merged post is live at once." Never write `"draft: true"` for
+   a site that would build the post anyway.
+7. "Does this site keep a list of authors in a file, so the name on a
+   post maps to a photo and bio? If so, which file?" Check first for an
+   authors map in `astro.config.mjs` or `src/content/authors/`; offer what
+   you found, default no. If yes → repo-relative path →
+   `publish.astro.authors_map_check`. If no, omit the key.
+8. "When a pull request is opened on your repository, does something post
+   a comment with a preview link (Netlify, Vercel and Cloudflare do this
+   when connected)? If so, paste the first line of one such comment."
+   Default no. The HTML comment marker it upserts (e.g.
+   `<!-- blog-preview -->`) → `publish.astro.preview_comment_marker`; if
+   none, omit the key.
 
 Verify the directories exist on disk:
 ```bash
@@ -1232,44 +1748,134 @@ Verify the directories exist on disk:
 3. `assets_dir` — local store for generated images pre-upload. **Default
    `blog-ops/assets`** (per the brief; distinct from the Astro default,
    since a WordPress blog's repo has no existing site-asset convention to
-   match).
+   match). Items 2 and 3 are one menu to the owner: "Pilcrino keeps a
+   copy of each post's text and images in this repository and uploads the
+   images to WordPress's media library when it stages the post. Use the
+   standard folders (`content/blog` and `blog-ops/assets`), or choose
+   others?" Default: standard.
 4. `frontmatter_template` — state, don't ask: fixed at
    `adapters/publish/frontmatter/wordpress.md` for this adapter (unlike
    Astro, there's no Starlight-vs-content-collections choice to interview
-   for).
-5. `base_url` (e.g. `https://yourblog.com`)
-6. `username` (the WordPress username the application password belongs to)
-7. "What environment variable holds the WordPress application password?"
-   (name only) → `app_password_env`
+   for). Write no `frontmatter_keys` (absent means every key of the
+   template; WordPress takes them all).
+5. `base_url`: default the blog URL from Phase 1. Check it answers:
+   `curl -sf "<base_url>/wp-json/" | head -c 200` must return JSON with the
+   site's `name`; if not, say "That address does not answer as a WordPress
+   site (the `/wp-json/` page is missing or blocked). Check the address, or
+   ask your host whether the REST API is turned off." and ask again.
+6. `username`: "What is your WordPress username, the one you sign in to
+   wp-admin with? Pilcrino uploads drafts as this user." Never ask for the
+   normal password.
+7. **The application password, stored in the Mac's keychain.** Say first,
+   in these words or close to them: "WordPress lets you create a separate
+   password just for tools like Pilcrino, called an application password.
+   In wp-admin go to Users, Profile (or Users, your name), scroll to
+   Application Passwords, type a name such as Pilcrino, click Add New
+   Application Password, and copy the password it shows (it is shown once;
+   the spaces in it are fine). If that section is missing, your host or a
+   security plugin has turned it off; ask them to enable application
+   passwords for your user. Don't paste it here. When you have it copied,
+   tell me: a small window will open on your Mac asking you to paste it,
+   and it goes straight into your Mac's keychain, where Pilcrino reads it
+   from. I never see it and it is not written to any file."
+   On "ready", run exactly this, in one Bash call with a timeout of at
+   least 300000 ms (the owner needs time to paste), where `<service>` is
+   `pilcrino-wp-<blog slug>` (the blog's name lowercased, every run of
+   characters other than letters and digits replaced by one hyphen,
+   trimmed; derived, never asked) and `<user>` is answer 6:
+   ```bash
+   PW=$(osascript -e 'text returned of (display dialog "Paste the WordPress application password for <blog name>" default answer "" with hidden answer)') \
+     && [ -n "$PW" ] \
+     && security add-generic-password -U -s "<service>" -a "<user>" -w "$PW" \
+     && echo stored || echo "not stored"
+   ```
+   The dialog hides what is typed; `-U` updates an item that already
+   exists; a cancelled dialog makes `osascript` exit non-zero, so nothing
+   is stored and the output is `not stored`. The variable is never echoed,
+   logged or written anywhere else; the command's only output is one of
+   the two words. On `stored`: write `app_password_keychain: <service>`
+   (and no `app_password_env`) and tell the owner in one sentence where it
+   lives and why: "Stored in your Mac's keychain under the name
+   `<service>`, so Pilcrino can log in to WordPress from this Mac without
+   the password ever appearing in a file or in this chat." On `not stored`
+   (cancelled, or empty): ask "The window was closed without a password.
+   Try again, or keep the password in a settings file on this Mac
+   instead?" Try again → the same command once more. Settings file → the
+   environment-variable route: derive the name `<BLOG_SLUG_UPPER>_WP_APP_PASSWORD`
+   (never ask the owner to name a variable), write `app_password_env:
+   <name>` (and no `app_password_keychain`), back up `~/.zshrc` to
+   `~/.zshrc.bak-pilcrino`, append a comment line and
+   `export <name>="PASTE-PASSWORD-HERE"`, run `open -e ~/.zshrc` to open it
+   in TextEdit, and say: "I opened a small settings file your Mac's
+   terminal reads at start. On its last line, select the text
+   PASTE-PASSWORD-HERE (all of it, not the quote marks) and paste your
+   password over it, save with Cmd+S, close TextEdit, then tell me." On
+   the reply check that the placeholder is gone (`grep -c
+   PASTE-PASSWORD-HERE ~/.zshrc`), never print the line. A variable in
+   `~/.zshrc` only reaches commands started from a new Terminal, so the
+   probe below reads it with `zsh -lc` once; say that the Pilcrino app, if
+   used later, needs the same value in its own settings.
 8. `default_status` — state, don't ask: this is always `draft` in v1; the
    adapter never publishes past draft, the human clicks Publish in WP
-   admin.
+   admin. To the owner: "Pilcrino uploads each post as a WordPress draft;
+   you click Publish yourself."
 9. `apply_inbound_links_live` — state, don't ask: always written as
-   `false`. Safety note to relay verbatim: "live-edits published posts at
-   finalize when true; leave false unless you want that."
+   `false`. Do not quote the key to the owner; say: "Pilcrino will not edit
+   your already-published posts (to add links to new ones) unless you turn
+   that on later."
 
-**Env var placement (check BEFORE probing).** The app-password env var named
-above must be exported from `~/.zshrc` or `~/.profile` (whichever file the
-user's login shell actually loads) — NOT merely typed into a separate
-interactive terminal. Claude Code's Bash tool starts a fresh non-interactive
-shell per command; it does not inherit exports made by hand in an
-interactive session that isn't one of those two files. Ask the user to
-confirm the export lives in one of those files before running the probe
-below — this is the single most common cause of a probe that fails despite
-"correct" credentials.
+**Write the `publish:` block now** (whole-file rewrite, Global rule 4, the
+merge shown under "git: block" below; the `git:` block is detected rather
+than asked, so detect it now too), because the probe reads the password
+source from `blog-ops/config.yaml`.
 
 Run the auth probe from
 `${CLAUDE_PLUGIN_ROOT}/adapters/publish/wordpress-rest.md` §Staging step 2,
 **AT MOST ONCE this run — never retried, never polled** (the same rule that
 section states for the real workflow's staging probe applies here
-identically):
+identically). The password comes from
+`${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads
+whichever source the config names; never inline it, never `cat` the
+keychain or the shell file:
 ```bash
+cd "<blog folder>" || exit 1
 WP_USER="<username>"
-WP_APP_PASSWORD_ENV="<app_password_env>"
 WP_BASE="<base_url>"
-curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null \
+WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1
+curl -sf -u "$WP_USER:$WP_APP_PASSWORD" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null \
   && echo "auth OK" || echo "auth FAILED"
 ```
+(For the environment-variable route the value lives in `~/.zshrc`, which
+this non-login shell does not read: wrap the same lines in `zsh -lc '...'`
+for this one probe, and expect the post workflow to run under a shell that
+has it.) If `wp-secret.sh` itself fails, its one stderr line says why (no
+keychain item, variable unset): report that line in plain words and treat
+it as `auth FAILED` without running `curl`.
+
+**Permalinks (read, don't ask).** Right after the probe, two reads:
+`curl -sf "$WP_BASE/wp-json/wp/v2/posts?per_page=1&_fields=link"` (no
+auth; a published post's real address) and, when the probe said `auth
+OK`, `curl -sf -u "$WP_USER:$WP_APP_PASSWORD"
+"$WP_BASE/wp-json/wp/v2/settings"` for `permalink_structure` (bind the
+password at the top of that Bash block again, per the adapter's rule).
+Write `publish.wordpress.permalink_structure: <value>` (from the settings
+call; or inferred from the post link when the settings call was not
+possible: `/<slug>/` → `/%postname%/`, `/YYYY/MM/DD/<slug>/` →
+`/%year%/%monthnum%/%day%/%postname%/`, `/blog/<slug>/` →
+`/blog/%postname%/`; no published post and no settings → omit the key).
+Then correct Phase 1's guesses from it, with one sentence to the owner:
+`blog.route_prefix` is the fixed path before `%postname%` (`/` for
+`/%postname%/`, `/blog/` for `/blog/%postname%/`, `/` for a date-based
+structure, whose dates vary per post) and `blog.trailing_slash` is whether
+the structure ends in `/`. A date-based structure (any `%year%`,
+`%monthnum%` or `%day%`): say "Your site puts the date in every post's
+address (`/2026/02/17/hello-world/`). That works, but addresses without
+dates rank and share better and never go stale. I recommend changing it
+in wp-admin under Settings, Permalinks to 'Post name', before the first
+post; WordPress redirects the old addresses. Pilcrino uses whatever
+address WordPress gives each post either way." Record what you read; the
+post workflow prints the real address WordPress returns, never one built
+from this value.
 **Crash-note (both outcomes, when `blog-ops/reference/site-research.md`
 exists):** append a line to that file recording today's outcome — e.g.
 "WordPress auth probe: OK on `<today's date>`." or "WordPress auth probe:
@@ -1298,6 +1904,13 @@ above.
   the human to wait it out or clear the limiter in the site's security
   dashboard, then re-run **this wizard** once, by hand, when ready." (Source
   clause, for comparison: "...then re-run once, by hand, when ready.")
+  To the owner, put it this way first, then the quoted guidance: "The
+  WordPress login did not work. I won't try again right away: hosts lock
+  an account after a few failed logins. Check in wp-admin that the
+  application password is still listed for <user>, wait a few minutes,
+  then run setup again and I'll ask for it once more." A wrong password
+  in the keychain is replaced by running the same hidden-dialog command
+  (`-U` overwrites); never ask the owner to type it in the chat.
 
   A failed probe doesn't block FINISHING the rest of the wizard (Phase 6
   re-states the failure, it never re-probes) — the user may fix credentials
@@ -1312,12 +1925,16 @@ above.
 
 ### If `markdown`
 
-2. `content_dir` (default `posts`): the folder in this repo where each post
-   lands as `<slug>.md`.
-3. `assets_dir` (default `posts/images`): each post's images land in
-   `<assets_dir>/<slug>/`.
-4. "Which platform reads these files? It sets the frontmatter at the top of
-   each post." → `publish.markdown.platform`, one of:
+2. `content_dir` (default `posts`; for Hugo the existing posts folder,
+   `content/posts` or `content/blog`, whichever exists): the folder in this
+   repo where each post lands as `<slug>.md`. To the owner: "Posts go in
+   the folder `<path>`."
+3. `assets_dir` (default `posts/images`; Hugo `static/images`, Next.js
+   `public/images`): each post's images land in `<assets_dir>/<slug>/`.
+4. "Which platform reads these files?" Detect it from the repo as in the
+   adapter choice above and confirm in one line rather than asking a menu
+   of seven; ask the menu only when nothing in the repo says.
+   → `publish.markdown.platform`, one of:
    - `astro`: `title`, `description`, `pubDate`, `tags`, `author`, `heroImage` (an Astro content collection)
    - `hugo`: `title`, `description`, `date`, `tags`, `author`, `cover`
    - `jekyll`: `layout: post`, `title`, `description`, `date`, `tags`, `author`, `image`; you rename each file to `YYYY-MM-DD-<slug>.md` in `_posts`
@@ -1325,6 +1942,50 @@ above.
    - `nextjs`: `title`, `description`, `date`, `tags`, `author`, `image`
    - `eleventy`: the same keys as `nextjs`
    - `generic`: the same keys, for any other platform (Webflow, a page builder)
+   To the owner, name only the human fields: "Each post carries a title,
+   a short description, the date, tags, the author and a cover image."
+4a. **Fit the theme (Hugo).** Read `theme` from `hugo.toml` (or
+   `config.toml`, `hugo.yaml`; a `[module] imports` path counts too) and
+   look at how that theme names the cover image: the theme's archetype
+   (`themes/<theme>/archetypes/default.md`, or `archetypes/` at the repo
+   root), its single-post layout (`grep -rn "Params\.\|\.Param " themes/<theme>/layouts/_default/single.html
+   themes/<theme>/layouts/posts/single.html` for the image key), and any
+   existing post under `content/`. Ananke reads `featured_image`; a theme
+   that reads `cover` or `image` as a plain path uses that key. Write
+   `publish.markdown.cover_key: <key>` when it differs from `cover`, and
+   tell the owner in one sentence: "Your theme, <theme>, shows a post's
+   cover from a field called `<key>`, so that is where Pilcrino puts it."
+   A theme whose cover is nested (PaperMod's `cover.image` with `alt` and
+   `caption`): say "Your theme expects the cover as a group of fields,
+   which Pilcrino does not fill in this version; the cover image is saved
+   with the post, and the theme shows it once you add it to the post by
+   hand" and keep the default key. No theme found in the repo (an empty
+   Hugo site): ask the owner to paste the first lines (the part between
+   the `---` or `+++` markers) of one existing post, or keep the default
+   and say the first post's page is the check.
+   Then `publish.markdown.frontmatter_keys`: the template's keys, with
+   `cover` replaced by `cover_key` when set, dropping `tags` and `author`
+   only when neither the theme's layouts nor its archetype nor an existing
+   post uses them (Ananke uses `tags`; its author comes from site config,
+   so a missing `author` is harmless and may stay). When in doubt keep the
+   key: Hugo ignores unknown fields without error. Always include `title`,
+   `description`, `date` and the cover key (invariant 16). Draft: Hugo
+   honours `draft: true` on its own; write no `draft_key`, and say "Pilcrino
+   keeps each post marked as a draft until you approve it; Hugo leaves
+   drafts out of the site." `uglyURLs` was read in Phase 1; confirm
+   `blog.trailing_slash` matches it and correct silently if Phase 1 ran
+   before the repo was known.
+4b. **Fit the schema (markdown with platform `astro`).** Run the
+   `astro-git-pr` branch's steps 5a and 6 against this repo's content
+   collection and write `publish.markdown.frontmatter_keys` and, when the
+   owner declines the draft switch, `publish.markdown.draft_key: none`,
+   with the same owner-facing wording.
+4c. **Other platforms.** `jekyll` honours `published: false` and
+   `nextjs`/`eleventy`/`generic`/`ghost` have no draft flag: for the
+   repo-built ones, say once "Your site has no draft switch, so a merged
+   post is live once the site rebuilds; the pull request is where you
+   check it before that." For paste platforms, say nothing about drafts.
+   Write no `frontmatter_keys` (absent means every key of the template).
 5. Repo platforms only (`astro`, `hugo`, `nextjs`, `eleventy`; skip for
    `jekyll`, `ghost`, `generic`): "How does your site serve a post's
    images?" → `publish.markdown.image_url_prefix`. Offer two answers, the
@@ -1360,13 +2021,20 @@ above.
 6. `frontmatter_template`: state, don't ask:
    `adapters/publish/frontmatter/markdown-<platform>.md`.
 
-Then say in one line what the merge does for their platform. Repo platforms
-(`astro`, `hugo`, `nextjs`, `eleventy`): "Merging a post's pull request
-publishes it when your site builds from the base branch and serves the
-image shape you just chose." Paste platforms
-(`jekyll`, `ghost`, `generic`): "Before you approve each post, download its
-zip from the app (or copy the file and its images) and paste it into
-<Platform>; merging then files it in this repository."
+Then say in one line what the merge does for their platform, using the
+`publish.site_live` answer. Repo platforms (`astro`, `hugo`, `nextjs`,
+`eleventy`), live: "Merging a post's pull request publishes it, once your
+site rebuilds and as long as it serves images the way you just chose";
+not live: "Merging files the post in the repository; it appears once the
+site is online and builds from GitHub." Paste platforms (`jekyll`, `ghost`,
+`generic`): "Before you approve each post, you paste it into <Platform>:
+Pilcrino hands you the post text ready to paste and opens the folder with
+its images, and lists the fields (title, description, date, tags, cover)
+one by one. Merging then files the post in this repository." Mention
+"or download the post's zip from the Pilcrino app" ONLY when this blog is
+registered with the app (`~/.pilcrino/console/blogs.json` lists this
+folder, or Phase 7 has already added a `console:` block); otherwise the
+app has not been introduced and the sentence confuses.
 
 Verify the directories exist on disk:
 ```bash
@@ -1377,20 +2045,29 @@ the repo.
 
 ### git: block (every adapter)
 
-10. `git.branch_prefix` (default `blog/`)
-11. `git.base_branch` (default `main`)
+Detect, don't ask:
+
+10. `git.branch_prefix`: `blog/`. State it in one line ("Each post gets its
+    own branch named `blog/<post>`") and move on; change it only if the
+    owner objects.
+11. `git.base_branch`: the repository's default branch from `gh repo view
+    --json defaultBranchRef -q .defaultBranchRef.name` (fallback: the
+    current branch; an empty repository: `main`). State it ("Pull requests
+    go against `<branch>`, your repository's main branch").
 
 Merge into `config.yaml`:
 
 ```yaml
 publish:
   adapter: <astro-git-pr | wordpress-rest | markdown>
+  site_live: <true | false>         # the "how does the site go live" answer
   astro:            # only if adapter = astro-git-pr
     content_dir: <path>
     site_dir: <path>                # omit if the repo root IS the Astro site
     assets_dir: <path>
     frontmatter_template: <path>
-    draft_mechanism: "<line>"
+    draft_mechanism: "<line>"       # or the literal none when the owner declined the draft switch
+    frontmatter_keys: [<keys>]      # the schema's accepted keys, step 5a
     authors_map_check: <path>       # omit if not set
     preview_comment_marker: "<marker>"   # omit if not set
   wordpress:        # only if adapter = wordpress-rest
@@ -1399,7 +2076,9 @@ publish:
     frontmatter_template: adapters/publish/frontmatter/wordpress.md
     base_url: <url>
     username: <username>
-    app_password_env: <env var name>
+    app_password_keychain: pilcrino-wp-<blog slug>   # the keychain route (default)
+    # app_password_env: <NAME>                       # the settings-file route instead; never both
+    permalink_structure: <value>    # as read from the site; omit when unknown
     default_status: draft
     apply_inbound_links_live: false
   markdown:         # only if adapter = markdown
@@ -1408,11 +2087,16 @@ publish:
     image_url_prefix: <prefix>      # omit when images are relative
     platform: <astro | hugo | jekyll | ghost | nextjs | eleventy | generic>
     frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
+    cover_key: <key>                # omit when the template's own key fits (hugo Ananke: featured_image)
+    frontmatter_keys: [<keys>]      # omit when every template key is accepted
+    draft_key: none                 # only when the site has no draft switch and the owner declined one
 
 git:
   branch_prefix: <prefix>
   base_branch: <branch>
 ```
+
+(`review.plan_approval` and `git.push_without_asking` are added in Phase 6.)
 
 ### Site conventions (deferred from Phase 1.5)
 
@@ -1498,13 +2182,28 @@ PR and a background monitor watches for review comments.
 that isn't, then hand off.
 
 This phase always runs in full on every invocation (no skip option — it's
-cheap and it's the whole point of the wizard).
+cheap and it's the whole point of the wizard). Owner's name for this part:
+"Final checks."
 
-### Run invariants 1-14
+### Run the validator (invariants 1 to 16)
 
-Run each one from config-schema.md §Validation invariants, in order,
-against the final `blog-ops/config.yaml` and `{profile_dir}/`. Report a
-pass/fail table as you go:
+Run the plugin's validator from the blog folder:
+
+```bash
+cd "<blog folder>" && node "${CLAUDE_PLUGIN_ROOT}/skills/blog-setup/scripts/validate-config.mjs"
+```
+
+It first installs the Pilcrino browser's packages if they are missing (so a
+fresh Mac needs no YAML library of its own; never improvise a `pip` or
+`npm install` for this), then reads `blog-ops/config.yaml` and the profile
+docs, checks config-schema.md's invariants 1 to 16 and prints one
+plain-words line per check and a last line, `All N checks pass` or the
+failing checks, exiting 1 on failure. Never hand-check the invariants or
+write a parser of your own; never show the owner a stack trace. Show the
+owner the last line, and for each failing check its plain-words line.
+
+The table below documents what the script checks, for the model reading
+this file; the owner sees the script's lines, not this table.
 
 | # | Invariant | Result |
 |---|---|---|
@@ -1518,21 +2217,24 @@ pass/fail table as you go:
 | 8 | `browser.executable`, if present, is an absolute path | ✅/❌ |
 | 9 | `blog.trailing_slash` present and a boolean | ✅/❌ |
 | 10 | `console.publish_policy: auto` → `publish.adapter` is `astro-git-pr` (`wordpress-rest` and `markdown` are gated only) (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
-| 11 | `console:` block, if present, contains only documented keys with documented types (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
+| 11 | Documented optional keys carry their documented types: a `console:` block, if present, contains only documented keys with documented types; a `review:` block, if present, holds only `plan_approval` as `ask` or `auto`; `publish.site_live` and `git.push_without_asking`, if present, are booleans; `publish.astro.draft_mechanism` is a non-empty string (`none` allowed); `publish.markdown.draft_key`, if present, is the template's draft key or `none`; `publish.markdown.cover_key`, if present, is one top-level key (no dot); `publish.wordpress.permalink_structure` and `app_password_keychain`, if present, are non-empty strings | ✅/❌ |
 | 12 | `competitors.profile_dir`, if set, is a repo-relative path that exists on disk when `modules.competitors` is true (N/A, ✅ by vacuity, if unset — the default applies) | ✅/❌ |
 | 13 | `social.linkedin`, if present, has a non-empty string `company_id` (N/A, ✅ by vacuity, if `social.linkedin` is absent — this phase doesn't offer a wizard step for it, add it by hand) | ✅/❌ |
 | 14 | `remotion` ∈ `images.enabled` → repo-root `.gitattributes` marks `<images.remotion.project_dir>/src/Root.tsx` as `merge=union` (N/A, ✅ by vacuity, if `remotion` is not enabled) | ✅/❌ |
+| 15 | `publish.adapter: wordpress-rest` → exactly one of `publish.wordpress.app_password_env` (a valid variable name) and `publish.wordpress.app_password_keychain` (a non-empty service name) is set; both or neither fails (N/A for the other adapters). A syntax check only: whether the item or variable exists was probed in Phase 5 | ✅/❌ |
+| 16 | `publish.<adapter>.frontmatter_keys`, if present, is a non-empty list of non-empty strings that includes every required key of the configured template (`title`, the description key, the date key, the cover key, which is `publish.markdown.cover_key` when set; `layout` too for jekyll; no cover key for wordpress) | ✅/❌ |
 
-For each ❌: identify which earlier phase owns the gap, jump back into that
-phase's interview (pre-filled with whatever's already known), fix it,
-rewrite the artifact, then re-run JUST that invariant. Continue until the
-whole table is ✅. Invariants 10-11 are normally vacuous here since Phase 7
-(which writes the `console:` block) runs after this phase; Phase 7 re-runs
-the full 1-14 set once that block exists. This wizard has no interview step
-for `social.linkedin` (invariant 13); the operator adds that block to
-`config.yaml` by hand per `config-schema.md` §Schema.
+For each failing check: identify which earlier phase owns the gap, jump
+back into that phase's interview (pre-filled with whatever's already
+known), fix it, rewrite the artifact, then re-run the validator. Continue
+until it prints `All N checks pass`. Invariants 10-11's `console` part is
+normally vacuous here since Phase 7 (which writes the `console:` block)
+runs after this phase; Phase 7 re-runs the validator once that block
+exists. This wizard has no interview step for `social.linkedin` (invariant
+13); the operator adds that block to `config.yaml` by hand per
+`config-schema.md` §Schema.
 
-### Supplementary checks (beyond the 14 numbered invariants)
+### Supplementary checks (beyond the 16 numbered invariants)
 
 - **No leftover placeholders.** `Grep` every file under `{profile_dir}/`
   (plus `{competitors_dir}/methodology.md` too, when `competitors.profile_dir`
@@ -1546,10 +2248,12 @@ for `social.linkedin` (invariant 13); the operator adds that block to
   subject to this check. Any other hit → that doc wasn't fully filled in;
   go back to the owning phase and fill it.
 - **Adapter auth re-confirmed.** Re-state the Phase 5 auth probe result
-  (WordPress: the `users/me` check; Astro and markdown: `gh auth status` +
-  `gh repo view`). If either failed, remind the user it needs fixing
-  before the first real post, but don't block handoff on it (the config
-  preamble will catch it again at workflow-run time).
+  (WordPress: the `users/me` check that read the password through
+  `wp-secret.sh`; Astro and markdown: `gh auth status` + `gh repo view`),
+  in owner words ("WordPress login: OK" / "GitHub: OK, as <login>"). If
+  either failed, remind the user it needs fixing before the first real
+  post, but don't block handoff on it (the config preamble will catch it
+  again at workflow-run time). Never re-run the WordPress probe here.
 - **Git repo status + the GitHub precondition result**, re-stated from Phase 5, one line.
 - **Site conventions, recommended-doc check (not a numbered invariant).**
   Per config-schema.md, `{profile_dir}/site-conventions.md` is REQUIRED
@@ -1567,6 +2271,44 @@ for `social.linkedin` (invariant 13); the operator adds that block to
   don't block handoff on it; this is advisory, not one of the ✅/❌ rows
   above.
 
+### Two standing decisions (every blog)
+
+Ask these two, one per message, as menus, and merge the answers into
+`config.yaml` (whole-file rewrite, Global rule 4). Read each back in one
+sentence.
+
+1. **Plan approval → `review.plan_approval`.** "Before each post is
+   written, Pilcrino makes a plan (the title, the angle, the sections, which
+   competitors and product mentions it includes) and its own reviewer checks
+   it. Do you want to read and approve that plan yourself before the
+   writing starts, or let the reviewer's approval be enough?"
+   - "I approve each plan myself" (default) → `ask`. Read back: "You'll
+     see a short summary of each plan and say ok or ask for changes."
+   - "The reviewer's approval is enough" → `auto`. Read back: "Posts go
+     from plan to draft without waiting for you; you still review the
+     finished post."
+   Say once that the Pilcrino app, if used, has its own approval screens
+   and ignores this setting.
+2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
+   keeps its files on your repository's main branch: these setup files,
+   competitor fact sheets, and the content plan. Besides the setup commit
+   we're about to make, may it push those files to main later without
+   asking each time? This never includes a post: a post is always a pull
+   request that you merge."
+   - "Yes, push them without asking" → `true`.
+   - "No, ask me each time" (default) → `false`.
+   Read back the choice in one sentence.
+
+```yaml
+review:
+  plan_approval: <ask | auto>
+
+git:
+  branch_prefix: <as before>
+  base_branch: <as before>
+  push_without_asking: <true | false>
+```
+
 ### Custom instructions (optional)
 
 Ask, as this phase's last question, regardless of invariant results:
@@ -1574,7 +2316,10 @@ Ask, as this phase's last question, regardless of invariant results:
 instructions every stage of `blog-post-workflow` honors from here on —
 tone tweaks, hard bans, platform quirks — ranked below your own live
 instructions in any given conversation, but above this plugin's
-personas/standards defaults."
+personas/standards defaults." To the owner: "Is there anything every post
+should always or never do (a phrase to avoid, a rule about your product,
+something about your platform)? Give it to me in your own words, or reply
+`none`."
 
 - **Yes** → collect the content (free-text, multi-line is fine — this is
   the one profile doc with no fixed template shape). Write
@@ -1591,19 +2336,66 @@ personas/standards defaults."
 it, show a short summary, and apply Global rule 3 (keep as-is / update /
 start over) instead of asking from scratch.
 
+### Commit and push the setup files (with consent)
+
+Every post's pull request is opened against the base branch, and the post
+workflow's Step 0 reads `blog-ops/` from there, so the setup files must
+reach it. Do this now, after the validator passes and the two decisions are
+recorded, in this order:
+
+1. **Git identity.** `git -C "<blog folder>" config user.name` and
+   `user.email`. When either is empty, do not ask the owner for an email:
+   take the name and login from `gh api user -q '.name, .login, .id'` and
+   set, for this repository only (`git config user.name "<name or login>"`,
+   `git config user.email "<id>+<login>@users.noreply.github.com"`), then
+   say in one sentence: "Commits will show as <name>, through your GitHub
+   account, with GitHub's private address." Set the author name to the
+   owner's own name from `authors.md` only if they ask.
+2. **What goes in.** Stage by path, never `git add -A`: `blog-ops/`
+   (minus `blog-ops/reference/image-samples/` and any `_setup-shots/`),
+   `.gitattributes`, `.gitignore`, the Remotion project folder (its
+   `node_modules/` and `out/` are ignored), the created post and image
+   folders with their `.gitkeep`, the competitor profiles, and the site
+   files Phase 5 edited with consent (the content schema, the pages that
+   got a draft filter). Anything else the owner had changed before setup
+   stays unstaged; name it in one line if there is any.
+3. **Ask once.** Show the list in owner words and ask, as a menu:
+   "Pilcrino's setup files are ready: the settings and profile in
+   `blog-ops/`, <the image tool project>, <the two small changes to your
+   site: a draft switch and optional tags>. Shall I commit them and push
+   them to `<base branch>` on GitHub now? If your site rebuilds from
+   GitHub, this push starts a build; no post is affected. Options: push
+   now (recommended) / commit here only, push later / not yet."
+   - **Push now**: `git commit -m "Set up Pilcrino for <blog name>"`, then
+     `git push -u origin <base branch>` (an empty repository: the first
+     push creates the branch). On a push rejected for authentication,
+     offer `gh auth setup-git` again (Phase 0a check 4) and retry once. Say
+     "Pushed. <If live:> Your site is rebuilding; nothing on it changes
+     visibly, the new files are settings only."
+   - **Commit only**: commit, say the first post will ask to push before it
+     can open a pull request.
+   - **Not yet**: say the same, and that nothing is lost.
+   Run this before Phase 7 so the `console:` block, when added there, gets
+   its own small commit under the same consent (push it too when the owner
+   chose "push now" and `git.push_without_asking` or a one-line question
+   allows it).
+
 ### Handoff
 
-Once every invariant is ✅, do NOT print the completion message yet — first
-run Phase 7 (offer the optional autopilot console). Phase 7 is where the
-terminal "Setup complete" message is printed, on BOTH its branches (accept
-or decline), so the optional console phase is always offered BEFORE the flow
+Once the validator passes and the files are committed (or the owner chose
+otherwise), do NOT print the completion message yet: first run Phase 7
+(offer the optional autopilot console). Phase 7 is where the terminal
+"Setup complete" message is printed, on BOTH its branches (accept or
+decline), so the optional console phase is always offered BEFORE the flow
 declares itself done. Proceed to Phase 7 now.
 
 ## Phase 7 — Console & content plan (optional)
 
-Offer, don't push: "Pilcrino can also run as an app: background writes on a
-schedule and a browser dashboard for approvals. Do you want this blog ready
-for it? You can add this any time later."
+Owner's name for this part: "The Pilcrino app (optional)." Offer, don't
+push: "Pilcrino can also run as an app: it writes posts in the background
+on a schedule and gives you a browser dashboard to approve them. Do you
+want this blog ready for it? You can add this any time later." Default:
+not now.
 
 If yes:
 1. Scaffold `blog-ops/content-plan.md` from `${CLAUDE_PLUGIN_ROOT}/templates/content-plan.md`
@@ -1614,16 +2406,23 @@ If yes:
    tell the owner to add those posts with `/pilcrino:plan-content`.
 2. Add the `console:` block from references/config-schema.md defaults to
    `blog-ops/config.yaml` (skip if already present). **Write it via the
-   whole-file rewrite mechanism (Global rule 4), NOT an append.** For
-   `wordpress-rest` and `markdown` blogs force `publish_policy: gated` and
-   say why (invariant 10: WordPress go-live is manual, and every markdown
-   post waits for the owner's approval).
+   whole-file rewrite mechanism (Global rule 4), NOT an append.** Write
+   `publish_policy: gated` for every adapter and say its one sentence to
+   the owner: "The app will never publish a post on its own: every post
+   waits for your approval in the dashboard" (for `astro-git-pr` add: "you
+   can switch the app to merge approved Astro posts by itself later, from
+   its settings"). For `wordpress-rest` and `markdown` blogs `gated` is the
+   only valid value (invariant 10: WordPress go-live is manual, and every
+   markdown post waits for the owner's approval).
 3. Say where the app is: "The Pilcrino app is at https://pilcrino.com. Once
    installed, connect this folder from its dashboard; it imports
    `blog-ops/content-plan.md` into its post list on connect."
-4. Re-run the config validation invariants (1-14, with invariants 10 and
-   11 no longer vacuous since the `console:` block now exists).
-5. Then print the terminal completion message (below).
+4. Re-run the validator (`validate-config.mjs`, invariants 1 to 16, with
+   invariants 10 and 11's console part no longer vacuous since the
+   `console:` block now exists).
+5. Commit `blog-ops/content-plan.md` and the config change under the
+   consent given in Phase 6 (push too when the owner chose "push now").
+6. Then print the terminal completion message (below).
 
 **Resume:** if `blog-ops/content-plan.md` and/or `config.yaml`'s `console:`
 block already exist, summarize what's on file and apply Global rule 3 (keep
@@ -1635,9 +2434,30 @@ the terminal completion message (below).
 
 ### Completion (printed at the end of Phase 7, both branches)
 
-Whether the operator accepted or declined the console, close the wizard by
-printing exactly:
+Whether the operator accepted or declined the console, close the wizard
+with a short recap in owner words and then the exact last line. The recap,
+at most eight lines, in this order:
+
+1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
+   (or "committed, not pushed yet" / "not committed yet").
+2. What setup took: from the start time in `setup-notes.md` to now,
+   rounded to five minutes, with the wait for sign-ins excluded if it was
+   long ("about 50 minutes, plus the time you spent signing in").
+3. How a post reaches readers, one sentence from the `publish.site_live`
+   and adapter answers ("Each post is a pull request on GitHub; merging it
+   publishes once your site rebuilds" / "...uploads as a WordPress draft
+   that you publish" / "...you paste into <Platform> before approving").
+4. Competitors: "Fact sheets ready for <names>" or "Pilcrino will offer to
+   research <names> the first time a post names them."
+5. Anything the owner must still do, only if real (a placeholder domain to
+   replace, a date-based permalink setting to change, a skipped sign-in,
+   a declined draft switch meaning merged posts are live at once). Never
+   a git task, never a file to edit by hand.
+6. If the app was set up: "The Pilcrino app is at https://pilcrino.com;
+   connect this folder from its dashboard."
+
+Then print exactly:
 
 ```
-Setup complete. Run `/blog-post-workflow new` to write your first post.
+Setup complete. Run `/pilcrino:blog-post-workflow new` to write your first post, or `/pilcrino:plan-content` to plan a batch of posts first (about 30 minutes, unattended).
 ```
