@@ -1,33 +1,227 @@
 # Pilcrino
 
-A Claude Code plugin that turns "write a blog post" into a gated,
-crash-resumable production pipeline: intake, research, a reviewable plan, a
-drafted, reviewed and humanized post, a production-ready image set, and a
-publish step that opens a PR (Astro, or a markdown file for any other
-platform) or stages a draft (WordPress). It never
-auto-merges or auto-publishes.
+Pilcrino writes blog posts for your product's blog from inside Claude Code:
+how-to guides, best-of lists, "alternatives to" posts and comparisons of your
+product with its competitors. It works with sites built from a GitHub
+repository (Astro, Hugo, Next.js, Eleventy and other markdown sites),
+creates drafts in WordPress, and hands you a file to paste in for Webflow,
+Ghost, Jekyll and other platforms. For every post it researches Google (and
+Reddit and X if you turn those on) in a Chrome of its own, drafts, reviews
+and illustrates the post, then opens a pull request on GitHub that you read,
+comment on and approve; merging it publishes on a site built from the
+repository. Pilcrino never merges or publishes a post itself.
 
-## What Pilcrino is
+It runs on macOS only. It does not host or deploy your blog: your site must
+already publish from its GitHub repository (or be a WordPress site), and
+Pilcrino only adds posts to it. Research and writing run on your Claude plan
+in a long Claude Code session.
+
+Scope of "never publishes": the plugin never merges a pull request or
+publishes a blog post. The `post-to-linkedin` skill does post to your LinkedIn
+company page, but only when you run it. The Pilcrino app can merge Astro posts
+for you if you choose that setting.
+
+## What you need
+
+Software, installed once:
+
+- Google Chrome.
+- Claude Code, signed in to a Claude plan that includes it.
+- Apple's Command Line Tools (these bring `git`).
+- Node 22.13 or newer; 24 is fine.
+- GitHub CLI (`gh`), signed in to your GitHub account.
+
+Accounts:
+
+- GitHub, for the repository your posts go into.
+- Google, for research. Pilcrino searches signed in.
+- Reddit and X, only if you turn those research sources on in setup.
+- WordPress: an application password (in WordPress admin, Users, Profile,
+  Application Passwords). Pilcrino creates drafts with it and never publishes.
+  Setup asks for the name of an environment variable that holds it, never for
+  the password itself, so before you start Claude Code add one line to the
+  file `~/.zshrc` in your home folder, for example
+  `export MYBLOG_WP_APP_PASSWORD="paste the password here"`, then open a new
+  Terminal window. The password stays on your Mac; it never goes into the
+  repository or the chat.
+- LinkedIn, only for `post-to-linkedin`: you must be an admin of the company
+  page.
+
+## Install
+
+Open Terminal (in Spotlight, type Terminal). On a Mac that has never had
+developer tools, the very first command below may open an Apple dialog
+offering to install them: click Install, wait for it to finish, then run the
+command again.
+
+1. Command Line Tools. Type `git --version`. If a dialog appears, that is the
+   installer: click Install. When `git --version` prints a version, you are
+   done.
+2. Homebrew (the installer for the next two). Paste the one-line command from
+   https://brew.sh and follow its prompts. When it ends with "Next steps", run
+   the two or three commands it prints: they add Homebrew to your PATH, and
+   without them the next window will say `command not found: brew`. Check:
+   `brew --version`.
+3. Node and the GitHub CLI: `brew install node@22 gh`. Check: `node --version`
+   prints v22.13 or newer (24 is fine too), `gh --version` prints a version.
+4. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
+   take the defaults, and finish the sign-in in the browser window it opens.
+   Check: `gh auth status` says "Logged in".
+
+Then, in Claude Code:
+
+5. Run `claude` in Terminal. Which folder you are in does not matter yet. At
+   the safety question, choose "Yes, I trust this folder"; the highlighted
+   default exits.
+6. Type these two commands into Claude Code's prompt, one at a time (they are
+   Claude Code commands, not Terminal commands):
+
+   ```text
+   /plugin marketplace add pilcrino/pilcrino
+   /plugin install pilcrino@pilcrino
+   ```
+
+   The install screen asks for a scope; the default, "Install for you", is
+   right.
+7. Check: type `/plugin`. The Installed tab lists `pilcrino` with 12 skills and
+   a `pilcrino-browser` server, and the Errors tab is empty.
+
+Pilcrino works best in Claude Code's auto mode (Shift+Tab switches modes).
+When Claude Code still asks whether it may read or write one of Pilcrino's own
+files, "Yes, and don't ask again" is safe.
+
+## Quickstart
+
+1. **Open Claude Code in your site's folder.** In Terminal, `cd` into the
+   folder that holds your site's repository and run `claude`. If the site is
+   not on this Mac yet, download it first: `gh repo clone <you>/<your-site>`,
+   then `cd` into it. A WordPress, Webflow or other blog that is not built from
+   a repository still needs a GitHub repository, which can be empty: create it
+   on github.com, clone it the same way and run setup there. Pilcrino keeps the
+   post files in it.
+2. **Set the blog up:** `/pilcrino:blog-setup`. Setup asks one question at a
+   time, each with a recommended answer, and saves as it goes, so you can stop
+   and run it again later to continue. It opens the sign-in window for the
+   Pilcrino browser once (see below) and installs what it needs. Allow 1 to
+   1.5 hours on a new Mac, installs included. Setup writes a `blog-ops/`
+   folder in your repository, plus a `tools/remotion/` image project and a
+   `.gitattributes` file when you turn on drawn images. Setup does not commit
+   them yet, and every post needs them on your main branch on GitHub, so
+   before the first post tell Claude Code: "commit the Pilcrino setup files
+   and push them to main". For an empty repository that is also its first
+   commit.
+3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
+   product, its competitors and what people search for, and writes a list of
+   posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
+   while it runs.
+4. **Write a post:** `/pilcrino:blog-post-workflow new`. A few questions at the
+   start, then about 40 minutes of work ending in a pull request. Best-of,
+   alternatives and comparison posts need a research profile for every
+   competitor they name, no older than 14 days; Pilcrino writes one when you
+   ask (`/pilcrino:research-competitor <name>`, about 2.5 minutes each) and
+   tells you which posts need them.
+
+You can also just say what you want ("Can you make me a content plan?",
+"Write a how-to about ...") and Claude Code picks the right skill.
+
+Your site must already deploy from GitHub. If it builds a preview for every
+pull request, Pilcrino shows you that preview; if not, you read the post in
+the pull request itself.
+
+## Reviewing and publishing a post
+
+Every post ends as a pull request on GitHub (a WordPress post also appears as
+a draft in WordPress admin, with a preview link). Read it there. To ask for
+changes, comment on the pull request, or tell Pilcrino in Claude Code; while
+Claude Code stays open, a watcher checks the pull request every 15 minutes
+(less often when nothing happens), makes the changes and replies.
+
+When the post is right, approve it: if you work alone, tell Pilcrino
+"approve" in Claude Code; an approval on GitHub is recorded too. Approving
+does not publish. Publishing is your action:
+
+- a site built from the repository (Astro, Hugo, Next.js, Eleventy): merge the
+  pull request;
+- WordPress: click Publish in WordPress admin;
+- Webflow, Ghost, Jekyll and other paste platforms: paste the post in first,
+  then merge the pull request so the repository keeps it.
+
+Once the post is live, `/pilcrino:blog-post-workflow published <slug>` marks
+it in your content plan.
+
+## The Pilcrino browser
+
+Pilcrino researches in a Chrome of its own, with its own sign-ins, so your
+Chrome is untouched; setup opens a sign-in window once, and if a sign-in
+expires later, the skill that needs it opens the window again and stops. That
+sign-in window is a second Chrome next to your own, with an empty profile (no
+bookmarks, none of your extensions) and only the sign-in tabs open: sign in
+there, then quit that Chrome with Cmd+Q while it is the front window, because
+closing the window is not enough and quitting your own Chrome by mistake
+leaves Pilcrino waiting. If Google asks you to prove you are not a robot,
+Pilcrino brings its window forward with a tab titled "Pilcrino: pass the
+check": pass it there and retry.
+
+## Uninstall
+
+Quit Claude Code first (a running session recreates some of these files).
+Then, in Terminal:
+
+```bash
+claude plugin uninstall pilcrino@pilcrino
+claude plugin marketplace remove pilcrino
+rm -rf ~/.claude/plugins/data/pilcrino-pilcrino
+rm -rf ~/.pilcrino/browser
+rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser
+```
+
+`~/.pilcrino/browser` is the Pilcrino browser's signed-in Chrome profile
+(about 1.3 GB). If you want those Google, Reddit and X sessions ended rather
+than just deleted, sign out of them in the Pilcrino browser before removing
+it. Delete only that `browser` folder: the rest of `~/.pilcrino` belongs to
+the Pilcrino app (its settings and each connected blog's database) if you
+use it, so remove it only with the app, after a backup. `blog-ops/` and
+`tools/remotion/` in your repository are yours to keep or delete.
+`~/.claude.json` keeps harmless usage counts for the skills.
+
+## For developers
+
+The rest of this file describes how the plugin is built.
+
+### How a post is made
 
 One shared plugin, installed once. Every blog personalizes it at runtime
-through a `blog-ops/` workspace that a conversational setup wizard builds for
-you. Plugin updates reach every blog; only the files a blog deliberately
-overrides drift from the shared defaults.
+through a `blog-ops/` workspace that the setup wizard builds. Plugin updates
+reach every blog; only the files a blog deliberately overrides drift from the
+shared defaults.
 
-**The pipeline, in words:** intake Q&A → SERP research (plus optional
-Reddit/X research) → research analysis → plan synthesis → plan-review gate
-→ outline → draft → review-and-revise loop → humanization pass → marker
-auto-resolution (`[VERIFY:]`, `[EXTERNAL_LINK_NEEDED:]`,
-`[INTERNAL_LINK_NEEDED:]`) → image plan → image generation
-(`[IMAGE:]` slots, one adapter per strategy) → action-items compile →
-staging into the target platform → Gate 2 human review (a GitHub PR, watched
-by the skill's PR-comment cron) → finalize and archive. Side skills cover
-setup (`blog-setup`), content planning (`plan-content`), competitor research,
-review-blog-post, humanize-text, suggest-images, generate-images,
-repurpose-blog-post, LinkedIn posting and a post-run retrospective
-(`blog-retro`).
+The pipeline: intake Q&A, SERP research (plus optional Reddit and X research),
+research analysis, plan synthesis, plan-review gate, outline, draft,
+review-and-revise loop, humanization pass, marker auto-resolution
+(`[VERIFY:]`, `[EXTERNAL_LINK_NEEDED:]`, `[INTERNAL_LINK_NEEDED:]`), image
+plan, image generation (`[IMAGE:]` slots, one adapter per strategy),
+action-items compile, staging into the target platform, Gate 2 human review
+(a GitHub PR, watched by the skill's PR-comment cron), finalize and archive.
+Side skills cover setup (`blog-setup`), content planning (`plan-content`),
+competitor research, review-blog-post, humanize-text, suggest-images,
+generate-images, repurpose-blog-post, LinkedIn posting and a post-run
+retrospective (`blog-retro`).
 
-## What's in this repo
+The Pilcrino browser is the bundled `pilcrino-browser` MCP server
+(`browser/`), started on demand from `.mcp.json` with `node`; it needs Node
+(see What you need) and Chrome and installs its own packages the first time
+it starts. Its Chrome runs on the profile at `~/.pilcrino/browser`; the
+`open_login` tool quits it and opens the sign-in pages in a Chrome on the same
+profile without remote control, because Google refuses to sign in a browser
+under remote control, and the next tool call relaunches it once that Chrome
+has quit. When a Google search hits the unusual-traffic check or returns no
+results, the browser leaves that tab open under the title "Pilcrino: pass the
+check", brings its window forward and releases it; the next blocked search
+first closes earlier tabs with that title that no run is using. "Google
+Chrome was not found" means Chrome is not at the platform default; set
+`browser.executable` in `blog-ops/config.yaml`.
+
+### What's in this repo
 
 | Category | Count | Where |
 |---|---|---|
@@ -43,72 +237,15 @@ repurpose-blog-post, LinkedIn posting and a post-run retrospective
 | Pilcrino browser | 1 | `browser/` (the bundled `pilcrino-browser` MCP server) |
 | Config contract | 1 | `skills/blog-post-workflow/references/config-schema.md` |
 
-## Install
+This repo is its own single-plugin marketplace. Skills and agents (12 skills,
+7 subagents) are installed at user scope by default, so they are available in
+every project, namespaced by the plugin name: `blog-setup` becomes
+`/pilcrino:blog-setup`, `blog-post-workflow` becomes
+`/pilcrino:blog-post-workflow`, and so on.
 
-Prerequisites:
+### Existing blogs at setup
 
-- Google Chrome
-- Node 22 with npm
-- Claude Code
-- `git`
-- A GitHub repository for each blog, with `gh` signed in: every adapter publishes through a pull request, the markdown one included
-
-This repo is its own single-plugin marketplace. In Claude Code:
-
-```bash
-/plugin marketplace add pilcrino/pilcrino
-/plugin install pilcrino@pilcrino
-```
-
-Skills and agents (12 skills, 7 subagents) are installed at user scope by
-default, so they are available in every project, namespaced by the plugin
-name: `blog-setup` becomes `/pilcrino:blog-setup`, `blog-post-workflow`
-becomes `/pilcrino:blog-post-workflow`, and so on.
-
-## The Pilcrino browser
-
-Research runs in Pilcrino's own Chrome window, started on demand from the
-plugin's bundled `pilcrino-browser` MCP server. It installs its own packages
-the first time it starts. Nothing else to install beyond Chrome: no
-extension, no developer mode. The first `/pilcrino:blog-setup` opens the
-window and asks you to sign in to Google and, if enabled, Reddit and X, once.
-Logins persist across restarts. If a session drops later, the skill that
-needed it opens the sign-in window and stops; sign in and run it again. The
-window stays in the background while Pilcrino works; only the sign-in window
-comes forward.
-
-Sign in happens in a window without remote control; quit it when done. Google
-refuses to sign in a browser under remote control, so the `open_login` step
-in the skills closes the Pilcrino browser and opens the sign-in pages in a
-plain Chrome window on the same profile. Sign in, then quit that Chrome with
-Cmd+Q: closing its window leaves Chrome running on macOS, and Pilcrino cannot
-restart its browser while that window holds the profile. The next research
-call restarts it with your logins.
-
-When the Google search hits Google's unusual-traffic check or comes back
-empty, the browser leaves that tab open, brings its window to the front and
-stops using it, so the end of the run does not close it. Pass the check there,
-then retry. The tab is titled "Pilcrino: pass the check". The next blocked or
-empty search first closes any earlier tab with that title that no run is using;
-other tabs, including another run's search, are never closed.
-
-Troubleshooting: "Google Chrome was not found" means Chrome is not at the
-platform default; set `browser.executable` in `blog-ops/config.yaml`. A skill
-stopping with "Sign in to Reddit" means that login expired; sign in in the
-window it opened, quit it with Cmd+Q, and run the skill again.
-
-## Quickstart
-
-1. Install the plugin (above).
-2. In the target blog's own git repo (or an empty directory you're about to
-   `git init`), run the setup wizard: `/pilcrino:blog-setup`. Six resumable
-   phases interview you and write `blog-ops/config.yaml` plus every required
-   `profile/*.md` doc.
-3. Plan posts if you want a queue: `/pilcrino:plan-content` writes
-   `blog-ops/content-plan.md`.
-4. Write your first post: `/pilcrino:blog-post-workflow new`.
-
-If the target blog already has live posts, step 2's wizard offers a
+If the target blog already has live posts, the setup wizard offers a
 consent-gated research pass before the regular interview. It fetches the
 homepage, an about page and several recent posts, samples featured and
 in-post images, and, once the publish adapter is chosen, runs that adapter's
@@ -120,7 +257,7 @@ post furniture). Every pre-filled answer is still presented for confirmation,
 never silently accepted. A brand-new blog with nothing published yet skips
 this pass entirely.
 
-## The `blog-ops/` workspace
+### The `blog-ops/` workspace
 
 Every blog is a git repo. For an Astro site, `blog-ops/` lives inside the
 site repo itself; for a WordPress blog, the repo holds the canonical
@@ -171,7 +308,7 @@ via REST once the new post is published, instead of leaving them as
 hand-apply action items). Full annotated schema:
 [`skills/blog-post-workflow/references/config-schema.md`](skills/blog-post-workflow/references/config-schema.md).
 
-## Layered resolution rule
+### Layered resolution rule
 
 When the workflow or a subagent needs a template or standard file
 `<name>.md`, it checks `blog-ops/templates/<name>.md` first; if that
@@ -180,7 +317,7 @@ doesn't exist, it falls back to this plugin's own
 merging. Profile docs (`profile/*.md`) have no plugin-side default at all:
 they are required (or module-gated) wizard output, unique per blog.
 
-## Skills
+### Skills
 
 Every entry point installed by this plugin (`skills/`), namespaced
 `pilcrino:<skill>` once installed:
@@ -200,7 +337,7 @@ Every entry point installed by this plugin (`skills/`), namespaced
 | `plan-content` | Turns a product description into pillars, a scored post queue, and a competitor list, researched through the Pilcrino browser. Writes `blog-ops/content-plan.md`. Re-runs add new posts without repeating existing ones. |
 | `post-to-linkedin` | Publish an already-written post to this blog's LinkedIn company page (`social.linkedin.company_id`) and add the link as the first comment. |
 
-## Modules
+### Modules
 
 Optional subsystems, each a boolean under `modules:` in `config.yaml`
 (config gates the capability; a post's own brief still opts in per-post
@@ -214,7 +351,7 @@ where relevant):
 | Competitors | `modules.competitors` | Requires `profile/competitors/methodology.md`; enables the 14-day freshness re-check, intake hard-halts on stale/missing competitor profiles, and reviewer competitor-pricing checks |
 | Repurpose | `modules.repurpose` | Enables `repurpose-blog-post` (turns a published post into an X thread, an X short take, a LinkedIn post, and a newsletter); the skill declines politely when off |
 
-## Image strategies
+### Image strategies
 
 Any subset can be enabled simultaneously under `images.enabled`; the
 image-planner assigns a strategy per slot, and `generate-images` dispatches
@@ -228,7 +365,12 @@ each slot to its adapter in `adapters/images/`:
 
 > **Runtime prerequisite for `ai-prompt`:** the [`codex` CLI](https://github.com/openai/codex) installed and logged in (its built-in imagegen authenticates via the codex/ChatGPT login, no `OPENAI_API_KEY`). Without it, `ai-prompt` slots degrade to a manual prompt fallback instead of failing the run.
 
-## Publish adapters
+### Publish adapters
+
+Every adapter publishes through a pull request, so every blog needs a GitHub
+repository. The site must already deploy from that repository (or be a
+WordPress site); a per-PR preview deploy is optional and, for Astro, is read
+from the CI comment named by `publish.astro.preview_comment_marker`.
 
 | Adapter | `publish.adapter` value | Frontmatter template(s) | How it publishes |
 |---|---|---|---|
@@ -236,7 +378,7 @@ each slot to its adapter in `adapters/images/`:
 | WordPress (REST) | `wordpress-rest` | `adapters/publish/frontmatter/wordpress.md`, set via `publish.wordpress.frontmatter_template` | The workspace repo's markdown stays canonical. At staging it's converted to native Gutenberg block markup (`adapters/publish/scripts/md-to-gutenberg.py`, with a classic-block pandoc/marked fallback) and a WordPress draft is created via the REST API (as the rendered preview), idempotently re-synced by stored post ID through the review loop, and never pushed past `status: draft`. A human publishes in WP admin |
 | Markdown (any platform) | `markdown` | `adapters/publish/frontmatter/markdown-<platform>.md`, derived from `publish.markdown.platform` (astro, hugo, jekyll, ghost, nextjs, eleventy, generic) | Writes `<slug>.md` in the platform's frontmatter shape with its images and opens a PR through the same staging as Astro; like every adapter it needs a GitHub repository. When the site builds from the repo (Astro, Hugo, Next.js, Eleventy) and serves the image shape set at setup (an `image_url_prefix` URL or a path relative to the post), the merge publishes; otherwise (Jekyll, Ghost, anything else) the owner pastes the post in before approving |
 
-## The Pilcrino app
+### The Pilcrino app
 
 The plugin is complete on its own. The Pilcrino app adds background writes
 and a dashboard: it runs these skills on a schedule for every blog you
@@ -244,6 +386,15 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.47.0 - README for a first-time owner
+
+- A fresh-Mac test (a non-technical owner installing from the README alone) needed Google three times for a bare prerequisites list, and a README review found no word on supported systems, hosting, or what Pilcrino does not do. The README now opens with four plain sentences on what it writes, for which platforms, that you approve a pull request and merging publishes, and that it runs on macOS only and does not host or deploy your blog.
+- Install is a numbered list with one route and one check per prerequisite: Apple's Command Line Tools (and the dialog that appears on a new Mac), Homebrew with its PATH step, `brew install node@22 gh` ("Node 22.13 or newer, 24 is fine", the browser's real requirement), `gh auth login`, GitHub CLI spelled out. The two `/plugin` commands are shown as Claude Code commands, with `claude`, the trust prompt and a `/plugin` check around them.
+- Accounts are listed (Claude plan, GitHub, Google, Reddit and X when on, a WordPress application password, LinkedIn admin for `post-to-linkedin`), the GitHub repository moved from install to Quickstart (a WordPress or Webflow blog needs one too), and Quickstart carries rough times from the test runs: setup 1 to 1.5 hours on a new Mac, a plan about 30 minutes, about 2.5 minutes per competitor profile, a post about 40 minutes.
+- New "Reviewing and publishing a post" section: read the pull request, comment there or in Claude Code, approve, then merge or click Publish in WordPress yourself. "Never publishes" is scoped: the plugin never merges or publishes a post, `post-to-linkedin` posts when run, the app can auto-merge Astro posts if you choose. The recommended Claude Code permission mode is stated.
+- The browser section is three plain sentences for the owner (the sign-in window is a second Chrome next to your own; quit it with Cmd+Q; pass Google's check when asked); the mechanics moved to the developer section. Two wrong claims fixed: the browser needs Node, and setup has resumable steps rather than "six phases".
+- New Uninstall section, from the uninstall test: quit Claude Code, the two `claude plugin` commands, the data folder, `~/.pilcrino` (about 1.3 GB), the MCP logs, signing out first, and what to keep. `plugin.json` describes the plugin in plain words.
 
 ### 0.46.0 - the editor idles while a subagent runs
 
