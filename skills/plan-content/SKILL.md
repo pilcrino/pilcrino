@@ -578,7 +578,9 @@ compares tools (best-of, for-role, alternatives):
   - Registered: this skill removes the idea from the batch before the
     `POST .../queue/batch` call (that endpoint checks fields and duplicate
     slugs only; it does not check profiles, so the filter has to happen
-    here). Report it with the command to add that competitor,
+    here). When the filter leaves the batch empty, make no POST at all (the
+    endpoint rejects an empty list) and report zero posts added plus the
+    held ideas. Report each held idea with the command to add that competitor,
     `/pilcrino:research-competitor <name>` (or
     `curl -X POST <console base>/api/competitors -H 'Content-Type: application/json' -d '{"site": "<site>", "name": "<name>"}'`,
     same base URL and auth as the batch call), and say that running
