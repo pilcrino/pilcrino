@@ -25,6 +25,8 @@ Everything else (intake, browser research fetching, plan synthesis, outline draf
 
 A subagent may run in the background and the harness notifies this session when it returns. Between the `Agent` call and that return the editor makes **no tool calls at all**: no reading of documents a later stage needs (the publish adapter, the action-items or outline templates), no grepping of archives or source code, no setup for a later stage, no timers or wake-ups (`ScheduleWakeup`, `CronCreate`) to poll for the result, no browser work. Every turn in this session re-sends the whole conversation, which by the draft stage is well over 200k tokens; a read done here costs several times what the same read costs at the stage that needs it, and it then sits in context for every later turn. Each stage below reads what it needs when it starts. "Wait for return" in a step means exactly this: the next action is the step's verification of the subagent's output, nothing before it.
 
+The one exception is the hand-off's own bookkeeping, which happens at the boundaries, never inside the wait. In autopilot the sequence for every dispatch is: append `agent_started` to `$CONSOLE_RUN_STATE` (the console contract's event), then the `Agent` call, then idle, then on return append `agent_done` first, then the step's verification. Interactively the checklist frontmatter update the step prescribes before the spawn plays the same role. Preparatory work for a later stage is never part of this exception.
+
 ## How to invoke
 
 - `$ARGUMENTS` empty → auto-detect in-progress drafts; offer resume/new choice
@@ -904,7 +906,7 @@ Read `{drafts_dir}/<slug>/review.md` §Verdict. Follow the routing rules from th
        author_voice=<from brief.md>
        """
    ```
-5. After the writer returns: verify `{drafts_dir}/<slug>/draft-v<N+1>.md` exists with ≥ 500 words and valid frontmatter (Stage 3a post-spawn sanity check). Failure handling: same as Step 10.5, re-spawn ONCE, second failure → stop and report.
+5. Wait for return, idle (§Hand-offs to subagents). After the writer returns: verify `{drafts_dir}/<slug>/draft-v<N+1>.md` exists with ≥ 500 words and valid frontmatter (Stage 3a post-spawn sanity check). Failure handling: same as Step 10.5, re-spawn ONCE, second failure → stop and report.
 6. Go back to Step 11.1 with the new draft (iteration incremented).
 
 ### Step 12, Humanize (Stage 3c, delegate to `blog-humanizer` subagent)

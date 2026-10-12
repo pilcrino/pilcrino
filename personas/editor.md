@@ -309,7 +309,7 @@ The reviewer is deliberately independent of the writer. The editor's editorial r
   2. Archive the current `review.md` as `{drafts_dir}/<slug>/review-v<N>.md` (idempotent `cp`, preserves iteration history; fresh review will overwrite `review.md`).
   3. Update checklist: `current_stage=draft`, `current_owner=blog-writer`; append stage log: `Stage 3b revise iteration <iter+1> started: <ts>`. Setting `current_stage=draft` is load-bearing for crash recovery: if the session dies after archive but before the new draft is written, resume uses the archive + missing `draft-v<N+1>.md` as the signal to retry the writer spawn (not the review). Resume rules live in `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` Step 2.
   4. Spawn `blog-writer` subagent with `mode=revise`, `review_path={drafts_dir}/<slug>/review.md`, `prior_draft_path={drafts_dir}/<slug>/draft-v<N>.md`. The writer produces `{drafts_dir}/<slug>/draft-v<N+1>.md` (never overwrite prior).
-  5. Verify new draft exists + is longer than ~500 words + frontmatter intact (same Stage 3a post-spawn sanity check).
+  5. Wait for return, idle: no tool calls until the subagent returns (SKILL.md §Hand-offs to subagents). Verify new draft exists + is longer than ~500 words + frontmatter intact (same Stage 3a post-spawn sanity check).
   6. Re-dispatch Stage 3b on the new draft (`SKILL.md` Step 11.1, iteration incremented).
 - **`request_revisions`** AND iteration > 2, **escalate to human.** Do NOT dispatch a fourth writer pass (draft-v4 is over the ceiling). Present:
   ```
