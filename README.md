@@ -106,8 +106,10 @@ files, "Yes, and don't ask again" is safe.
    1.5 hours on a new Mac, installs included. Setup writes a `blog-ops/`
    folder in your repository, plus a `tools/remotion/` image project and a
    `.gitattributes` file when you turn on drawn images. Setup does not commit
-   them yet: the first post asks whether to commit and push them to your main
-   branch, and every post needs them there.
+   them yet, and every post needs them on your main branch on GitHub, so
+   before the first post tell Claude Code: "commit the Pilcrino setup files
+   and push them to main". For an empty repository that is also its first
+   commit.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
