@@ -125,6 +125,11 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
 
 ## Inputs
 
+**First message of an interactive run** (standalone and registered, not
+autopilot), before any tool call: "This takes about 30 minutes and asks no
+questions while it runs." When the description below is missing, that same
+message asks for it, and the run starts once the owner answers.
+
 1. **Product or service description.** In order of preference: `{profile_dir}/product.md`
    plus `blog.md` and `audience.md` when `blog-ops/` exists; a file the owner names;
    inline text. If none exists, ask for one paragraph: what it is, who buys it, what
@@ -185,11 +190,15 @@ part out.
   last existing block. When the file has no `## Details` section and a new
   entry needs one, add a blank line after the table, then `## Details`, a
   blank line, then the blocks.
-- A competitor without a profile is reported with the command
-  `/pilcrino:research-competitor <name>` instead of the console's competitor
-  API.
+- A comparison post whose `competitors` names a competitor with no profile
+  is still added. Its Details block carries a `Profile first: <name>, <name>`
+  line after its `Mention:` line (Step 8), and the Step 9 report says those
+  posts wait for competitor fact sheets, which the post workflow offers to
+  research when the post is started. The owner can also run
+  `/pilcrino:research-competitor <name>` now, about 2.5 minutes each.
 - When the owner later connects this blog to the Pilcrino app, the app
-  imports this file once into its post list. Say so in the Step 9 report.
+  imports this file once into its post list. Say so in the Step 9 report,
+  right before the closing line that names the plan file.
 
 ## Step 0: Resolve paths
 
@@ -459,7 +468,9 @@ shows as a planned post. In order:
    below). Run the Step 1 duplicate test on each. When
    every candidate fails it, add nothing: a terminal run reports the posts that
    already cover the topic (slug and title), and autopilot writes the empty
-   result described in its item 6.
+   result described in its item 6. Every candidate that passes the test is in
+   the batch; none is held back in `strategy.md` or anywhere else because a
+   competitor has no profile (Step 8 marks those posts instead).
 2. **Pillars.** A pillar maps to something the product does and to at least three
    posts. `new` mode: cluster the batch into three to six pillars. `extend` mode:
    assign each post to an existing pillar; posts that fit none form new pillars of
@@ -502,7 +513,10 @@ Post fields:
   `<x>-alternatives` and `<x>-vs-<y>`. No "what is X" definition posts.
 - Order by score within the batch. The console (or, standalone, Step 8)
   appends the batch after the existing posts, so the list stays in plan order across runs. The cluster
-  map names the hubs; they need not be first.
+  map names the hubs; they need not be first. This is the plan's one order:
+  the report's "write these first" list is this order, and so is the answer
+  to any later question about what to write first (Step 9). A post that
+  waits for a competitor profile keeps its place; it is never moved down.
 
 ## Step 8: Add the posts
 
@@ -533,18 +547,30 @@ compares tools (best-of, for-role, alternatives):
 - Module on: `Mention: <subjects>, <profiled options>`. The subjects are the
   idea's `competitors` names; the options are the tools the post compares,
   chosen only from competitors with a profile in `{competitors_dir}`. Every
-  name uses its profile's H1 or `**Slug:**` spelling, stale or fresh. For
+  name uses its profile's H1 or `**Slug:**` spelling, stale or fresh; a
+  subject with no profile keeps the spelling the vendor's own site uses. For
   `best-for` and `for-role` the line holds the options only. Options never go
-  in `competitors`: the subject alone gates Add. A strong option with no
-  profile is left out of the post and named in the report: "Profile these to
-  include them: X, Y". A best-of still lists five to nine options where the
-  profiled ones allow; with fewer profiled, it compares fewer. A terminal run
-  does not add an idea when any name in its `competitors` has no profile; it
-  reports it with the command to add that competitor:
-  `/pilcrino:research-competitor <name>` (registered blogs may instead use
-  `curl -X POST <console base>/api/competitors -H 'Content-Type: application/json' -d '{"site": "<site>", "name": "<name>"}'`
-  as before, same base URL and auth as the batch call). Autopilot keeps such ideas; the
-  console gates them.
+  in `competitors`: the subject alone decides what follows. A strong option
+  with no profile is left out of the post and named in the report (Step 9,
+  in plain words: the competitors to research before the post can compare
+  them). A best-of still lists five to nine options where the profiled ones
+  allow; with fewer profiled, it compares fewer.
+  A subject has a profile when `{competitors_dir}/<slug>.md` exists (the
+  slug as `research-competitor` would write it); whether it is fresh is
+  checked when the post is started, not here. When a name in an idea's
+  `competitors` has no profile:
+  - Standalone: add the idea anyway, status `planned`, with one more
+    requirement line after `Mention:`, `Profile first: <name>, <name>`,
+    naming only the subjects that lack a profile. The post workflow copies
+    the block into the brief and offers to research those competitors when
+    the post is started; the report (Step 9) says so.
+  - Registered: not added. Report it with the command to add that
+    competitor, `/pilcrino:research-competitor <name>` (or
+    `curl -X POST <console base>/api/competitors -H 'Content-Type: application/json' -d '{"site": "<site>", "name": "<name>"}'`,
+    same base URL and auth as the batch call), and say that running
+    `/pilcrino:plan-content` again afterwards adds the post. The console
+    owns this check for registered blogs.
+  - Autopilot keeps such ideas; the console gates them.
 - Module off: `Mention: <A>, <B>` with the subjects and options as plain
   names. No profile gate and no `competitors` block.
 
@@ -564,15 +590,43 @@ Targets: `strategy.md` under 180 lines for 30 posts, plus two lines per post
 above that; `competitors.md` under 80 lines, plus three per visited vendor above
 ten. Raw notes live only under `research/`.
 
-Report in chat, under 25 lines: pillars (marking any new one), posts added (the
-count and their slugs) as the second line, the first ten posts of this batch,
-a competitors block (chosen and skipped, each with evidence and reason, at most
-eight lines), and what the owner must supply (their own data for
-measured posts, competitor profiles for ideas whose `competitors` lack one,
-and one line "Profile these to include them: X, Y" for strong options left
-out of a post for want of a profile). Standalone: add one line saying the
-posts are in `{ops_dir}/content-plan.md` and that connecting the blog to the
-Pilcrino app imports the file once into its post list.
+Report in chat, under 25 lines, in this order:
+
+1. Pillars, marking any new one.
+2. Posts added: the count and their slugs.
+3. "Write these first": the first ten posts of this batch, in the plan's own
+   order (Step 7's score order, the order the rows have in the file or the
+   post list), slug and one clause each. A post that waits for competitor
+   fact sheets stays in its place with "(after the <name> fact sheet)" on its
+   line. This is the only ordered list in the report.
+4. Competitors, at most eight lines: chosen and skipped, each with its
+   evidence and reason. Say which names the owner gave and which research
+   added ("You named Harvest, Toggl Track and Clockify; research added
+   FreshBooks and Paymo").
+5. What you must supply: the owner's own data for measured posts; the posts
+   that wait for competitor fact sheets, with the competitors' names, that
+   the post workflow offers to research them when the post is started, and
+   that `/pilcrino:research-competitor <name>` (about 2.5 minutes each)
+   does it now; and one line naming the competitors to research so a best-of
+   or for-role post can compare them, when a strong option was left out.
+
+Standalone: the last two lines of the report are "Connecting this blog to the
+Pilcrino app later imports the plan file once into its post list." and then
+"Your plan: `{ops_dir}/content-plan.md`, <N> posts." Nothing follows that
+line; the path is the last thing on screen when a long report scrolls.
+
+Plain words everywhere the owner reads (this report and anything printed
+to chat): a profile is a "competitor fact sheet"; never "cap", "gate" or
+"module"; a skipped competitor's reason is the actual reason ("fewer search
+results than the six chosen", "already has a comparison post", "no evidence
+found"). The files under `content-strategy/` may say "profile".
+
+**Questions after the report.** When the owner asks what to write first, for
+a top five, or for the order, answer from the plan file's order (standalone:
+the `#` column of the `planned` rows in `{ops_dir}/content-plan.md`;
+registered: the console's post list), the same order as item 3 above. Never
+re-rank: a post waiting for a fact sheet is named in its place with that
+note, not moved behind posts that need nothing.
 
 ## Rules that keep the output honest
 
@@ -594,6 +648,8 @@ Pilcrino app imports the file once into its post list.
 | Second run repeats the first | Step 1 builds the exclusion list; Step 3 skips the query log |
 | Guessing `/pricing` or `/blog` | Read the nav; record "not found" |
 | Report longer than the strategy doc | Under 25 lines |
+| Holding comparison posts out of the plan until profiles exist | Standalone: add them with a `Profile first:` line; the post workflow offers the research |
+| A second "write these first" order when the owner asks | Answer from the plan file's order; the report's list is the same order |
 
 ## Output checklist
 
@@ -603,8 +659,10 @@ Pilcrino app imports the file once into its post list.
 - [ ] Posts added in score order, no duplicates: registered through `POST .../queue/batch`, standalone as table rows (plus Details blocks) in `content-plan.md`
 - [ ] Every idea has `pageType`, `origin` and `competitors` per `references/money-pages.md` rule 1 (the page's subject, never the options listed inside)
 - [ ] Every idea with a non-empty `competitors` list carries the `Mention:` line per the Step 8 rule
-- [ ] Module on: a post that compares tools names only profiled options, on its `Mention:` line after the subjects; the report says which options to profile to include them
-- [ ] Terminal: an idea naming a competitor with no profile is reported with the add command (`/pilcrino:research-competitor <name>`), not added
+- [ ] Module on: a post that compares tools names only profiled options, on its `Mention:` line after the subjects; the report names the competitors to research so the post can compare them
+- [ ] Standalone, module on: an idea naming a competitor with no profile is added as `planned` with a `Profile first: <name>, <name>` line after its `Mention:` line, and the report says it waits for the fact sheets and that the post workflow offers to research them
+- [ ] Registered: an idea naming a competitor with no profile is reported with the add command (`/pilcrino:research-competitor <name>`), not added
 - [ ] Autopilot, module on: the `competitors` array holds every chosen and skipped competitor and every name the ideas use, up to 30
 - [ ] Browser tabs closed
-- [ ] Chat report under 25 lines
+- [ ] Interactive run: the first message said "This takes about 30 minutes and asks no questions while it runs"
+- [ ] Chat report under 25 lines, one "write these first" order (the plan's), plain words (fact sheet, no "cap"), owner-named and research-added competitors told apart, and standalone it ends with the plan file path
