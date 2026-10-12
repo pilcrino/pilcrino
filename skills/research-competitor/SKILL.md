@@ -40,8 +40,8 @@ The prompt ends with a line naming both files: "Request file: <path>. Write the 
 
 Before starting any research, resolve the workspace config. This skill is a standalone entry point (no caller resolves paths for it), so do this yourself:
 
-1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root is a fixed convention (see `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule). If it is missing or does not parse as YAML → **HARD-STOP**: "No valid blog-ops/config.yaml — run /blog-setup first."
-2. **Check the module gate.** Read `modules.competitors`. If it is not `true` → **HARD-STOP**: "modules.competitors is off in blog-ops/config.yaml — this skill requires it. Enable the module and provide the profile docs via /blog-setup first." Do not proceed.
+1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root is a fixed convention (see `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule). If it is missing or does not parse as YAML → **HARD-STOP**: "No valid blog-ops/config.yaml. Run /pilcrino:blog-setup first."
+2. **Check the module gate.** Read `modules.competitors`. If it is not `true` → **HARD-STOP**: "modules.competitors is off in blog-ops/config.yaml, and this skill requires it. Turn competitors on and add the fact sheet index with /pilcrino:blog-setup first." Do not proceed.
 3. **Resolve `{competitors_dir}`.** Config key `competitors.profile_dir`, default `blog-ops/profile/competitors` (see config-schema.md §Path variables and invariant 12).
 4. **Resolve `{profile_dir}`** (`blog-ops/profile`) and read `{profile_dir}/product.md` in full — it supplies the product context used in the Product overlap table (Step 4).
 5. **Read the methodology.** Read `{competitors_dir}/methodology.md` in full before starting. That document is the canonical contract: section ordering, profile template, pricing-tier extraction rules, freshness contract, and the competitor index table you will update when done.
@@ -107,6 +107,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
 - **Single-page app / no separate pricing page:** pricing blocks are often below the fold; if the 20000-character `text` cuts off before them, capture again with `document.body.innerText.substring(20000, 40000)` in the `text` field.
 - **Comparison pages** (e.g. "vs Acme"): Read them — they contain marketing-positioning claims and self-reported competitive data worth documenting (and fact-checking).
 - **Login-walled pricing:** Note `pricing_status: login_required` and document only what is visible publicly.
+- **Currency:** a page may show prices in the visitor's local currency (the Mac's locale). Prefer the page's structured data (`application/ld+json` offers carry `priceCurrency`) and record the currency the product sells in; note a local-currency display as such.
 - **Pricing toggles** (monthly/annual, by audience segment): Capture both states: they often show different tiers or limits. A `capture` script can flip the toggle itself (`el.click()`, then `await new Promise(r => setTimeout(r, 1000))`) before it returns the text; write each state to its own file (`pricing-monthly.json`, `pricing-annual.json`).
 - **404s or captcha blocks:** Log in the Sources section as "attempted but 404/blocked" rather than fabricating the data.
 
@@ -137,6 +138,15 @@ After writing `{competitors_dir}/<slug>.md`:
 1. **Update `methodology.md`** — add or update the row for this competitor in the "Competitors currently profiled" table.
 2. **Update `_summary.md`, if `{competitors_dir}/_summary.md` exists** — add or update this competitor's column in the comparison matrix, using whatever positioning axes that file already tracks (e.g. free/paid tier, platform breadth). Re-run break-even pricing rows if pricing changed. If no `_summary.md` exists yet, skip this step — it is optional index tooling, not every blog maintains one.
 3. **Clean up.** Close the tab (`mcp__plugin_pilcrino_pilcrino-browser__tabs` with `action: close` and the `tabId`). Interactive runs then delete the scratch folder by its exact path, `rm -rf "$(git rev-parse --show-toplevel)/{competitors_dir}/_scratch/<slug>"` (that one directory, never the whole `_scratch` folder or a glob); it is never committed. Autopilot leaves the console's scratch directory alone.
+
+## Step 6: Save the fact sheet to GitHub (interactive runs only)
+
+A post reads competitor fact sheets from `origin/{git.base_branch}`, never from this checkout, so a fact sheet that is only on this Mac does not count yet. Autopilot never runs git (the console commits); skip this step there. When `blog-post-workflow` runs this skill at intake, it defers this step and commits every fact sheet of that intake in one go, with the same rules.
+
+1. The base branch (`git.base_branch`) must be checked out. Another branch: say which, that fact sheets belong on <base>, leave the files in place, and stop here.
+2. Commit only this run's files, never `_scratch/` and never anything else staged: `git add -- <paths> && git commit -m "chore(competitors): <Name> fact sheet <YYYY-MM-DD>" -- <paths>`, where `<paths>` are the profile `<slug>.md`, `methodology.md`, and `_summary.md` when this run changed it (all under `{competitors_dir}`).
+3. Push: with `git.push_without_asking: true` in `blog-ops/config.yaml`, `git push origin {git.base_branch}` at once. Otherwise ask once, in plain words: "The <Name> fact sheet is saved here. Posts read fact sheets from GitHub, so it needs to be on <base> there. OK to push it now? It may start a site build; no post is affected." A push refused because GitHub has newer commits: `git pull --rebase origin {git.base_branch}` once, then push again; a conflict stops with the conflicting paths named.
+4. Say what was pushed, by name ("Pushed the Harvest fact sheet and the fact sheet index to main"), or, when the owner declined, that the files are saved here but posts will not see them until they are pushed.
 
 ## Mode: update (re-verification)
 
@@ -170,3 +180,4 @@ When refreshing an existing profile:
 - [ ] `methodology.md` competitor index table updated
 - [ ] `_summary.md` matrix updated, if the file exists
 - [ ] Browser tab closed (`tabs` with `action: close`); interactive: `{competitors_dir}/_scratch/<slug>/` deleted
+- [ ] Interactive: the fact sheet committed on the base branch and pushed under `git.push_without_asking` or after one question (Step 6), and the owner told what was pushed; deferred when `blog-post-workflow` intake runs this skill

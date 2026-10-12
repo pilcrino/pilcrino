@@ -1,6 +1,6 @@
 ---
 name: repurpose-blog-post
-description: Turn a published blog post into four platform-native outputs, X thread, X short take, LinkedIn post, newsletter, per personas/repurposer.md. Each output RETHINKS the post for its platform with a distinct hook (enforced by a litmus test across all four). Reads brand rules, author voice from source post frontmatter, and optional archived working files (facts.md / outline.md). Plain canonical URLs (no tracking params, that's future work). Invoked standalone via /repurpose-blog-post <slug>; independent entry point, not wired into blog-post-workflow.
+description: Turn a published blog post into four platform-native outputs, X thread, X short take, LinkedIn post, newsletter, per personas/repurposer.md. Each output RETHINKS the post for its platform with a distinct hook (enforced by a litmus test across all four). Reads brand rules, author voice from source post frontmatter, and optional archived working files (facts.md / outline.md). Plain canonical URLs (no tracking params, that's future work). Invoked standalone via /pilcrino:repurpose-blog-post <slug>; independent entry point, not wired into blog-post-workflow.
 argument-hint: "<slug>"
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash
 ---
@@ -12,7 +12,7 @@ Standalone entry-point skill. Takes a published blog post slug, produces four pl
 ## When to invoke
 
 - After a blog post is live and the human wants to announce it across channels
-- Standalone: `/repurpose-blog-post <slug>`, no dependency on blog-post-workflow being mid-flight
+- Standalone: `/pilcrino:repurpose-blog-post <slug>`, no dependency on blog-post-workflow being mid-flight
 - Can be re-run: if you want fresh angles, invoke again; the skill overwrites its four outputs but preserves a timestamped prior copy if any exist
 
 ## Arguments
@@ -23,7 +23,7 @@ URL-based invocation (passing the canonical URL instead of the slug) is **not ye
 
 ## Step 0, Config preamble (guard first, before anything else)
 
-1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root, per `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule. If missing or does not parse as YAML → stop: "No valid blog-ops/config.yaml, run /blog-setup first."
+1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root, per `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule. If missing or does not parse as YAML → stop: "No valid blog-ops/config.yaml, run /pilcrino:blog-setup first."
 2. **Module gate.** Read `modules.repurpose`. If `false` → decline politely, naming the config key: "Repurposing is disabled for this blog (`modules.repurpose: false` in `blog-ops/config.yaml`). Set it to `true` to enable this skill." Stop, no files written.
 3. **Resolve path variables.** `{profile_dir}`, `{drafts_dir}`, `{templates}` (layered rule) per §Path variables. Resolve `{content_dir}` from the ACTIVE `publish.adapter`:
    - `publish.adapter: astro-git-pr` → `{content_dir}` = `publish.astro.content_dir`; source post lives at `{content_dir}/<slug>.md` in the main tree (the published, non-draft post).

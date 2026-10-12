@@ -118,7 +118,8 @@ files, "Yes, and don't ask again" is safe.
    alternatives and comparison posts need a research profile for every
    competitor they name, no older than 14 days; Pilcrino writes one when you
    ask (`/pilcrino:research-competitor <name>`, about 2.5 minutes each) and
-   tells you which posts need them.
+   tells you which posts need them; when you start such a post, Pilcrino offers to
+   research the missing fact sheets right there.
 
 You can also just say what you want ("Can you make me a content plan?",
 "Write a how-to about ...") and Claude Code picks the right skill.
@@ -145,8 +146,9 @@ does not publish. Publishing is your action:
 - Webflow, Ghost, Jekyll and other paste platforms: paste the post in first,
   then merge the pull request so the repository keeps it.
 
-Once the post is live, `/pilcrino:blog-post-workflow published <slug>` marks
-it in your content plan.
+The post is dated the day you approve it. Once it is live, run
+`/pilcrino:blog-post-workflow published <slug>`: it marks the post in your
+content plan and, if you merged on a later day, corrects the date.
 
 ## The Pilcrino browser
 
@@ -348,7 +350,7 @@ where relevant):
 | Reddit research | `modules.reddit_research` | Enables a Reddit search stage for the target keyword through the Pilcrino browser |
 | X research | `modules.x_research` | Enables an X (Twitter) search stage |
 | Product | `modules.product` | Requires `profile/product.md`; enables intake product-feature questions, plan positioning emphasis, product facts, and writer product-mention discipline |
-| Competitors | `modules.competitors` | Requires `profile/competitors/methodology.md`; enables the 14-day freshness re-check, intake hard-halts on stale/missing competitor profiles, and reviewer competitor-pricing checks |
+| Competitors | `modules.competitors` | Requires `profile/competitors/methodology.md`; enables the 14-day freshness re-check, the intake offer to research a missing or stale competitor fact sheet before the post continues, and reviewer competitor-pricing checks |
 | Repurpose | `modules.repurpose` | Enables `repurpose-blog-post` (turns a published post into an X thread, an X short take, a LinkedIn post, and a newsletter); the skill declines politely when off |
 
 ### Image strategies
@@ -386,6 +388,21 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.50.0 - the first post on a fresh Mac
+
+- The post picker shows the first five planned posts in the plan's order and offers "more", instead of a table that scrolls off the screen. A post whose plan row says `Profile first:` names the competitors it waits for.
+- A competitor with no fact sheet (or one older than 14 days) no longer stops a post at intake. The first offer is "I can research them now, about 2.5 minutes each, then continue", run in the same session; the second is a post that names no competitors. Fact sheets are committed to the base branch and pushed under `git.push_without_asking`, or after one question. `research-competitor` run on its own does the same and says what it pushed.
+- Intake shows the claims setup wrote for you (the credibility line, the anecdotes it plans to use, the product-mention rule), each with the file it came from, and asks keep, change or drop in the same confirmation. The brief records the answer under "Claims from setup".
+- After the plan review, a six-line plan summary. With `review.plan_approval: ask` (the default) the workflow waits for "ok" or changes before the outline; `auto` continues; autopilot is unchanged. Resume returns to the summary while the plan is not approved.
+- On a live site (`publish.site_live: true`) no pull request carries an "Image pending" note any more: a missing screenshot or a failed render pauses before staging, naming the image, the exact path to save it to, its size and what it shows. The gate tests the file on disk, never the image builder's manifest. Autopilot parks as for a missing cover.
+- Leaner pull requests: the page captures in `research/_raw/*.json` stay in the local archive and are left out of every archive copy on the branch (the selection notes stay). The pull request description opens with the post file, its image folder and the preview, then lists the internal files you can ignore.
+- Staging never overwrites a post or image it cannot prove is its own: an unrecorded file with the same slug stops the run, a recorded one is backed up to `_backup/` first. The main-checkout cleanup removes only files identical to the pull request's copies (the post, images, Remotion sources, the cover-style log entry) and takes only this post's lines out of `Root.tsx`, so a later `git pull` no longer trips over leftovers.
+- The post is dated on approval (in Claude Code, or when the watcher records a GitHub approval), after the archive push, as the app does. `published <slug>` compares the date with the merge day and commits the fix when they differ; the watcher does the same if it sees the merge.
+- `published <slug>` now pulls the base branch, pushes the plan row (it used to commit without pushing) under `git.push_without_asking` or after one question, and offers to remove the post's worktree and branch. One closing message replaces the end-of-run file list.
+- Paste platforms (Webflow, Ghost, Jekyll and the like): the post body goes on the clipboard as formatted text, the image folder opens in Finder and the banner lists each CMS field. The app's zip is mentioned only for blogs registered with the app.
+- WordPress: the post's address comes from WordPress's own `link` (stored as `wp_link`), re-read by ID right before live inbound links are written; the link check is a fixed-string match on `href="<link>"`.
+- Step 0 notices setup files that were never committed or pushed and offers to push them, in plain words. Every command shown to you carries the `/pilcrino:` prefix, and the Gate 2 banner says what merging does from `publish.site_live`.
 
 ### 0.49.0 - setup for a first run
 

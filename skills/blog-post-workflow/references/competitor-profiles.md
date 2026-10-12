@@ -47,7 +47,7 @@ From then on every read of a profile in this run opens
 5. **Config.** Intake runs list mode once whenever `modules.competitors` is on,
    even when the post names no competitor, and checks this first:
    `dirExists: false` or `methodology: false` is a hard stop naming config
-   invariant 12 or 5 and "run /blog-setup" (autopilot: park `other`).
+   invariant 12 or 5 and "run /pilcrino:blog-setup" (autopilot: park `other`).
 6. **Park detail** (autopilot `competitor_profile_stale`): the hard-stop text
    from rule 1 or 2, then "Refresh it on the Competitors screen, then Retry."
    When `source` is `worktree`, add "(read from the working tree: no

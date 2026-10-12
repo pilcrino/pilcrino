@@ -191,7 +191,7 @@ Editor presents Gate 2 banner (the only human gate; plan approval is an automate
 
 ## Stage 5: Repurpose (owner: repurpose-blog-post skill)
 
-Triggered separately from the main workflow via `/repurpose-blog-post <slug>`. Post-terminal, runs after Gate 2 ships the post. Uses the archived draft + published post file as source. Produces four platform-native outputs with pre-planned distinct hook types (cross-platform litmus enforced).
+Triggered separately from the main workflow via `/pilcrino:repurpose-blog-post <slug>`. Post-terminal, runs after Gate 2 ships the post. Uses the archived draft + published post file as source. Produces four platform-native outputs with pre-planned distinct hook types (cross-platform litmus enforced).
 
 - [ ] repurpose/x-thread.md (6–12 tweets, hook ≠ other outputs, link in reply #1)
 - [ ] repurpose/x-short.md (single tweet, different angle from thread)

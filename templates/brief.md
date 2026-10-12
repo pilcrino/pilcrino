@@ -63,29 +63,37 @@ Every competitor named here must already have a profile in
 `{competitors_dir}` on the base branch (the source of truth for competitor pricing and
 features) and must have `**Last verified:**` within 14 days of today.
 
-The editor validates these constraints at Stage 0 intake and HARD-HALTS if a
-named competitor is missing a profile or its profile is stale. Profiles are
-refreshed per `methodology.md` and land on the base branch; the Profile
-path column is the profile's identity, the run reads the base-branch copy;
-this workflow does NOT fetch pricing pages live, that's the methodology's job.>
+The editor validates these constraints at Stage 0 intake. A named competitor
+without a fresh profile (including every `Profile first:` name from the plan
+row) gets the research offer first: research it now in this session, then
+commit and push the profile to the base branch; or write the post without
+competitors; or pause. Profiles land on the base branch; the Profile path
+column is the profile's identity, the run reads the base-branch copy; the
+writing stages do NOT fetch pricing pages live.>
 
 | Name | Profile path |
 |---|---|
 | <e.g. Acme Tool> | {competitors_dir}/acme-tool.md |
 | <competitor 2> | {competitors_dir}/<slug>.md |
 
-If the human names a competitor that has no profile yet, the editor halts
-intake and asks them to add a profile per `methodology.md` (template at the
-bottom of that file) before the post can move forward. If a profile exists
-but is older than 14 days, the editor halts and asks them to refresh it
-in-place per `methodology.md`. Either way, the workflow does not paper
-over a missing or stale profile.
+If the human names a competitor that has no profile yet, or one older than
+14 days, the editor offers to research it before intake continues (about 2.5
+minutes each). Only a table row with a fresh profile on the base branch
+reaches this section; the workflow never papers over a missing or stale
+profile.
 <!-- /module -->
 
 ## Avoid list
 
 <things the human said the post should NOT include>
 - 
+
+## Claims from setup
+
+<what the post may say about the author and the product that came from setup's profile files, not from this conversation, as the human confirmed it at intake. One line each, with the source file. A dropped item is also listed in the Avoid list.>
+- Credibility line: <text> (from `{profile_dir}/<file>`; kept | changed to "<text>" | dropped)
+- Anecdotes from setup: <text> (from `{profile_dir}/<file>`; kept | changed | dropped), one line per anecdote; "none" when the post uses none
+- Product-mention rule: <e.g. "name the product once, in a side note, no table row"> (from `{profile_dir}/<file>`; kept | changed to "<rule>"); only when `modules.product` is on
 
 ## Founder anecdote / story
 

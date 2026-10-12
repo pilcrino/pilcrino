@@ -1,6 +1,6 @@
 ---
 name: blog-retro
-description: Run a retrospective after a blog post is finished, analyze how the run actually went and suggest concrete improvements. Reads the working-session conversation (primary), the PR review + comment history via gh (the async-review friction record), and the slug's archived artifacts (review-iteration counts, verdicts, fallbacks, HARD-HALTs). Produces an in-chat, root-caused suggestion list (symptom, root-cause file + section, suggested edit) split into two buckets, shared-skill findings that target the plugin (benefiting every blog on the next update) and blog-local findings that target this blog's blog-ops/ overrides. Read-only, it suggests and never applies. Human-triggered only, never on a timer, standalone via /blog-retro <slug> in the working session after Gate 2. Not wired into blog-post-workflow.
+description: Run a retrospective after a blog post is finished, analyze how the run actually went and suggest concrete improvements. Reads the working-session conversation (primary), the PR review + comment history via gh (the async-review friction record), and the slug's archived artifacts (review-iteration counts, verdicts, fallbacks, HARD-HALTs). Produces an in-chat, root-caused suggestion list (symptom, root-cause file + section, suggested edit) split into two buckets, shared-skill findings that target the plugin (benefiting every blog on the next update) and blog-local findings that target this blog's blog-ops/ overrides. Read-only, it suggests and never applies. Human-triggered only, never on a timer, standalone via /pilcrino:blog-retro <slug> in the working session after Gate 2. Not wired into blog-post-workflow.
 argument-hint: "<slug>"
 allowed-tools: Read, Glob, Grep, Bash
 ---
@@ -12,12 +12,12 @@ Standalone retrospective. Run AFTER a blog post is finished, in the working sess
 ## When to invoke
 
 - After Gate 2 approval + finalize for a post, in the SAME working session where the drafting happened (so the live conversation is available).
-- Standalone: `/blog-retro <slug>`. No dependency on blog-post-workflow being mid-flight.
+- Standalone: `/pilcrino:blog-retro <slug>`. No dependency on blog-post-workflow being mid-flight.
 - Never on an automatic timer. This skill is only ever triggered by a person; see §Invocation for how.
 
 ## Invocation
 
-There is exactly ONE way this skill runs, human-triggered: a human types `/blog-retro <slug>` in the working session where the post was produced. All three Step 2 sources are available, including the live conversation, the richest source of all.
+There is exactly ONE way this skill runs, human-triggered: a human types `/pilcrino:blog-retro <slug>` in the working session where the post was produced. All three Step 2 sources are available, including the live conversation, the richest source of all.
 
 ## Why standalone (not a blog-post-workflow step)
 
