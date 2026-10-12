@@ -194,7 +194,9 @@ part out.
   is still added. Its Details block carries a `Profile first: <name>, <name>`
   line after its `Mention:` line (Step 8), and the Step 9 report says those
   posts wait for competitor fact sheets, which the post workflow offers to
-  research when the post is started. The owner can also run
+  research when the post is started (its intake reads the `Profile first:`
+  line from the brief; a plugin older than 0.50.0 pauses the post instead
+  and names the command). The owner can also run
   `/pilcrino:research-competitor <name>` now, about 2.5 minutes each.
 - When the owner later connects this blog to the Pilcrino app, the app
   imports this file once into its post list. Say so in the Step 9 report,
@@ -468,9 +470,11 @@ shows as a planned post. In order:
    below). Run the Step 1 duplicate test on each. When
    every candidate fails it, add nothing: a terminal run reports the posts that
    already cover the topic (slug and title), and autopilot writes the empty
-   result described in its item 6. Every candidate that passes the test is in
-   the batch; none is held back in `strategy.md` or anywhere else because a
-   competitor has no profile (Step 8 marks those posts instead).
+   result described in its item 6. Standalone: every candidate that passes the
+   test is in the batch; none is held back in `strategy.md` or anywhere else
+   because a competitor has no profile (Step 8 marks those posts instead).
+   Registered terminal runs keep Step 8's rule: a candidate whose subject has
+   no profile is reported, not added.
 2. **Pillars.** A pillar maps to something the product does and to at least three
    posts. `new` mode: cluster the batch into three to six pillars. `extend` mode:
    assign each post to an existing pillar; posts that fit none form new pillars of
@@ -513,10 +517,11 @@ Post fields:
   `<x>-alternatives` and `<x>-vs-<y>`. No "what is X" definition posts.
 - Order by score within the batch. The console (or, standalone, Step 8)
   appends the batch after the existing posts, so the list stays in plan order across runs. The cluster
-  map names the hubs; they need not be first. This is the plan's one order:
-  the report's "write these first" list is this order, and so is the answer
-  to any later question about what to write first (Step 9). A post that
-  waits for a competitor profile keeps its place; it is never moved down.
+  map names the hubs; they need not be first. The plan's one order is the
+  row order of the whole post list after the append: the report's "write
+  these first" list reads it, and so does the answer to any later question
+  about what to write first (Step 9). A post that waits for a competitor
+  profile keeps its place; it is never moved down.
 
 ## Step 8: Add the posts
 
@@ -555,10 +560,16 @@ compares tools (best-of, for-role, alternatives):
   in plain words: the competitors to research before the post can compare
   them). A best-of still lists five to nine options where the profiled ones
   allow; with fewer profiled, it compares fewer.
-  A subject has a profile when `{competitors_dir}/<slug>.md` exists (the
-  slug as `research-competitor` would write it); whether it is fresh is
-  checked when the post is started, not here. When a name in an idea's
-  `competitors` has no profile:
+  A subject has a profile when it matches, by `name` or `slug`
+  (case-insensitive), an entry of the base branch's profile list, read once
+  per run with the same command intake uses
+  (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/competitor-profiles.md`
+  §List mode: `node ${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/scripts/competitor-profiles.mjs --dir {competitors_dir} --base {git.base_branch}`,
+  which fetches `origin/{git.base_branch}` and prints `profiles[]`). A
+  profile that exists only in the working tree and was never pushed does
+  not count: intake would halt on it. Whether a profile is fresh is checked
+  when the post is started, not here. When a name in an idea's
+  `competitors` has no profile on the base branch:
   - Standalone: add the idea anyway, status `planned`, with one more
     requirement line after `Mention:`, `Profile first: <name>, <name>`,
     naming only the subjects that lack a profile. The post workflow copies
@@ -594,11 +605,15 @@ Report in chat, under 25 lines, in this order:
 
 1. Pillars, marking any new one.
 2. Posts added: the count and their slugs.
-3. "Write these first": the first ten posts of this batch, in the plan's own
-   order (Step 7's score order, the order the rows have in the file or the
-   post list), slug and one clause each. A post that waits for competitor
-   fact sheets stays in its place with "(after the <name> fact sheet)" on its
-   line. This is the only ordered list in the report.
+3. "Write these first": the first ten `planned` posts of the whole plan after
+   this batch was added, in the plan's own order (standalone: the `#` column
+   of `{ops_dir}/content-plan.md`; registered: the console's post list), slug
+   and one clause each. In a `new` run that is this batch's score order; in
+   an `extend` run earlier planned posts come first, because the batch is
+   appended after them. A post that waits for competitor fact sheets stays
+   in its place with "(after the <name> fact sheet)" on its line. This is
+   the only ordered list in the report, and the same list "Questions after
+   the report" below answers from.
 4. Competitors, at most eight lines: chosen and skipped, each with its
    evidence and reason. Say which names the owner gave and which research
    added ("You named Harvest, Toggl Track and Clockify; research added
