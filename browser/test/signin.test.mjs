@@ -50,7 +50,7 @@ test('openSignIn: the CDP instance is closed and gone before a plain launch with
   assert.deepEqual(out, {
     opened: [{ site: 'google', url: 'https://accounts.google.com/' }, { site: 'reddit', url: 'https://www.reddit.com/login/' }, { site: 'x', url: 'https://x.com/i/flow/login' }],
     mode: 'plain',
-    next: 'Sign in, then quit that Chrome window with Cmd+Q. Pilcrino restarts the browser on its next call.',
+    next: 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.',
   })
   assert.equal(out.next, SIGNIN_NEXT)
 })
@@ -147,4 +147,116 @@ test('openSignIn: returns only after the child reports spawn', async () => {
   })
   assert.ok(spawned)
   assert.equal(out.mode, 'plain')
+})
+
+// close_login: the process list is faked the way the signin_window_open check
+// reads it; `kill` records the signals and may drop the process from the list
+// after a few polls, as a graceful Chrome quit does.
+import { closeSignIn, CLOSE_LOGIN_CLOSED, CLOSE_LOGIN_NONE } from '../src/signin.mjs'
+
+const PLAIN = { pid: 3512, command: '/x/Google Chrome --user-data-dir=/p --no-first-run https://accounts.google.com/' }
+const CDP = { pid: 3600, command: '/x/Google Chrome --user-data-dir=/p --remote-debugging-port=0 --no-first-run about:blank' }
+
+test('closeSignIn: the sign-in Chrome gets SIGTERM, the wait ends when it is gone, closed is true', async () => {
+  let listed = 0
+  let alive = 3 // the process outlives the signal for a few polls, as a real quit does
+  const sent = []
+  const out = await closeSignIn({
+    profile: '/p',
+    processes: (dir) => { assert.equal(dir, '/p'); listed++; return alive-- > 0 ? [PLAIN] : [] },
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+    now: () => 0,
+  })
+  assert.deepEqual(sent, [[3512, 'SIGTERM']])
+  assert.equal(listed, 4)
+  assert.deepEqual(out, { closed: true, detail: CLOSE_LOGIN_CLOSED })
+})
+
+test('closeSignIn: a Chrome with the remote-control port or on another profile is never signalled', async () => {
+  const sent = []
+  const out = await closeSignIn({
+    profile: '/p',
+    processes: () => [CDP],
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+  })
+  assert.deepEqual(sent, [])
+  assert.deepEqual(out, { closed: false, detail: CLOSE_LOGIN_NONE })
+})
+
+test('closeSignIn: no window open is closed false with a plain detail, not an error', async () => {
+  const out = await closeSignIn({ profile: '/p', processes: () => [], kill: () => { throw new Error('not asked') } })
+  assert.deepEqual(out, { closed: false, detail: 'No Pilcrino sign-in window is open.' })
+})
+
+test('closeSignIn: a Chrome that ignores SIGTERM is never killed; after 10 s the detail says to use Cmd+Q', async () => {
+  const sent = []
+  let t = 0
+  const out = await closeSignIn({
+    profile: '/p',
+    processes: () => [PLAIN, CDP],
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+    now: () => (t += 1000),
+  })
+  assert.deepEqual(sent, [[3512, 'SIGTERM']])
+  assert.equal(out.closed, false)
+  assert.match(out.detail, /did not quit within 10 seconds/)
+  assert.match(out.detail, /Cmd\+Q/)
+})
+
+test('closeSignIn: a process that quit between the listing and the signal (ESRCH) is not an error', async () => {
+  let polls = 0
+  const out = await closeSignIn({
+    profile: '/p',
+    processes: () => (polls++ === 0 ? [PLAIN] : []),
+    kill: () => { throw Object.assign(new Error('kill ESRCH'), { code: 'ESRCH' }) },
+    sleep: async () => {},
+  })
+  assert.equal(out.closed, true)
+})
+
+test('closeSignIn: a non-Chrome process carrying the profile argument is never signalled and is named in detail', async () => {
+  const sent = []
+  const impostor = { pid: 4100, command: '/usr/local/bin/backup-tool --user-data-dir=/p --watch' }
+  const out = await closeSignIn({
+    profile: '/p',
+    exe: '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    processes: () => [impostor],
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+  })
+  assert.deepEqual(sent, [])
+  assert.equal(out.closed, false)
+  assert.ok(out.detail.startsWith(CLOSE_LOGIN_NONE))
+  assert.match(out.detail, /not Chrome: pid 4100 \(\/usr\/local\/bin\/backup-tool\)/)
+})
+
+test('closeSignIn: the resolved Chrome binary is signalled under any name; a non-Chrome beside it is left and named', async () => {
+  const sent = []
+  const custom = { pid: 3520, command: '/opt/My Chrome/chrome-bin --user-data-dir=/p --no-first-run' }
+  const impostor = { pid: 4100, command: '/usr/bin/python3 --user-data-dir=/p' }
+  let polls = 0
+  const out = await closeSignIn({
+    profile: '/p',
+    exe: '/opt/My Chrome/chrome-bin',
+    processes: () => (polls++ === 0 ? [custom, impostor] : [impostor]),
+    kill: (pid, sig) => { sent.push([pid, sig]) },
+    sleep: async () => {},
+  })
+  assert.deepEqual(sent, [[3520, 'SIGTERM']])
+  assert.equal(out.closed, true)
+  assert.match(out.detail, /pid 4100 \(\/usr\/bin\/python3\)/)
+})
+
+test('session.closeSignIn passes the profile and the resolved Chrome, and never connects', async () => {
+  const seen = []
+  const session = createSession({ env: { PILCRINO_CHROME: '/env/chrome' }, cwd: '/nowhere' }, {
+    connect: async () => { throw new Error('must not connect') },
+    closeSignIn: async (opts) => { seen.push(opts); return { closed: true, detail: CLOSE_LOGIN_CLOSED } },
+  })
+  const out = await session.closeSignIn()
+  assert.equal(out.closed, true)
+  assert.deepEqual(seen, [{ profile: session.profile, exe: '/env/chrome' }])
 })

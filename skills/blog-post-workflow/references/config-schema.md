@@ -381,9 +381,10 @@ validation step (`blog-setup`) both check:
     description key, the date key, the cover key; `layout` too for jekyll;
     no cover key for wordpress). With `publish.markdown.cover_key` set, that
     key is the cover key the list must include. The draft key does not belong
-    in this list: a listed draft key is ignored by every reader, and
-    `draft_mechanism` / `draft_key` alone decide whether the draft line is
-    emitted (`none`: never).
+    in this list: a listed `draft` or `published` fails this invariant (the
+    validator and the schema's own tests reject it), and `draft_mechanism` /
+    `draft_key` alone decide whether the draft line is emitted (`none`:
+    never).
 
 Two further profile docs are registered here but not added as numbered
 invariants above, because their requirement depends on wizard-time state

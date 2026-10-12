@@ -1,7 +1,7 @@
 import * as nodeFs from 'node:fs'
 import { connectChrome, findChrome, profileDir, readExecutableOverride } from './chrome.mjs'
 import { outRoots } from './paths.mjs'
-import { openSignIn } from './signin.mjs'
+import { closeSignIn, openSignIn } from './signin.mjs'
 import { TabRegistry } from './tabs.mjs'
 
 /**
@@ -51,6 +51,19 @@ export function createSession({ cwd = process.cwd(), env = process.env } = {}, d
      * call reconnects. `deps.openSignIn` is a test seam.
      */
     async openSignIn(sites) { return (deps.openSignIn ?? openSignIn)(sites, { profile, exe: exe() }) },
+    /**
+     * Quits that sign-in window gracefully (signin.mjs closeSignIn). Never
+     * connects, so it works while every other tool fails with
+     * signin_window_open. Passes the resolved Chrome so only Chrome is
+     * signalled. `deps.closeSignIn` is a test seam.
+     */
+    async closeSignIn() {
+      // The resolved Chrome only widens what counts as Chrome beyond the
+      // by-name match; a Chrome that cannot be resolved leaves the name match.
+      let resolved
+      try { resolved = exe() } catch {}
+      return (deps.closeSignIn ?? closeSignIn)({ profile, exe: resolved })
+    },
     async closeOwned() { if (current) await current.registry.closeAll().catch(() => {}) },
   }
 }

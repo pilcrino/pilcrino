@@ -5,13 +5,13 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 
-test('lists exactly the ten tools', async () => {
+test('lists exactly the eleven tools', async () => {
   const bin = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin.mjs')
   const transport = new StdioClientTransport({ command: process.execPath, args: [bin] })
   const client = new Client({ name: 't', version: '0' })
   await client.connect(transport)
   const { tools } = await client.listTools()
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'tabs', 'type', 'wait'])
+  assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'tabs', 'type', 'wait'])
   const r = await client.callTool({ name: 'capture', arguments: { tabId: 't1', script: 'return 1', outFile: 'relative.json' } })
   // outFile is validated before the tab lookup, so no Chrome is launched.
   assert.equal(r.isError, true)
@@ -336,4 +336,22 @@ test('a page that moved on between the release and the title write is not marked
   await regB.closeCheckLeftovers()
   assert.equal(tab.closed, false)
   await regA.closeAll()
+})
+
+test('close_login takes no arguments, never touches the browser, and returns {closed, detail} as is', async () => {
+  let touched = false
+  let closes = 0
+  const session = {
+    roots: [], profile: '/nope',
+    getRegistry: async () => { touched = true; throw new Error('must not be called') },
+    getBrowser: async () => { touched = true; throw new Error('must not be called') },
+    closeSignIn: async () => { closes++; return { closed: false, detail: 'No Pilcrino sign-in window is open.' } },
+  }
+  const client = await inMemoryClient(session)
+  const r = await client.callTool({ name: 'close_login', arguments: {} })
+  assert.equal(r.isError, undefined)
+  assert.deepEqual(JSON.parse(r.content[0].text), { closed: false, detail: 'No Pilcrino sign-in window is open.' })
+  assert.equal(closes, 1)
+  assert.equal(touched, false)
+  await client.close()
 })
