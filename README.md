@@ -3,9 +3,9 @@
 Pilcrino writes blog posts for your product's blog from inside Claude Code:
 how-to guides, best-of lists, "alternatives to" posts and comparisons of your
 product with its competitors. It works with sites built from a GitHub
-repository (Astro, Hugo, Jekyll, Next.js, Eleventy and other markdown sites),
+repository (Astro, Hugo, Next.js, Eleventy and other markdown sites),
 creates drafts in WordPress, and hands you a file to paste in for Webflow,
-Ghost and other page builders. For every post it researches Google (and
+Ghost, Jekyll and other platforms. For every post it researches Google (and
 Reddit and X if you turn those on) in a Chrome of its own, drafts, reviews
 and illustrates the post, then opens a pull request on GitHub that you read,
 comment on and approve; merging it publishes on a site built from the
@@ -38,6 +38,12 @@ Accounts:
 - Reddit and X, only if you turn those research sources on in setup.
 - WordPress: an application password (in WordPress admin, Users, Profile,
   Application Passwords). Pilcrino creates drafts with it and never publishes.
+  Setup asks for the name of an environment variable that holds it, never for
+  the password itself, so before you start Claude Code add one line to the
+  file `~/.zshrc` in your home folder, for example
+  `export MYBLOG_WP_APP_PASSWORD="paste the password here"`, then open a new
+  Terminal window. The password stays on your Mac; it never goes into the
+  repository or the chat.
 - LinkedIn, only for `post-to-linkedin`: you must be an admin of the company
   page.
 
@@ -97,9 +103,11 @@ files, "Yes, and don't ask again" is safe.
    time, each with a recommended answer, and saves as it goes, so you can stop
    and run it again later to continue. It opens the sign-in window for the
    Pilcrino browser once (see below) and installs what it needs. Allow 1 to
-   1.5 hours on a new Mac, installs included. Setup keeps everything it writes
-   in a `blog-ops/` folder in your repository and asks before it pushes to
-   your main branch.
+   1.5 hours on a new Mac, installs included. Setup writes a `blog-ops/`
+   folder in your repository, plus a `tools/remotion/` image project and a
+   `.gitattributes` file when you turn on drawn images. Setup does not commit
+   them yet: the first post asks whether to commit and push them to your main
+   branch, and every post needs them there.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
@@ -161,15 +169,18 @@ Then, in Terminal:
 claude plugin uninstall pilcrino@pilcrino
 claude plugin marketplace remove pilcrino
 rm -rf ~/.claude/plugins/data/pilcrino-pilcrino
-rm -rf ~/.pilcrino
+rm -rf ~/.pilcrino/browser
 rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser
 ```
 
-`~/.pilcrino` is the Pilcrino browser's signed-in Chrome profile (about
-1.3 GB). If you want those Google, Reddit and X sessions ended rather than
-just deleted, sign out of them in the Pilcrino browser before removing it.
-`blog-ops/` and `tools/remotion/` in your repository are yours to keep or
-delete. `~/.claude.json` keeps harmless usage counts for the skills.
+`~/.pilcrino/browser` is the Pilcrino browser's signed-in Chrome profile
+(about 1.3 GB). If you want those Google, Reddit and X sessions ended rather
+than just deleted, sign out of them in the Pilcrino browser before removing
+it. Delete only that `browser` folder: the rest of `~/.pilcrino` belongs to
+the Pilcrino app (its settings and each connected blog's database) if you
+use it, so remove it only with the app, after a backup. `blog-ops/` and
+`tools/remotion/` in your repository are yours to keep or delete.
+`~/.claude.json` keeps harmless usage counts for the skills.
 
 ## For developers
 
