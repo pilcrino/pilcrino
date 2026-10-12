@@ -169,7 +169,7 @@ Spawn ONE `blog-researcher` subagent. The researcher reads ALL completed `_raw/`
 
 Pass `slug`, `target_keyword`, `brief_excerpt`, AND a list of which sources to analyze (e.g., `sources=serp,reddit,x,competitors` or `sources=serp` if no 1.5). When `competitors` is in `sources`, also pass `profile_paths`: the `path` value from the Stage 1.5c snapshot run's JSON for each brief row.
 
-Wait for return. Verify each expected `research/<source>.md` file exists. Re-spawn ONCE on failure; second failure → stop and report.
+Wait for return, idle: no tool calls until the subagent returns (SKILL.md §Hand-offs to subagents). Verify each expected `research/<source>.md` file exists. Re-spawn ONCE on failure; second failure → stop and report.
 
 Update checklist: tick all Stage 1b items for the sources that ran.
 
@@ -276,7 +276,7 @@ Writing is delegated because it's a heavy single-pass task (1,500–3,000 words)
    - `mode=draft`
    - `author_voice=<from brief.md>`
 
-4. Wait for return. The subagent writes `{drafts_dir}/<slug>/draft-v1.md` and returns a ≤200-word handoff (filename, word count, marker counts, surprises).
+4. Wait for return, idle: no tool calls until the subagent returns (SKILL.md §Hand-offs to subagents). The subagent writes `{drafts_dir}/<slug>/draft-v1.md` and returns a ≤200-word handoff (filename, word count, marker counts, surprises).
 
 5. Verify `{drafts_dir}/<slug>/draft-v1.md` exists and has non-trivial content (≥500 words; else treat as failure).
 
