@@ -61,6 +61,12 @@ images:
 
 publish:
   adapter: astro-git-pr                     # or wordpress-rest, or markdown
+  site_live: true                           # OPTIONAL boolean; whether the site is
+                                            #   online and rebuilds from the base
+                                            #   branch. Setup asks; adapters read it
+                                            #   only for their wording (merging
+                                            #   publishes vs. files the post). Absent:
+                                            #   today's wording, no behaviour change
   astro:
     content_dir: src/content/blog
     site_dir: web/site                      # OPTIONAL; the Astro project root
@@ -70,7 +76,17 @@ publish:
                                             #   subdirectory, e.g. web/site
     assets_dir: src/assets/blog
     frontmatter_template: adapters/publish/frontmatter/astro-starlight.md
-    draft_mechanism: "draft: true"          # how a post is excluded from builds
+    draft_mechanism: "draft: true"          # how a post is excluded from builds;
+                                            #   the literal none means the site has
+                                            #   no draft flag: the writer emits no
+                                            #   draft line and staging strips nothing
+                                            #   (see §Fitting the site's frontmatter)
+    frontmatter_keys: [title, date, excerpt, tags, authors, cover, head]
+                                            # OPTIONAL; the keys the site's content
+                                            #   schema accepts. The writer emits only
+                                            #   these and the reviewer checks them.
+                                            #   Absent: every key of the template, so
+                                            #   nothing changes (invariant 16)
     authors_map_check: astro.config.mjs     # optional; omit to skip
     preview_comment_marker: "<!-- blog-preview -->"  # optional; CI-dependent
   wordpress:
@@ -80,6 +96,21 @@ publish:
     base_url: https://baselinenotes.com
     username: blogbot
     app_password_env: BASELINE_WP_APP_PASSWORD      # env var NAME, never the secret
+    # app_password_keychain: pilcrino-wp-baseline   # ALTERNATIVE to app_password_env: a
+                                                     #   macOS keychain service name; the
+                                                     #   account is `username`. Exactly one
+                                                     #   of the two is set (invariant 15);
+                                                     #   adapters/publish/scripts/wp-secret.sh
+                                                     #   resolves whichever it is
+    permalink_structure: /%postname%/               # OPTIONAL; the site's WordPress
+                                                     #   permalink setting as setup read it
+                                                     #   (e.g. /%year%/%monthnum%/%day%/%postname%/);
+                                                     #   informational: the adapter prints
+                                                     #   the REST response's `link`, never
+                                                     #   a URL built from this
+    frontmatter_keys: [title, date, excerpt, tags, authors]
+                                                     # OPTIONAL; as for astro; absent:
+                                                     #   every key of wordpress.md
     default_status: draft
     apply_inbound_links_live: false                 # when true, finalize applies
                                                      #   planned inbound links to
@@ -94,13 +125,37 @@ publish:
                                                     #   works for a site that copies the assets folder next to the post
     platform: hugo                                  # astro | hugo | jekyll | ghost | nextjs | eleventy | generic
     frontmatter_template: adapters/publish/frontmatter/markdown-hugo.md   # derived from platform at setup; plugin-relative
+    frontmatter_keys: [title, description, date, cover, draft]
+                                                    # OPTIONAL; the keys the theme reads; absent: every key
+                                                    #   of the markdown-<platform>.md template (invariant 16)
+    cover_key: featured_image                       # OPTIONAL; the top-level frontmatter key the theme reads the
+                                                    #   cover image from (Ananke: featured_image). One scalar key
+                                                    #   only, no dots: a nested cover such as PaperMod's
+                                                    #   cover.image is out of scope and keeps the default.
+                                                    #   Absent: the template's own key (hugo: cover)
+    draft_key: draft                                # OPTIONAL; the platform's draft key as the template defines
+                                                    #   it (astro, hugo: draft; jekyll: published), or the
+                                                    #   literal none when the site honours no draft flag: the
+                                                    #   writer emits no draft line and staging strips nothing.
+                                                    #   Absent: the template's default
 
 git:
   branch_prefix: blog/
   base_branch: main
+  push_without_asking: false  # OPTIONAL boolean, default false; true records the
+                              #   owner's standing consent (given at setup) for the
+                              #   workflow to push commits to the base branch (a
+                              #   competitor profile, a plan row, a date fix) without
+                              #   asking each time. Never covers merging or publishing
   # The PR path is the only publish path. `origin` must resolve AND be a GitHub
   #   repo accessible to authenticated gh (gh repo view succeeds); both are hard
   #   preconditions checked at Step 0. See §GitHub precondition below.
+
+review:                       # OPTIONAL block
+  plan_approval: ask          # ask | auto, default ask. ask: the owner reads the plan
+                              #   summary and approves it before drafting starts;
+                              #   auto: the plan reviewer's approval is enough.
+                              #   Autopilot ignores it (the console gates)
 
 research:
 
@@ -112,9 +167,85 @@ social:                       # OPTIONAL; social posting targets
     company_id: "000000000"   # LinkedIn company page id; presence enables /post-to-linkedin. Posts are made AS this page.
 ```
 
-Secrets are always env-var *names*. The workflow resolves `{drafts_dir}`,
+No secret is ever written in this file: `app_password_env` is the *name* of an
+environment variable and `app_password_keychain` the *service name* of a macOS
+keychain item; `adapters/publish/scripts/wp-secret.sh` turns either into the
+value at the moment a command needs it. The workflow resolves `{drafts_dir}`,
 `{content_dir}`, `{assets_dir}`, etc. from this file in a config preamble; no
 other file hardcodes a path.
+
+### Fitting the site's frontmatter (optional keys, per adapter)
+
+Every key in this section is optional, and a config without it behaves exactly
+as before: the defaults reproduce today's output byte for byte. Setup writes
+them after reading the site; an older config needs no edit.
+
+**`publish.<adapter>.frontmatter_keys`** (astro, wordpress, markdown): a
+non-empty list of the top-level frontmatter keys the site accepts. When set, the
+writer emits only these keys and the reviewer fails a draft that carries any
+other key or lacks any of them; when absent, the template's full key list
+applies. Four keys are the template's *required keys* and may never be left out
+of the list: `title`, the description key, the date key and the cover key (the
+WordPress template has no cover key, so there it is three). The draft key is
+not governed by this list at all: `draft_mechanism` / `draft_key` decide it (see
+below). The template's own section "Which keys to emit" names its keys, and
+invariant 16 checks the list. Example: the official Astro blog template's
+collection schema is `title, description, pubDate, updatedDate, heroImage`, so
+with `frontmatter_template: adapters/publish/frontmatter/astro-content.md` setup
+writes `frontmatter_keys: [title, description, pubDate, heroImage]` and the
+post carries no `tags` or `author` the site would drop.
+
+| Template | Required keys (always in the list) | Draft key | Omittable keys |
+|---|---|---|---|
+| `astro-starlight.md` | `title`, `excerpt`, `date`, `cover` | `draft` (`draft_mechanism`) | `tags`, `authors`, `head` (omitting `head` also drops the FAQ JSON-LD and the reviewer skips that sub-check) |
+| `astro-content.md` | `title`, `description`, `pubDate`, `heroImage` | `draft` (`draft_mechanism`) | `tags`, `author` |
+| `wordpress.md` | `title`, `excerpt`, `date` | `draft` (documentation only) | `tags`, `authors` |
+| `markdown-astro.md` | `title`, `description`, `pubDate`, the cover key (`heroImage`) | `draft` (`draft_key`) | `tags`, `author` |
+| `markdown-hugo.md` | `title`, `description`, `date`, the cover key (`cover`) | `draft` (`draft_key`) | `tags`, `author` |
+| `markdown-jekyll.md` | `layout`, `title`, `description`, `date`, the cover key (`image`) | `published` (`draft_key`) | `tags`, `author` |
+| `markdown-ghost.md` | `title`, `excerpt`, `published_at`, the cover key (`feature_image`) | none | `tags`, `authors` |
+| `markdown-nextjs.md`, `markdown-eleventy.md`, `markdown-generic.md` | `title`, `description`, `date`, the cover key (`image`) | none | `tags`, `author` |
+
+**Draft field.** `publish.astro.draft_mechanism` is the literal frontmatter line
+that keeps a post out of the build (default `"draft: true"`). The value `none`
+means the site has no draft flag: the writer emits no draft line, and
+`astro-git-pr.md` §Staging step 4 strips nothing. For the markdown adapter the
+template already fixes the platform's draft key; `publish.markdown.draft_key`
+may restate it (`draft` for astro and hugo, `published` for jekyll) or be
+`none` with the same meaning as above (`markdown.md` §Staging step 2 then skips
+the strip). A site without a draft flag publishes a merged post at once, which
+is why setup records this only after telling the owner so.
+
+**`publish.markdown.cover_key`**: the single top-level key the theme reads the
+cover image from, holding one scalar path (Hugo's Ananke theme: `featured_image`).
+Default: the template's own key (`heroImage`, `cover`, `image` or
+`feature_image`). The writer emits the cover under it, `markdown.md` §Staging
+injects the resolved path under it, and the key counts as the required cover
+key above. Nested covers (PaperMod's `cover.image`, a map with `image` and
+`alt`) are out of scope this round: a `cover_key` containing a dot is invalid,
+and such a site keeps the default key.
+
+**`publish.site_live`**: whether the site is online and rebuilds from the base
+branch. Adapters read it for wording only (merging publishes vs. merging files
+the post), in a later release; here it is defined and type-checked.
+
+**`publish.wordpress.permalink_structure`**: the WordPress permalink setting as
+setup read it from `/wp-json/wp/v2/settings` or inferred from a post's `link`.
+Informational: no adapter builds a URL from it; the REST response's `link` is
+the only source of a post's URL.
+
+**`publish.wordpress.app_password_keychain`**: the alternative to
+`app_password_env`; see the invariants (15) and `wordpress-rest.md` §Config
+inputs.
+
+**`review.plan_approval`** (`ask` | `auto`, default `ask`): whether the owner
+approves each post's plan before drafting (`ask`) or the plan reviewer's
+approval suffices (`auto`). The workflow reads it at its plan gate; autopilot
+ignores it.
+
+**`git.push_without_asking`** (boolean, default `false`): the owner's standing
+consent, recorded at setup, for the workflow to push its own commits to the base
+branch without a question each time. It never covers merging a PR or publishing.
 
 ### `console:` (optional)
 
@@ -188,8 +319,8 @@ validation step (`blog-setup`) both check:
 4. `publish.adapter` ∈ {`astro-git-pr`, `wordpress-rest`, `markdown`} and its
    config block present (astro: `content_dir`, `assets_dir`,
    `frontmatter_template`, `draft_mechanism`; wordpress: `content_dir`,
-   `assets_dir`, `frontmatter_template`, `base_url`, `username`,
-   `app_password_env`; markdown: `content_dir`, `assets_dir`, `platform` (one
+   `assets_dir`, `frontmatter_template`, `base_url`, `username`, and the one
+   password source invariant 15 requires; markdown: `content_dir`, `assets_dir`, `platform` (one
    of `astro`, `hugo`, `jekyll`, `ghost`, `nextjs`, `eleventy`, `generic`),
    `frontmatter_template` (`adapters/publish/frontmatter/markdown-<platform>.md`);
    no `site_dir` for markdown).
@@ -207,8 +338,17 @@ validation step (`blog-setup`) both check:
     `"astro-git-pr"`. `wordpress-rest` and `markdown` are gated only:
     WordPress go-live is always manual, and every markdown post waits for the
     owner's approval (a paste platform needs that gate to paste first).
-11. If a `console` block is present, it contains only the keys documented
-    above with the documented types.
+11. Documented optional blocks and keys carry the documented types. A `console`
+    block, if present, contains only the keys documented above with the
+    documented types. Likewise: a `review` block, if present, contains only
+    `plan_approval`, one of `ask` / `auto`; `publish.site_live` and
+    `git.push_without_asking`, if present, are booleans;
+    `publish.astro.draft_mechanism` is a non-empty string (`none` allowed);
+    `publish.markdown.draft_key`, if present, is the template's draft key or
+    `none`; `publish.markdown.cover_key`, if present, is a non-empty string
+    without a dot (one top-level key); `publish.wordpress.permalink_structure`
+    and `publish.wordpress.app_password_keychain`, if present, are non-empty
+    strings. An unknown key in `review` is a failure, as in `console`.
 12. `competitors.profile_dir`, if set, is a repo-relative path; with
     `modules.competitors` on it must exist on the base branch (checked at
     intake by `competitor-profiles.mjs`).
@@ -226,6 +366,20 @@ validation step (`blog-setup`) both check:
     resolvable, both auto-resolve attempts are spent, and the post parks for a
     human. A blog can look completely healthy until its second concurrent
     post, then park every post from that point on.
+15. `publish.adapter: wordpress-rest` → exactly one of
+    `publish.wordpress.app_password_env` (a valid environment variable name)
+    and `publish.wordpress.app_password_keychain` (a non-empty keychain service
+    name) is set. Both or neither is a failure;
+    `adapters/publish/scripts/wp-secret.sh` refuses the same two states at run
+    time. This is a syntax check: whether the variable is exported or the
+    keychain item exists is probed once at staging, never here.
+16. `publish.<adapter>.frontmatter_keys`, if present, is a non-empty list of
+    non-empty strings that includes every required key of the configured
+    template, per the table in §Fitting the site's frontmatter (`title`, the
+    description key, the date key, the cover key; `layout` too for jekyll;
+    no cover key for wordpress). With `publish.markdown.cover_key` set, that
+    key is the cover key the list must include. The draft key may appear or
+    not; `draft_mechanism` / `draft_key` govern it.
 
 Two further profile docs are registered here but not added as numbered
 invariants above, because their requirement depends on wizard-time state

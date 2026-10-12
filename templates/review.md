@@ -41,7 +41,7 @@ Forbidden phrases found (grep output from `${CLAUDE_PLUGIN_ROOT}/standards/writi
 
 | Check | Pass? | Notes |
 |---|---|---|
-| Frontmatter block present and valid per the publish adapter's frontmatter template (title, date, excerpt, tags, authors, cover, JSON-LD) |  |  |
+| Frontmatter block present and valid per the publish adapter's frontmatter template: exactly the expected keys (`publish.<adapter>.frontmatter_keys` when set, else the template's full set), the required keys always (title, description, date, cover), the draft key per `draft_mechanism` / `draft_key`, the FAQ schema mechanism where the template has one |  |  |
 | Title in frontmatter matches outline "Final title" exactly |  |  |
 | Slug / meta description match outline |  |  |
 | H2 order in body matches outline body-sections list exactly (no additions, no removals, no reorderings) |  |  |

@@ -10,32 +10,42 @@ Read by: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` at Stage 4b.
 | `{assets_dir}` | `publish.wordpress.assets_dir` — local store for generated images pre-upload |
 | `publish.wordpress.base_url` | e.g. `https://yourblog.com` |
 | `publish.wordpress.username` | WordPress username for the application password |
-| `publish.wordpress.app_password_env` | env var NAME holding the WordPress application password, never the secret itself |
+| `publish.wordpress.app_password_env` | env var NAME holding the WordPress application password, never the secret itself. Exactly one of this and `app_password_keychain` is set (config-schema.md invariant 15) |
+| `publish.wordpress.app_password_keychain` | the macOS keychain SERVICE NAME of the item holding the application password (account = `username`), the alternative to `app_password_env`. Both are read only by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which this doc binds as `WP_APP_PASSWORD` at the top of every Bash block that calls `curl` (see below) |
+| `publish.wordpress.permalink_structure` | OPTIONAL, informational: the site's permalink setting as setup read it (e.g. `/%postname%/`, `/%year%/%monthnum%/%day%/%postname%/`). Nothing here builds a URL from it; a post's URL is the REST response's `link` |
+| `publish.wordpress.frontmatter_keys` | OPTIONAL; the frontmatter keys the writer emits and the reviewer checks (config-schema.md §Fitting the site's frontmatter). `title`, `excerpt` and `date` are always present; `tags` and `authors` may be absent, in which case §Staging step 5 sends no `tags` and leaves `author` at its default |
 | `publish.wordpress.default_status` | always `draft` in v1 — this adapter never sets a WordPress post beyond `draft`; the human publishes in WP admin |
 | `publish.wordpress.frontmatter_template` | the frontmatter contract this post's frontmatter follows: `${CLAUDE_PLUGIN_ROOT}/adapters/publish/frontmatter/wordpress.md` — defines `title`, `excerpt`, `tags`, `authors`; §Staging step 5 below reads those fields to build the create/update request |
 | `publish.wordpress.apply_inbound_links_live` | `true`/`false`, default `false` — when true AND this post's WordPress status is `publish` (see `## On Gate 2 approval`), the planned inbound-link rows are applied to LIVE target posts via REST instead of left as a hand-apply action item |
 | `{route_prefix}` | `blog.route_prefix` (default `/blog/`) — this blog's post URL prefix; used only by the live inbound-link application below to build/verify the published post's URL |
 
-Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password (resolved from `publish.wordpress.app_password_env` via bash indirect expansion, `${!WP_APP_PASSWORD_ENV}` — never inline the literal secret in a command line or in any logged output):
+Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password. The password is resolved by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads `blog-ops/config.yaml` and prints the value from whichever source it names: the environment variable `publish.wordpress.app_password_env` names, or the macOS keychain item whose service is `publish.wordpress.app_password_keychain` and whose account is `publish.wordpress.username` (`security find-generic-password -s <service> -a <user> -w`). The literal secret is never inlined in a command line, never echoed, never written to any file or log; it exists only in the `WP_APP_PASSWORD` variable of the shell that uses it.
+
+**Bind it at the top of EVERY Bash block that runs a `curl` below.** Claude Code's Bash tool starts a fresh shell per call, so a variable set in one block does not survive to the next; a block that skips the line sends `-u "$WP_USER:"` and gets a 401 indistinguishable from a revoked password. The three lines every such block starts with (the blocks below show the password line and assume the other two):
 
 ```bash
 WP_USER="{publish.wordpress.username}"
-WP_APP_PASSWORD_ENV="{publish.wordpress.app_password_env}"
 WP_BASE="{publish.wordpress.base_url}"
+WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1
 ```
 
-**If `${!WP_APP_PASSWORD_ENV}` is EMPTY, STOP — do not improvise a way to fetch
-it.** Under the console the run inherits the console's environment, which a
-`launchd` agent gets from its plist and NOT from your interactive shell. An
-empty value is an INSTALLATION fault, not something to route around: sending
-`-u "$WP_USER:"` produces a 401 that is indistinguishable from a revoked
-password, and reaching into the operator's shell profile (`zsh -lic 'printf %s
-"$WP_APP_PASSWORD"'`) makes every run silently depend on a file no part of
-this contract mentions — it works until it doesn't, and hides the real defect.
-PARK with `wp_auth_failed`, detail `"$<name> is not set in this process"`. The
-fix is `console/scripts/install-agent.sh`, which propagates
-`publish.wordpress.app_password_env` into the agent's `EnvironmentVariables`;
-the console's `wp_auth` preflight check reports the same condition up front.
+**If the script fails (`WP_APP_PASSWORD` would be EMPTY), STOP. Do not improvise a
+way to fetch the password.** The script prints nothing and exits non-zero with one
+line on stderr saying why: the variable is not set in this process, the keychain
+has no item for that service and account, both or neither source is configured
+(config-schema.md invariant 15). Report that line and PARK with `wp_auth_failed`,
+detail = the script's stderr line. An empty value is an INSTALLATION fault, not
+something to route around: reaching into the operator's shell profile (`zsh -lic
+'printf %s "$WP_APP_PASSWORD"'`) makes every run silently depend on a file no part
+of this contract mentions, it works until it doesn't, and hides the real defect.
+For the env-var source under the console: the run inherits the console's
+environment, which a `launchd` agent gets from its plist and NOT from your
+interactive shell; the fix is `console/scripts/install-agent.sh`, which propagates
+`publish.wordpress.app_password_env` into the agent's `EnvironmentVariables`, and
+the console's `wp_auth` preflight check reports the same condition up front. For
+the keychain source: setup stores the item with `security add-generic-password -U
+-s <service> -a <username> -w`; the launch agent runs in the user's session, so
+`security` can read it there.
 
 ## Site inspection (setup-time)
 
@@ -45,7 +55,8 @@ Run exactly once by `${CLAUDE_PLUGIN_ROOT}/skills/blog-setup/SKILL.md` (existing
 
 1. **Fetch 1-2 recent posts, in edit context (so `content.raw` is present):**
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      "$WP_BASE/wp-json/wp/v2/posts?context=edit&per_page=2&_fields=content,categories,link"
    ```
    Zero posts returned (brand-new site, nothing to inspect yet) is not a failure — every field below is written as "none yet — no existing posts to inspect" (or a value the human states directly), and the rest of this section is skipped.
@@ -56,7 +67,8 @@ Run exactly once by `${CLAUDE_PLUGIN_ROOT}/skills/blog-setup/SKILL.md` (existing
 
 4. **Fetch the full category taxonomy:**
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      "$WP_BASE/wp-json/wp/v2/categories?per_page=100&_fields=id,name,count"
    ```
    List every returned `name` in `## Categories`' taxonomy list. Cross-reference `{profile_dir}/blog.md` §Content pillars (if it already exists) to draft the per-cluster mapping table; leave a row's category blank with a note where no existing category obviously fits — a human confirms this table before it's treated as final.
@@ -82,7 +94,8 @@ The ordering below is fixed: the WordPress draft is created HERE, at staging, be
 1. **Finalize the markdown.** `cp` the latest `{drafts_dir}/<slug>/draft-v<N>.md` → `{content_dir}/<slug>.md` in the main tree. Replace `[IMAGE:]` placeholders and set the featured cover exactly as `adapters/publish/astro-git-pr.md` §Staging steps 2 and 3a describe (same file-existence-aware embed logic, same featured-missing halt), then run that same doc's §Staging step 3b visual backstop over every resolved embed before continuing — the finalized markdown is the canonical artifact regardless of publish adapter; only the downstream publish target differs.
 2. **Auth probe.** Verify the application password works before doing anything else. Run this probe AT MOST ONCE per run — never retried, never polled:
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null
    ```
    A non-zero exit means the credentials or `WP_BASE` are wrong — stop and report; do not attempt any upload. **Lockout guidance (referenced by every other section in this file that touches auth, including `## Site inspection (setup-time)` below):** on a 401/403, do not retry — a failed WordPress login may have already tripped the host's or a security plugin's login-attempt limiter, keyed to your IP and username. Retrying immediately only extends the lockout. Tell the human to wait it out or clear the limiter in the site's security dashboard, then re-run once, by hand, when ready.
 3. **Convert markdown to Gutenberg block markup (PRIMARY).**
@@ -158,18 +171,20 @@ The ordering below is fixed: the WordPress draft is created HERE, at staging, be
    not apply; consider re-running the Gutenberg converter and re-syncing").
 4. **Upload media.** For every image file under `{assets_dir}/<slug>/` (featured + every resolved in-post image; `[IMAGE:]` embeds already point at these files after step 1), upload it and capture its numeric media ID + `source_url`:
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      -F "file=@{assets_dir}/<slug>/<file>" \
      "$WP_BASE/wp-json/wp/v2/media"
    ```
    Capture `id` + `source_url` from the upload RESPONSE of each `POST /media` call, immediately, per file. **Never re-derive a media ID from a later `slug=` lookup:** WordPress makes duplicate attachment slugs unique (`featured` → `featured-2`, `featured-3`, …), so a `slug=featured` query returns some *other* post's image — this exact failure produced a cross-post featured-image collision on 2026-07-18. **Parse the upload response leniently:** WordPress media responses embed rendered HTML fields that can contain raw control characters, which a strict JSON parser rejects — use e.g. Python `json.loads(..., strict=False)`, or request `_fields=id,source_url` on any unavoidable follow-up fetch to skip the control-char-laden fields entirely. **Skip-before-upload (per-file idempotency):** before uploading each file, check `wp_media_ids[]` (below) for an entry whose `file` matches this filename AND whose recorded `sha256` matches the on-disk file's current hash — only then reuse its recorded `id`/`source_url` and skip the upload. A filename match with a DIFFERENT hash means the file was regenerated (e.g. a review-loop edit under the same name): re-upload it — WordPress mints a NEW attachment rather than overwriting by filename, so UPDATE that `file`'s `wp_media_ids[]` entry in place to the new `id`/`source_url`/`sha256`, and repoint every reference to it (`featured_media` if it is the featured image, and the in-post `source_url` substitution below) to the new values. A missing entry means a first upload. In the body produced by step 3 (block markup, or HTML if the fallback ran), replace each local image reference with its uploaded `source_url` — `[IMAGE:]` embeds map to the uploaded media's source URL, never a local path (the Gutenberg converter emits the markdown image URL as-is into the `wp:image` block's `<img src>`, so this is a plain substring substitution against that same text either way). Record every upload into `wp_media_ids[]` (below) as one object per file — `{"file": "<filename>", "id": <id>, "source_url": "<source_url>", "sha256": "<sha256-of-bytes>"}` — written to `pr-monitor.json` immediately after EACH successful upload, not batched at the end (a crash mid-batch must not lose the uploads that succeeded); the featured image's media ID is also recorded separately for `featured_media`.
 5. **Create the draft — first time only.** Create only when there is no stored `wp_post_id` in `pr-monitor.json` AND a slug lookup returns empty (this double check keeps a resumed run safe after a crash: a post ID may be recorded but the state file lost, or vice versa):
    ```bash
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
    # lookup first — does a workflow-created draft for this slug already exist?
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      "$WP_BASE/wp-json/wp/v2/posts?slug=<slug>&status=draft"
    # empty array AND no stored wp_post_id -> create
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X POST \
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
      -H 'Content-Type: application/json' \
      "$WP_BASE/wp-json/wp/v2/posts" \
      -d '{"slug":"<slug>","title":<title>,"status":"draft","excerpt":<excerpt>,"content":<blocks>,"featured_media":<id>,"categories":[<category_id>]}'
@@ -180,11 +195,12 @@ The ordering below is fixed: the WordPress draft is created HERE, at staging, be
 
    **Category resolution (never ship "Uncategorized").** `<category_id>` above resolves the post's Category — set at intake (`templates/brief.md`'s Category field, resolved against `{profile_dir}/site-conventions.md` §Categories when it exists, carried unchanged through `plan.md`/`outline.md`) — to a WordPress term ID:
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      "$WP_BASE/wp-json/wp/v2/categories?search=<category name>"
    # exact case-insensitive `name` match in the response -> reuse that id
    # no match -> create it, then use the new id
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X POST \
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
      -H 'Content-Type: application/json' \
      "$WP_BASE/wp-json/wp/v2/categories" -d '{"name":"<category name>"}'
    ```
@@ -221,7 +237,8 @@ There is one path, the PR path. (A no-PR "console-gate path" used to be describe
 1. Re-run §Staging steps 3-4 against the copy just edited above (re-convert to Gutenberg block markup, then re-run step 4's hash-aware skip-before-upload: a file whose `sha256` still matches its `wp_media_ids[]` entry is skipped; a regenerated file under the same name has a new hash, so it re-uploads and its entry's `id`/`source_url`/`sha256` are updated and references repointed, per step 4).
 2. Update the existing post by its stored ID:
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X POST \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
      -H 'Content-Type: application/json' \
      "$WP_BASE/wp-json/wp/v2/posts/<wp_post_id>" \
      -d '{"slug":"<slug>","title":<title>,"status":"draft","excerpt":<excerpt>,"content":<blocks>,"featured_media":<id>,"categories":[<category_id>]}'
@@ -233,7 +250,7 @@ There is one path, the PR path. (A no-PR "console-gate path" used to be describe
 
 **Final sync + bookkeeping, plus an opt-in live inbound-link pass.** This adapter never sets a WordPress post's status beyond `draft` on its own — approval does not publish it; the human publishes from WP admin themselves. An ambiguous "publish" instruction anywhere in the run's launch args or standing instructions never flips `status` to `publish` — only a human clicking Publish in wp-admin does. But the human MAY have already clicked Publish in wp-admin before ever saying `approve` (external-publish detection — `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/pr-monitor.md` §Each firing checks for exactly this, and `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` Step 15.1/15.2 carry the same signal for the console path); step 1 below is what detects that and adjusts the rest of this sequence.
 
-1. **Check whether the post was already published externally.** `GET $WP_BASE/wp-json/wp/v2/posts/<wp_post_id>?_fields=status` — a normal authenticated call by the already-recorded ID, **not a probe**: the probe-once rule (§Staging step 2) governs only the one-shot credential-verification call made once per run; a routine status read by a stored, already-verified ID is safe and expected to run every time this finalize sequence executes (and pr-monitor.md's cron firing runs the identical call on every tick when `wp_post_id` is present).
+1. **Check whether the post was already published externally.** `GET $WP_BASE/wp-json/wp/v2/posts/<wp_post_id>?_fields=status` (its Bash block binds `WP_APP_PASSWORD` via `wp-secret.sh` at the top like every other): a normal authenticated call by the already-recorded ID, **not a probe**: the probe-once rule (§Staging step 2) governs only the one-shot credential-verification call made once per run; a routine status read by a stored, already-verified ID is safe and expected to run every time this finalize sequence executes (and pr-monitor.md's cron firing runs the identical call on every tick when `wp_post_id` is present).
    - **`status: publish`** (external-publish detected — the human already clicked Publish in wp-admin, possibly editing the post further there) → the live post is now authoritative. **SKIP the rest of this step entirely** — do NOT re-run §Staging steps 3-4 or the update call. Overwriting the human's in-admin edits with the last staged markdown snapshot would silently discard them. Continue to step 2.
    - **`status` is anything else (normally `draft`)** → this is a normal Gate 2 approval reached via review, not an external publish. Re-run §Staging steps 3-4 one final time against the approved markdown (idempotent — picks up any last-minute edit), then §On review-loop edit's update call (step 2) to sync the draft one more time. Continue to step 2.
 2. **Live inbound links (opt-in).** Runs ONLY when BOTH are true: `publish.wordpress.apply_inbound_links_live: true` in config, AND step 1 found `status: publish`. Follow "### Live inbound-link application" below for the full per-row procedure. In every other case (flag `false`, OR the post is still `draft`), skip this step — §Action-items §4b below already carries the hand-apply fallback with prefilled curl commands; nothing here runs automatically.
@@ -255,7 +272,8 @@ For each row in the outline's "Inbound internal links" section (existing-post sl
 
 1. **Resolve the target post by slug:**
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
      "$WP_BASE/wp-json/wp/v2/posts?slug=<existing-slug>&context=edit&_fields=id,content,status"
    ```
    `context=edit` is what makes `content.raw` present (same reason `## Site inspection (setup-time)` step 1 uses it). If the slug returns no post, or the returned `status` is not `publish`, skip this row: record an action-item note "target post `<existing-slug>` not found or not live; hand-apply the inbound link once it's published" and continue to the next row.
@@ -267,7 +285,8 @@ For each row in the outline's "Inbound internal links" section (existing-post sl
 3. **Insert the anchor.** Not found → build the full target URL: `$WP_BASE{route_prefix}<slug>`, plus a trailing `/` iff this blog's `blog.trailing_slash: true` (same rule `astro-git-pr.md` §Staging step 5c uses, just rendered as an absolute URL here instead of a root-relative markdown link). FIRST record the write-ahead note in checklist Notes: `live inbound link planned: <existing-slug> (wp id <id>) -> this post` — write-ahead, same discipline as `astro-git-pr.md` §Staging step 5c (record, then edit, so a crash between the two is recoverable: the next run's idempotency check at step 2 above re-derives correctly, either finding the link already there or falling through to re-apply). THEN edit `content.raw`: insert `<a href="<full URL>"><anchor></a>` at the contextual spot named by the outline's row (preferring to extend an existing related-posts sentence over bolting on a new one, same editorial preference as the astro adapter), producing the new content string.
 4. **POST the update:**
    ```bash
-   curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X POST \
+   WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
+   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
      -H 'Content-Type: application/json' \
      "$WP_BASE/wp-json/wp/v2/posts/<id>" \
      -d @<(jq -n --arg c "<new content.raw, with the anchor inserted>" '{content:$c}')
@@ -283,12 +302,13 @@ If the outline planned no inbound links, skip this whole subsection. If any row'
 Delete the workflow-owned WordPress draft and its uploaded media, tracked by the IDs recorded in `pr-monitor.json` — the WordPress analogue of the `.staged-by-blog-workflow` sentinel rule (never delete anything lacking its recorded ownership ID).
 
 ```bash
+WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
 # delete the draft (force=true skips WordPress's trash, since this is a workflow-owned draft, not a human-authored one)
-curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X DELETE \
+curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X DELETE \
   "$WP_BASE/wp-json/wp/v2/posts/<wp_post_id>?force=true"
 # delete every uploaded media item
 for id in <each wp_media_ids[].id>; do
-  curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X DELETE \
+  curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X DELETE \
     "$WP_BASE/wp-json/wp/v2/media/$id?force=true"
 done
 ```
@@ -305,13 +325,14 @@ The literal content this adapter supplies for `action-items.md` §6/§7 (per `${
 
 **Otherwise (flag `false`, or this post is still `draft`):** each row applied at §Staging step 6 above reads: "applied to `<existing-slug>.md` in the repo; hand-apply to the live WP post in wp-admin (auto-sync of prior posts is out of v1 scope)," with the exact commands prefilled so the human can paste-and-run rather than improvise:
 ```bash
+WP_APP_PASSWORD="$(<plugin root>/adapters/publish/scripts/wp-secret.sh)" || exit 1  # the workflow writes the absolute plugin path here; prints nothing but the password
 # 1) fetch the target post's raw content
-curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" \
+curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
   "$WP_BASE/wp-json/wp/v2/posts?slug=<existing-slug>&context=edit&_fields=id,content"
 # 2) insert the anchor by hand into the returned content.raw at "<section/context>":
 #    <a href="$WP_BASE{route_prefix}<slug><trailing slash iff blog.trailing_slash: true>">"<anchor>"</a>
 # 3) POST the edited content back (build the body with jq, never a hand-quoted string):
-curl -sf -u "$WP_USER:${!WP_APP_PASSWORD_ENV}" -X POST \
+curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
   "$WP_BASE/wp-json/wp/v2/posts/<id>" \
   -d @<(jq -n --arg c "<edited content.raw>" '{content:$c}')

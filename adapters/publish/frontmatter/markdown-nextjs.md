@@ -23,6 +23,14 @@ image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, s
 ---
 ```
 
+## Which keys to emit
+
+`publish.markdown.frontmatter_keys` in `config.yaml` (optional; config-schema.md §Fitting the site's frontmatter) lists the top-level keys the site accepts. When it is set, emit only the keys in that list, in the order above, and nothing else; the reviewer fails a draft that carries a key outside the list. When it is absent, emit every key above, as before.
+
+- **Required keys, never omitted whatever the list says:** `title`, `description`, `date` and the cover key. The cover key is `publish.markdown.cover_key` when set (one top-level key, a scalar path; a Hugo Ananke theme reads `featured_image`), else `image` as shown; write the cover line under that key and under no other.
+- **May be left out of the list:** `tags`, `author`. A site whose schema does not know them gets no such line; do not write them "just in case".
+- **The draft key is not governed by the list.** This template has no draft key, so there is nothing to decide.
+
 ## Field-by-field rules
 
 - **`title`**: quoted, 50-60 chars, the page H1 rendered by the site; never repeat an H1 in the body.
@@ -67,3 +75,4 @@ In the app's zip both shapes become `./<file>` (`./featured.png`); always write 
 - [ ] `image` resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body
 - [ ] no draft key present
+- [ ] the cover sits under `publish.markdown.cover_key` when set, and no key outside `publish.markdown.frontmatter_keys` when that list is set (§Which keys to emit)

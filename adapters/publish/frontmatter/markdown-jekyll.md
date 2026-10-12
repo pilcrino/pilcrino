@@ -25,6 +25,14 @@ published: false
 ---
 ```
 
+## Which keys to emit
+
+`publish.markdown.frontmatter_keys` in `config.yaml` (optional; config-schema.md §Fitting the site's frontmatter) lists the top-level keys the site accepts. When it is set, emit only the keys in that list, in the order above, and nothing else; the reviewer fails a draft that carries a key outside the list. When it is absent, emit every key above, as before.
+
+- **Required keys, never omitted whatever the list says:** `layout`, `title`, `description`, `date` and the cover key. The cover key is `publish.markdown.cover_key` when set (one top-level key, a scalar path; a Hugo Ananke theme reads `featured_image`), else `image` as shown; write the cover line under that key and under no other.
+- **May be left out of the list:** `tags`, `author`. A site whose schema does not know them gets no such line; do not write them "just in case".
+- **The draft key is not governed by the list.** `published: false` follows `publish.markdown.draft_key`: emit it as shown unless that value is the literal `none`, in which case the site honours no draft flag, emit no draft line at all, and `markdown.md` §Staging step 2 strips nothing.
+
 ## Field-by-field rules
 
 - **`layout`**: always the literal `post`.
@@ -57,4 +65,5 @@ In the app's zip both become `./<file>` (`./featured.png`); always write the rep
 - [ ] `author` is a plain display string, not an array
 - [ ] `image` resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body
-- [ ] `published: false` present (stripped at staging, not by the writer)
+- [ ] `published: false` present (stripped at staging, not by the writer); absent iff `publish.markdown.draft_key` is `none`
+- [ ] the cover sits under `publish.markdown.cover_key` when set, and no key outside `publish.markdown.frontmatter_keys` when that list is set (§Which keys to emit)

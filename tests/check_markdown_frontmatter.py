@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 """Each adapters/publish/frontmatter/markdown-<platform>.md has a first ```yaml block
-whose keys are exactly that platform's keys (markdown adapter spec, section 3.2).
+whose keys are exactly that platform's keys (markdown adapter spec, section 3.2): the
+defaults a config without publish.markdown.frontmatter_keys / cover_key / draft_key gets.
+Each doc also carries a "Which keys to emit" section that documents those three overrides
+and names the doc's required keys (config-schema.md §Fitting the site's frontmatter).
 The draft strip commands in adapters/publish/markdown.md remove the flag from the
 frontmatter only and leave the body byte for byte (tests/fixtures/markdown-draft-strip.md)."""
 import os, re, subprocess, sys, tempfile
@@ -22,6 +25,17 @@ EXPECTED = {
     "eleventy": COMMON,
     "generic": COMMON,
 }
+# Required keys per doc (never omittable through frontmatter_keys), the cover key last.
+REQUIRED = {
+    "astro": ["title", "description", "pubDate", "heroImage"],
+    "hugo": ["title", "description", "date", "cover"],
+    "jekyll": ["layout", "title", "description", "date", "image"],
+    "ghost": ["title", "excerpt", "published_at", "feature_image"],
+    "nextjs": ["title", "description", "date", "image"],
+    "eleventy": ["title", "description", "date", "image"],
+    "generic": ["title", "description", "date", "image"],
+}
+DRAFT_KEY = {"astro": "draft", "hugo": "draft", "jekyll": "published"}
 
 rc = 0
 def fail(msg):
@@ -52,6 +66,28 @@ for platform, keys in EXPECTED.items():
         fail(f"{rel}: keys {sorted(data)}, expected {sorted(keys)}")
     if platform == "jekyll" and data.get("layout") != "post":
         fail(f"{rel}: layout must be post")
+
+    # The documented overrides: one "Which keys to emit" section naming the required keys,
+    # the cover_key override (the doc's own key as the default) and the draft_key rule.
+    text = open(path).read()
+    m = re.search(r"^## Which keys to emit\n(.*?)^## ", text, re.S | re.M)
+    if not m:
+        fail(f"{rel}: no '## Which keys to emit' section")
+        continue
+    sect = m.group(1)
+    if "`publish.markdown.frontmatter_keys`" not in sect:
+        fail(f"{rel}: 'Which keys to emit' must document publish.markdown.frontmatter_keys")
+    *scalar_required, cover = REQUIRED[platform]
+    for k in scalar_required:
+        if f"`{k}`" not in sect:
+            fail(f"{rel}: required key `{k}` not named in 'Which keys to emit'")
+    if "`publish.markdown.cover_key`" not in sect or f"else `{cover}`" not in sect:
+        fail(f"{rel}: 'Which keys to emit' must say the cover key is publish.markdown.cover_key when set, else `{cover}`")
+    if platform in DRAFT_KEY:
+        if "`publish.markdown.draft_key`" not in sect or "`none`" not in sect:
+            fail(f"{rel}: 'Which keys to emit' must say `{DRAFT_KEY[platform]}` follows publish.markdown.draft_key, `none` meaning no draft line")
+    elif "no draft key" not in sect:
+        fail(f"{rel}: 'Which keys to emit' must say this template has no draft key")
 
 # Draft strip (markdown.md §Staging step 2): the frontmatter flag goes, the body is unchanged
 doc = open(os.path.join(ROOT, "adapters/publish/markdown.md")).read()
