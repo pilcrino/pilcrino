@@ -68,8 +68,15 @@ need templates/review.md 'information gain element survived into the draft'
 need skills/review-blog-post/SKILL.md 'Information gain'
 need personas/editor.md 'Information gain'
 
+# Idle hand-offs (0.46.0): the rule exists, every dispatch points at it, and the console events bracket the wait
+need skills/blog-post-workflow/SKILL.md '## Hand-offs to subagents'
+need skills/blog-post-workflow/SKILL.md 'append `agent_started` to `$CONSOLE_RUN_STATE`'
+need skills/blog-post-workflow/SKILL.md 'on return append `agent_done` first'
+[ "$(grep -c 'Wait for return, idle (§Hand-offs to subagents)' skills/blog-post-workflow/SKILL.md)" -ge 8 ] || { echo "ANATOMY FAIL: SKILL.md: fewer than 8 dispatches carry the idle note" >&2; fail=1; }
+[ "$(grep -c 'Wait for return, idle: no tool calls until the subagent returns' personas/editor.md)" -ge 3 ] || { echo "ANATOMY FAIL: editor.md: fewer than 3 dispatches carry the idle note" >&2; fail=1; }
+
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.45.1"'
+need .claude-plugin/plugin.json '"version": "0.46.0"'
 
 # Review fixes: rules that must not be module-gated, disclosure only with a product, reviewer inputs
 ungated() {

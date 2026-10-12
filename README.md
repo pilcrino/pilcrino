@@ -245,6 +245,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.46.0 - the editor idles while a subagent runs
+
+- `blog-post-workflow`: a new §Hand-offs to subagents rule. Between an `Agent` call and the subagent's return the editor makes no tool calls: no reading ahead of documents a later stage needs, no grepping of archives or source code, no setup for a later stage, no wake-up timers. Measured on real runs, the editor spent 5 to 12 turns per hand-off on such work at 200k to 340k tokens of context each, about 8M cache-read tokens per post; every stage already reads what it needs when it starts. Every "Wait for return" line in the skill and the editor persona now says so.
+
 ### 0.45.1 - Google's check stays open
 
 - When the Google search capture hits Google's unusual-traffic check or returns no results, the Pilcrino browser leaves that tab open and brings its window to the front instead of closing it at the end of the run. Before retaining one the browser closes every tab with exactly the title "Pilcrino: pass the check" that no run in this process owns, rereading each tab's title right before closing it and leaving it open if the title changed or cannot be read, so repeated blocks and empty results do not pile up. The retained tab gets that title only after the run has released it and brought it to the front, as its last step, so a concurrent run's tab never carries the title while in use and is never closed. If the title cannot be set, that tab is left for the owner and never cleaned up. Nothing is stored between runs; two blocks at the same moment may leave two tabs. Other sites' captures, Reddit's included, are unchanged.

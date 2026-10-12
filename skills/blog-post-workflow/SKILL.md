@@ -21,6 +21,12 @@ Heavy file-reading stages are delegated to subagents so the editor's context sta
 
 Everything else (intake, browser research fetching, plan synthesis, outline drafting, gates, action-items compile, finalize) runs in the main session where the editor can converse with the human.
 
+## Hand-offs to subagents: idle while they run
+
+A subagent may run in the background and the harness notifies this session when it returns. Between the `Agent` call and that return the editor makes **no tool calls at all**: no reading of documents a later stage needs (the publish adapter, the action-items or outline templates), no grepping of archives or source code, no setup for a later stage, no timers or wake-ups (`ScheduleWakeup`, `CronCreate`) to poll for the result, no browser work. Every turn in this session re-sends the whole conversation, which by the draft stage is well over 200k tokens; a read done here costs several times what the same read costs at the stage that needs it, and it then sits in context for every later turn. Each stage below reads what it needs when it starts. "Wait for return" in a step means exactly this: the next action is the step's verification of the subagent's output, nothing before it.
+
+The one exception is the hand-off's own bookkeeping, which happens at the boundaries, never inside the wait. In autopilot the sequence for every dispatch is: append `agent_started` to `$CONSOLE_RUN_STATE` (the console contract's event), then the `Agent` call, then idle, then on return append `agent_done` first, then the step's verification. Interactively the checklist frontmatter update the step prescribes before the spawn plays the same role. Preparatory work for a later stage is never part of this exception.
+
 ## How to invoke
 
 - `$ARGUMENTS` empty → auto-detect in-progress drafts; offer resume/new choice
@@ -726,7 +732,7 @@ Agent tool call:
     """
 ```
 
-Wait for return. Verify each expected `{drafts_dir}/<slug>/research/<source>.md` exists.
+Wait for return, idle (§Hand-offs to subagents). Verify each expected `{drafts_dir}/<slug>/research/<source>.md` exists.
 
 If any missing/empty: re-spawn ONCE for the failing sources. Second failure → stop and report.
 
@@ -740,7 +746,7 @@ Follow editor persona §Stage 1c. On completion, set `plan.md` status `awaiting_
 
 Gate 1 is replaced by an independent automated review (same loop shape as Stage 3b). Checklist already has `current_stage=plan_review`, `gate_pending=none`, plan `awaiting_plan_review` (from Step 6).
 
-1. Dispatch `plan-reviewer` (mid-tier model) with paths: `plan.md`, `brief.md`, `facts.md`, `research/serp.md`, `research/reddit.md` and `research/x.md` when present, `{profile_dir}/product.md` when `modules.product` is on, `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md`. It writes `plan-review.md` per the resolved template `plan-review.md`.
+1. Dispatch `plan-reviewer` (mid-tier model) with paths: `plan.md`, `brief.md`, `facts.md`, `research/serp.md`, `research/reddit.md` and `research/x.md` when present, `{profile_dir}/product.md` when `modules.product` is on, `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md`. It writes `plan-review.md` per the resolved template `plan-review.md`. Wait for return, idle (§Hand-offs to subagents).
 2. On verdict:
    - **approve** → plan status `approved`, `current_stage=outline`; continue to Step 8. Do NOT archive `plan-review.md` (the gate needs it on disk).
    - **request_revisions / reject, iteration ≤ 1** → archive review as `plan-review-v<N>.md`, apply the reviewer's revision instruction to `plan.md`, re-dispatch. Cap 1 revision pass (max two reviewer dispatches total — a plan still contested after one revision proceeds anyway, so a third dispatch buys nothing).
@@ -802,7 +808,7 @@ Agent tool call:
 
 #### Step 10.4, Verify output
 
-After the subagent returns:
+Wait for return, idle (§Hand-offs to subagents). After the subagent returns:
 
 1. Verify `{drafts_dir}/<slug>/draft-v1.md` exists.
 2. Check word count (via `wc -w`) is ≥ 500. If not, treat as truncated failure.
@@ -859,7 +865,7 @@ Runs after Step 10 completes, or on resume when `draft-v<N>.md` exists and `revi
        """
    ```
    (The agent stub specifies its own operating contract, tool access, and output shape; the spawn payload is just parameters.)
-5. Wait for return. Verify `{drafts_dir}/<slug>/review.md` exists and contains a Verdict.
+5. Wait for return, idle (§Hand-offs to subagents). Verify `{drafts_dir}/<slug>/review.md` exists and contains a Verdict.
 
 #### Step 11.2, Route on verdict
 
@@ -900,7 +906,7 @@ Read `{drafts_dir}/<slug>/review.md` §Verdict. Follow the routing rules from th
        author_voice=<from brief.md>
        """
    ```
-5. After the writer returns: verify `{drafts_dir}/<slug>/draft-v<N+1>.md` exists with ≥ 500 words and valid frontmatter (Stage 3a post-spawn sanity check). Failure handling: same as Step 10.5, re-spawn ONCE, second failure → stop and report.
+5. Wait for return, idle (§Hand-offs to subagents). After the writer returns: verify `{drafts_dir}/<slug>/draft-v<N+1>.md` exists with ≥ 500 words and valid frontmatter (Stage 3a post-spawn sanity check). Failure handling: same as Step 10.5, re-spawn ONCE, second failure → stop and report.
 6. Go back to Step 11.1 with the new draft (iteration incremented).
 
 ### Step 12, Humanize (Stage 3c, delegate to `blog-humanizer` subagent)
@@ -918,7 +924,7 @@ Triggered after Step 11 routes verdict = `approve`. The humanizer's full procedu
        draft_version=draft-v<N>   # optional; default is latest
        """
    ```
-3. Wait for return.
+3. Wait for return, idle (§Hand-offs to subagents).
 4. Verify:
    - `{drafts_dir}/<slug>/draft-v<N>.md` still exists (agent edits in place)
    - Handoff reports `Preservation check: PASSED`
@@ -1027,7 +1033,7 @@ Runs after Step 12.5 completes, or on resume when `current_stage=images` and `im
        """
    ```
    The planner assigns each slot's `Type` from this blog's `images.enabled` (config); the featured slot defaults to `images.featured_default` when it is set, otherwise the planner picks from `images.enabled`. A slot whose `Type` is not in `images.enabled` is a planner bug and is sent back.
-4. Wait for return. Verify `{drafts_dir}/<slug>/images.md` exists.
+4. Wait for return, idle (§Hand-offs to subagents). Verify `{drafts_dir}/<slug>/images.md` exists.
 5. Sanity-check:
    - `draft_placeholders` = count of `[IMAGE:` in the draft
    - `in_post_entries` = count of `### Image ` entries under `## In-post images` in `images.md` (featured image lives in the separate `## Featured image` block, so it's excluded from this count)
@@ -1052,7 +1058,7 @@ Runs after Step 13 (image plan) completes, or on resume when `current_stage=gene
        slug=<slug>
        """
    ```
-4. On return, parse the manifest (shape: `{slug, rendered, prompt_pending, screenshot_pending, failed, halt}`). Verify the asset dir `{assets_dir}/<slug>/` exists with the `.staged-by-blog-workflow` sentinel, and that every expected file-producing filename is present on disk.
+4. Wait for return, idle (§Hand-offs to subagents). On return, parse the manifest (shape: `{slug, rendered, prompt_pending, screenshot_pending, failed, halt}`). Verify the asset dir `{assets_dir}/<slug>/` exists with the `.staged-by-blog-workflow` sentinel, and that every expected file-producing filename is present on disk.
 5. **Failure handling:**
    - `halt` set (asset dir not owned) -> STOP, report to the human (a non-workflow folder exists at that path), do not proceed.
    - Some expected file-producing PNGs missing or listed under `failed` -> re-spawn the builder ONCE (it is idempotent; the ownership sentinel already exists, so it re-renders the missing subset). After the second run, any still-missing file-producing slot is reported to the human and proceeds (that slot is left as a build-safe 'Image pending' note in preview (no local embed to a missing file) + an action-item).
