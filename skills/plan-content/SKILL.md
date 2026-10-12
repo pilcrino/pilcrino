@@ -575,12 +575,14 @@ compares tools (best-of, for-role, alternatives):
     naming only the subjects that lack a profile. The post workflow copies
     the block into the brief and offers to research those competitors when
     the post is started; the report (Step 9) says so.
-  - Registered: not added. Report it with the command to add that
-    competitor, `/pilcrino:research-competitor <name>` (or
+  - Registered: this skill removes the idea from the batch before the
+    `POST .../queue/batch` call (that endpoint checks fields and duplicate
+    slugs only; it does not check profiles, so the filter has to happen
+    here). Report it with the command to add that competitor,
+    `/pilcrino:research-competitor <name>` (or
     `curl -X POST <console base>/api/competitors -H 'Content-Type: application/json' -d '{"site": "<site>", "name": "<name>"}'`,
     same base URL and auth as the batch call), and say that running
-    `/pilcrino:plan-content` again afterwards adds the post. The console
-    owns this check for registered blogs.
+    `/pilcrino:plan-content` again afterwards adds the post.
   - Autopilot keeps such ideas; the console gates them.
 - Module off: `Mention: <A>, <B>` with the subjects and options as plain
   names. No profile gate and no `competitors` block.
