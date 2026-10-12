@@ -187,21 +187,32 @@ resolves to."
    shell resolves from its own folder. The same holds for every file setup
    keeps in git's own folder (`pilcrino-setup-before`, the commit index in
    Phase 6).
-   A folder setup created whole (it did not exist before this run) may be
-   listed as one path; a folder that already held files never is: list
-   each file. Phase 6's commit holds exactly this list and nothing else.
+   Record exact files, never a folder. Where setup creates a folder
+   (`blog-ops/profile/`, the Remotion project, a `.gitkeep` folder), record
+   each file it writes in that folder, one line each. When a copy or a
+   tool writes many files at once (the Remotion project), list them right
+   after it finishes and record each one:
+   `find "<folder>" -type f -not -path '*/node_modules/*' -not -path '*/out/*'`.
+   Never record a path under `_scratch/`, `_setup-shots/`,
+   `blog-ops/reference/image-samples/`, `node_modules/` or `out/`: those
+   are temporary or built files and never go in a commit. Phase 6's commit
+   holds exactly this list and nothing else.
 
-   **Site files go in `setup-notes.md` too.** Each file setup edits outside
-   `blog-ops/` and the Remotion project (the Astro post format and the page
-   filters in Phase 5, a Hugo config file if setup changes one,
-   `.gitattributes`, `.gitignore`) is also written, once, under the heading
-   `## Site files edited by setup` in `{profile_dir}/setup-notes.md`, one
-   repo path per line and nothing else on the line. Add the heading the
-   first time a site file is edited, and a line only when that path is not
-   there yet. Keep that heading the last section of the file: a later note
-   (Global rule 8's resume line, Phase 3.5's sign-in line) goes above it,
-   never under it. The post workflow's Step 0 reads this section to know
-   which site files belong to setup.
+   **Site files go in `setup-notes.md` too, but only once committed.** A
+   site file is any file setup edits outside `blog-ops/` and the Remotion
+   project (the Astro post format and the page filters in Phase 5, a Hugo
+   config file if setup changes one, `.gitattributes`, `.gitignore`).
+   While editing, record it in the paths list above only. The heading
+   `## Site files edited by setup` in `{profile_dir}/setup-notes.md` is
+   written by Phase 6 step 2, at the moment the commit is built and after
+   the owner's include decisions: it lists only the site files that are in
+   that commit, one repo path per line and nothing else on the line. A
+   site file the owner withheld is never listed there. When the section
+   already exists from an earlier run, Phase 6 rewrites it from the
+   committed set rather than adding to it. Keep that heading the last
+   section of the file: a later note (Global rule 8's resume line, Phase
+   3.5's sign-in line) goes above it, never under it. The post workflow's
+   Step 0 reads this section to know which site files belong to setup.
 
 ## Phase 0: Preflight and finding the blog
 
@@ -2538,9 +2549,13 @@ recorded, in this order:
    G="$(git rev-parse --absolute-git-dir)"
    P="$G/pilcrino-setup-paths"; B="$G/pilcrino-setup-before"
    ```
-   Build the commit list from `$P`: drop each path under
-   `blog-ops/reference/image-samples/` or a `_setup-shots/` folder, and
-   each path that no longer exists and was never committed. Then check
+   Build the commit list from `$P`: drop each path under `_scratch/`,
+   `_setup-shots/`, `blog-ops/reference/image-samples/`, `node_modules/`
+   or `out/` (at any depth), and each path that no longer exists and was
+   never committed. A line in `$P` that is a folder (an older run may have
+   recorded one) is not added as a folder: replace it with the files
+   setup wrote in it, listed as Global rule 9 does, and the same drops
+   apply. Then check
    each remaining path against `$B` (it lists the path, or a folder the
    path is in, as changed before setup started):
    - **A file setup cannot go without** (`blog-ops/config.yaml`, or a
@@ -2558,8 +2573,14 @@ recorded, in this order:
      to the Handoff as "not committed yet".
    - **Any other file** (a site file setup edited that also held an owner
      change): leave it out of the list and name it in step 3.
-   (The Remotion project's `node_modules/` and `out/` are ignored, so
-   listing that folder whole is safe when setup created it.)
+
+   **Write the site files section now**, from the final list: rewrite the
+   `## Site files edited by setup` section of `{profile_dir}/setup-notes.md`
+   so it holds exactly the site files (Global rule 9's meaning) that are on
+   the commit list, replacing whatever an earlier run wrote there. A site
+   file left out above is not in it. No site file on the list: remove the
+   section. `setup-notes.md` is itself on the list, so the commit carries
+   this section.
 
    Build the commit in a separate index, so the owner's own staging is
    never read or changed, and do not move the branch yet:
@@ -2572,21 +2593,40 @@ recorded, in this order:
    else
      GIT_INDEX_FILE="$I" git read-tree --empty; PARENT=""
    fi
-   GIT_INDEX_FILE="$I" git add -- "<path 1>" "<path 2>" ...   # each path in the list, by name
+   GIT_INDEX_FILE="$I" git add -- "<file 1>" "<file 2>" ...   # each file in the list, by name, never a folder
+   if [ -n "$PARENT" ]; then
+     NEW="$(GIT_INDEX_FILE="$I" git diff-index --cached --name-only HEAD)"
+   else
+     NEW="$(GIT_INDEX_FILE="$I" git ls-files --stage | cut -f2)"
+   fi
+   BAD="$(printf '%s\n' "$NEW" | grep -E '(^|/)(_scratch|_setup-shots|node_modules|out)/|^blog-ops/reference/image-samples/')"
+   if [ -n "$BAD" ]; then
+     rm -f "$I"; echo "STOP: temporary files in the commit:"; echo "$BAD"; exit 1
+   fi
    T="$(GIT_INDEX_FILE="$I" git write-tree)"
    C="$(git commit-tree "$T" $PARENT -m "Set up Pilcrino for <blog name>")"
    rm -f "$I"; echo "$C"
+   if [ -n "$PARENT" ]; then echo "parent: $(git rev-parse HEAD)"; else echo "root commit"; fi
    git show --stat --format='%h %s' "$C"
    ```
-   Note the commit id it prints (shell variables do not carry over to the
-   next command). Every file `git show --stat` names must be on the
-   commit list; anything else means the build went wrong: build nothing
-   further and say so.
+   The check before `write-tree` looks at every path the commit adds or
+   changes (in an empty repository, every path `git ls-files --stage`
+   shows in the separate index): none may sit under `_scratch/`,
+   `_setup-shots/`, `blog-ops/reference/image-samples/`, `node_modules/`
+   or `out/`. Paths HEAD already held are the owner's and are not
+   checked. On STOP, build nothing further: drop those paths from the
+   list and build again. Note the commit id and its parent (or "root
+   commit") it prints (shell variables do not carry over to the next
+   command). Every file `git show --stat` names must be on the commit
+   list; anything else means the build went wrong: build nothing further
+   and say so.
 3. **Ask once, from that output.** Show the files `git show --stat` listed,
    in owner words (grouped: settings and profile in `blog-ops/`, the image
-   tool project, each site file setup changed), name in one line any file
-   left out because it also holds the owner's own unsaved change, and ask,
-   as a menu:
+   tool project, each site file setup changed), name in a separate line
+   any site file left out because it also holds the owner's own unsaved
+   change ("Left out, because it also has your own unsaved edits:
+   `<path>`. Setup's change there stays in this folder, not on GitHub,
+   until you save it yourself."), and ask, as a menu:
    "Pilcrino's setup files are ready: the settings and profile in
    `blog-ops/`, <the image tool project>, <the two small changes to your
    site: a draft switch and optional tags>. Shall I commit them and push
@@ -2594,32 +2634,55 @@ recorded, in this order:
    GitHub, this push starts a build; no post is affected. Options: push
    now (recommended) / commit here only, push later / not yet."
    Right before committing (either answer that commits), re-check the
-   branch: `git branch --show-current` must print `<base branch>` (in an
-   empty repository, `git symbolic-ref --short HEAD`), and `git rev-parse
-   HEAD` must still be the commit's parent (`git rev-parse <commit>^`).
-   Another branch: do not commit; say "Your folder is on the branch
-   `<name>`, not `<base branch>`; setup's files belong on `<base branch>`",
-   and switch back as Phase 0b step 3 does (asking first). A moved branch
-   on either check: build the commit again from step 2 before going on.
-   To commit, move the branch to the built commit and bring the owner's
-   index up to date for those paths only (their other staged changes stay
-   as they were):
+   branch:
    ```bash
    cd "<blog folder>" || exit 1
-   git update-ref refs/heads/<base branch> <commit> <parent>   # empty repository: leave out <parent>
-   git reset -q -- "<path 1>" "<path 2>" ...                     # the same list
+   if git rev-parse -q --verify HEAD >/dev/null; then
+     [ "$(git branch --show-current)" = "<base branch>" ] &&
+     [ "$(git rev-parse HEAD)" = "$(git rev-parse <commit>^)" ] && echo OK || echo MOVED
+   else
+     [ "$(git symbolic-ref HEAD)" = "refs/heads/<base branch>" ] &&
+     ! git rev-parse -q --verify <commit>^ >/dev/null && echo OK-ROOT || echo MOVED
+   fi
+   ```
+   When HEAD exists, the branch must be `<base branch>` and HEAD must
+   still be the commit's parent (the parent check runs only then). In an
+   empty repository (HEAD does not exist yet), HEAD must still point to
+   `refs/heads/<base branch>` and the built commit must have no parent
+   (`git rev-parse <commit>^` is expected to fail). Another branch: do
+   not commit; say "Your folder is on the branch `<name>`, not `<base
+   branch>`; setup's files belong on `<base branch>`", and switch back as
+   Phase 0b step 3 does (asking first). MOVED for any other reason (a new
+   commit landed, or the empty repository got its first commit): build
+   the commit again from step 2 before going on.
+   To commit, move the branch to the built commit and bring the owner's
+   index up to date for those paths only (their other staged changes stay
+   as they were). Run only the `update-ref` line that matches the check:
+   ```bash
+   cd "<blog folder>" || exit 1
+   git update-ref refs/heads/<base branch> <commit> <parent>   # after OK
+   git update-ref refs/heads/<base branch> <commit> ""         # after OK-ROOT: "" means the branch must not exist yet
+   git reset -q -- "<file 1>" "<file 2>" ...                     # the same list
    ```
    - **Push now**: then `git push -u origin <base branch>`, which pushes
      that commit (an empty repository: the first push creates the
      branch). On a push rejected for authentication, offer `gh auth
-     setup-git` again (Phase 0a check 4) and retry once. Then confirm the
-     base branch on GitHub holds the settings: `git fetch origin <base
-     branch>` and `git ls-tree -r --name-only origin/<base branch> --
-     blog-ops/config.yaml blog-ops/profile/` must list `config.yaml` and
+     setup-git` again (Phase 0a check 4) and retry once. Then confirm
+     GitHub has this very commit, not just files of the same name from an
+     earlier run:
+     ```bash
+     cd "<blog folder>" || exit 1
+     git fetch origin <base branch> &&
+     git merge-base --is-ancestor <commit> origin/<base branch> && echo HAS-COMMIT || echo NO-COMMIT
+     git ls-tree -r --name-only origin/<base branch> -- blog-ops/config.yaml blog-ops/profile/
+     ```
+     Both must hold: HAS-COMMIT, and the listing shows `config.yaml` and
      every profile doc setup wrote. Only then say "Pushed. <If live:> Your
      site is rebuilding; nothing on it changes visibly, the new files are
-     settings only." When any is missing, say which in plain words, and
-     never report setup as pushed.
+     settings only." Otherwise say "The push to GitHub didn't go
+     through", show git's output from the push and the check, name any
+     missing file in plain words, and never report setup as pushed. The
+     commit is still saved in this folder.
    - **Commit only**: commit, say the first post will ask to push before it
      can open a pull request.
    - **Not yet**: do not move the branch (the built commit is simply left
@@ -2682,8 +2745,12 @@ If yes:
    before setup, `git show --stat` of the built commit shown before
    anything moves, the same branch checks, then `git update-ref`, `git
    reset -q --` for the two paths, `git push origin <base branch>`, and
-   the same check that `origin/<base branch>` holds `blog-ops/config.yaml`
-   before saying it was pushed.
+   the same two checks before saying it was pushed: after `git fetch
+   origin <base branch>`, `git merge-base --is-ancestor <commit>
+   origin/<base branch>` must succeed for this new commit, and
+   `origin/<base branch>` must hold `blog-ops/config.yaml`. When either
+   fails, say "The push to GitHub didn't go through", show git's output,
+   and do not report it as pushed.
 6. Then print the terminal completion message (below).
 
 **Resume:** if `blog-ops/content-plan.md` and/or `config.yaml`'s `console:`
