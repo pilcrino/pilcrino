@@ -394,13 +394,14 @@ each slot to its adapter in `adapters/images/`:
 ### Publish adapters
 
 Every adapter publishes through a pull request, so every blog needs a GitHub
-repository. A site built from the repository publishes on merge, WordPress
-publishes through its REST API, and on a paste platform the owner pastes the
-formatted post and checks it there before approving; the merge files the
-repository copy. The site need not be live yet
-(`publish.site_live: false`). A per-PR preview deploy is optional and, for
-Astro, is read from the CI comment named by
-`publish.astro.preview_comment_marker`.
+repository. A live site built from the repository publishes on merge; when the
+site is not live yet (`publish.site_live: false`) the merge only files the
+post, and nothing is published until the site is online. WordPress gets the
+post as a draft through its REST API, and the owner clicks Publish in
+WordPress admin. On a paste platform the owner pastes the formatted post and
+checks it there before approving; the merge files the repository copy. A
+per-PR preview deploy is optional and, for Astro, is read from the CI comment
+named by `publish.astro.preview_comment_marker`.
 
 | Adapter | `publish.adapter` value | Frontmatter template(s) | How it publishes |
 |---|---|---|---|

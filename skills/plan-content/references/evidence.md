@@ -10,6 +10,8 @@
 - Reddit skews technical and sceptical; X skews toward launches and hot takes.
   Weigh a theme that shows on both above one that shows on either.
 - Record for every quote: URL, date, score or likes, and the theme tag
-  (pain, trigger, outcome, alternative, objection, language).
+  (pain, trigger, outcome, alternative, objection, language). A quote taken
+  from a Google result snippet (Reddit research off) carries the URL and the
+  theme tag only: a snippet shows no date or score, and none is invented.
 - After 20 to 30 quotes, the ones that recur across unrelated threads are the
   findings. Everything else stays in the notes.

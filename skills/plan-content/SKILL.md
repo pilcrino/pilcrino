@@ -390,9 +390,10 @@ When Reddit is off (Step 0), skip the thread reading below and the
 `site:reddit.com` searches. Open the voice file with the line "Reddit research
 is off in the blog's config." and list only quotes that appear verbatim in the
 captured Google SERP snippets, each with its URL (no score: a snippet shows
-none). When no snippet holds an attributable quote, the file holds that line
-plus "No attributable quotes were found in the search results." and nothing
-else. Never write a quote that is not on a captured page. `threads` is 0.
+none). When no snippet holds an attributable quote, this step's part of the
+file holds that line plus "No attributable quotes were found in the search
+results." and nothing else; Step 5b still appends its `## X` section when X
+runs. Never write a quote that is not on a captured page. `threads` is 0.
 
 Candidates are the Reddit threads listed in the SERPs' "Discussions and forums"
 blocks and organic results, minus any URL already quoted in an earlier `*-voice.md`.
