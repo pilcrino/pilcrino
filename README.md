@@ -13,9 +13,12 @@ repository. Pilcrino never merges or publishes a post itself.
 
 It runs on macOS only. It does not host or deploy your blog, and it only
 adds posts to it. Every blog needs a GitHub repository, because every post is
-reviewed as a pull request; a site built from that repository publishes when
-the pull request merges, WordPress and paste platforms publish from the
-approved post afterwards, and a site that is not live yet is fine. Research
+reviewed as a pull request. A site built from that repository publishes when
+the pull request merges, and WordPress gets the post as a draft that you
+publish in WordPress admin. For a paste platform Pilcrino copies the
+formatted post to your clipboard before you approve: you paste it in, check
+it there, say "approve", and merging files the copy in the repository. A site
+that is not live yet is fine. Research
 and writing run on your Claude plan in a long Claude Code session.
 
 Scope of "never publishes": the plugin never merges a pull request or
@@ -120,8 +123,11 @@ files, "Yes, and don't ask again" is safe.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
-   while it runs. Comparison posts about competitors that have no fact sheet
-   yet are in the plan too, marked to research the competitor first.
+   while it runs. For a blog not registered with the Pilcrino app,
+   comparison posts about competitors that have no fact sheet yet are in the
+   plan too, marked to research the competitor first; for a registered blog
+   they wait until the competitor is researched, and the report says how to
+   add it.
 4. **Write a post:** `/pilcrino:blog-post-workflow new`. A few questions at the
    start, then about 40 minutes of work ending in a pull request. Best-of,
    alternatives and comparison posts need a research profile for every
@@ -135,8 +141,10 @@ You can also just say what you want ("Can you make me a content plan?",
 
 Every blog needs a GitHub repository, because every post is reviewed as a
 pull request. A site built from that repository publishes when the pull
-request merges; WordPress and paste platforms publish from the approved post
-afterwards. A site that is not live yet is fine: you read the post in the
+request merges; on WordPress you publish the draft in WordPress admin. On a
+paste platform you paste the formatted post Pilcrino copies for you, check it
+there and then say "approve"; merging files the repository copy. A site that
+is not live yet is fine: you read the post in the
 pull request (or in its preview, if your site builds one for every pull
 request).
 
@@ -382,9 +390,13 @@ each slot to its adapter in `adapters/images/`:
 ### Publish adapters
 
 Every adapter publishes through a pull request, so every blog needs a GitHub
-repository. The site must already deploy from that repository (or be a
-WordPress site); a per-PR preview deploy is optional and, for Astro, is read
-from the CI comment named by `publish.astro.preview_comment_marker`.
+repository. A site built from the repository publishes on merge, WordPress
+publishes through its REST API, and on a paste platform the owner pastes the
+formatted post and checks it there before approving; the merge files the
+repository copy. The site need not be live yet
+(`publish.site_live: false`). A per-PR preview deploy is optional and, for
+Astro, is read from the CI comment named by
+`publish.astro.preview_comment_marker`.
 
 | Adapter | `publish.adapter` value | Frontmatter template(s) | How it publishes |
 |---|---|---|---|
@@ -404,9 +416,10 @@ See https://pilcrino.com.
 ### 0.53.0 - README fixes from the fresh-Mac re-test
 
 - Install: Node comes from the LTS installer on nodejs.org, as setup does, in its own step. `brew install node@22 gh` left `node` off the PATH (Homebrew's `node@22` is keg-only), so the `node --version` check failed; Homebrew now installs only the GitHub CLI (`brew install gh`). The steps after it are renumbered.
-- The intro and Quickstart no longer say the site must already deploy from GitHub. Every blog needs a GitHub repository because every post is reviewed as a pull request; a site built from it publishes on merge, WordPress and paste platforms publish from the approved post, and a site that is not live yet is fine.
+- The intro and Quickstart no longer say the site must already deploy from GitHub. Every blog needs a GitHub repository because every post is reviewed as a pull request; a site built from it publishes on merge, WordPress gets a draft the owner publishes in WordPress admin, a paste platform gets the formatted post on the clipboard to paste and check before approval (the merge then files the repository copy), and a site that is not live yet is fine. The developer section's Publish adapters paragraph says the same.
 - Quickstart says that after setup every command runs with Claude Code started in the blog's folder, because the skills read `blog-ops/config.yaml` from there.
-- `plan-content` honours `modules.reddit_research` and `modules.x_research` when the blog has a config: a source that is off is not probed by `login_status`, not required at the sign-in gate, and its round is skipped. With Reddit off, the voice-of-customer file draws on quotes in the captured Google pages and says Reddit research is off. Without a config nothing changes.
+- `plan-content` honours `modules.reddit_research` and `modules.x_research` when the blog has a config: a source that is off is not probed by `login_status`, not required at the sign-in gate, and its round is skipped. With Reddit off, the two `site:reddit.com` query templates are not used, and the voice-of-customer file holds only quotes visible verbatim in the captured Google results, each with its URL; when there are none it says so and invents nothing. The strategy's "forum quotes" rule applies only when research found quotes. Without a config nothing changes.
+- Quickstart says comparison posts waiting for a competitor fact sheet are in the plan only for blogs not registered with the Pilcrino app; for a registered blog they wait until the competitor is researched.
 
 ### 0.52.0 - every agent names its model
 

@@ -97,6 +97,9 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    }
    ```
 
+   `report.quote` is empty, with empty `quoteSource` and `quoteUrl`, when
+   the voice file holds no quote; a quote from a Google snippet names its
+   site in `quoteSource` ("Google result, quora.com"), never a score.
    `pageType` is one of the eight values in `references/money-pages.md`;
    `origin` is `research` or `owner`; an idea's `competitors` per
    `references/money-pages.md` rule 1. At most 30 competitors. When
@@ -347,7 +350,10 @@ Then `Read` the file. Close each tab with `tabs` `action: close` (one call per
 Derive 16 to 24 queries from the description using the buckets and templates in
 `references/queries.md`. In a `new` batch the money-page candidates from
 `references/money-pages.md` come first and their queries join the bank. Every
-bucket gets at least two. Write the buyer's words,
+bucket gets at least two. When Reddit is off (Step 0), the two
+`site:reddit.com` templates of the Forum and X bucket are not used; that
+bucket takes its two queries from its other templates (`"<problem>" "anyone
+know"` and `"<category> is broken"`). Write the buyer's words,
 not the vendor's. If a brand name is ambiguous, add its domain or category word.
 
 In `extend` mode: 12 to 16 queries, none from the query log, at least half built
@@ -381,9 +387,12 @@ every URL that looks worth a visit; do not visit it. Finish the bank first.
 ## Step 5: Voice of customer
 
 When Reddit is off (Step 0), skip the thread reading below and the
-`site:reddit.com` searches: write the voice file from quotes visible in the
-captured Google SERP pages only, each with its URL, and open it with the line
-"Reddit research is off in the blog's config." `threads` is 0.
+`site:reddit.com` searches. Open the voice file with the line "Reddit research
+is off in the blog's config." and list only quotes that appear verbatim in the
+captured Google SERP snippets, each with its URL (no score: a snippet shows
+none). When no snippet holds an attributable quote, the file holds that line
+plus "No attributable quotes were found in the search results." and nothing
+else. Never write a quote that is not on a captured page. `threads` is 0.
 
 Candidates are the Reddit threads listed in the SERPs' "Discussions and forums"
 blocks and organic results, minus any URL already quoted in an earlier `*-voice.md`.
@@ -411,6 +420,8 @@ tell the owner which case it was.
 Write `{strategy dir}/research/<date>-voice.md` (same suffix rule): pain points as
 verbatim quotes with score and URL, tools named and what people say about them,
 questions asked as thread titles, numbers with a source. Nothing without a URL.
+This format is for Reddit threads; quotes from SERP snippets (Reddit off)
+carry their URL only.
 
 ## Step 5b: X
 

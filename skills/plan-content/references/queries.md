@@ -24,6 +24,8 @@ at least two per bucket, in the buyer's words.
 | Buyer's AI question | the sentence a buyer would type into ChatGPT, run on Google: which `<category>` `<does X>`; `<category>` recommended for `<buyer>` | the fan-out queries AI answers use, and who gets cited |
 | Forum and X | `site:reddit.com "<problem>" "recommend" OR "alternative"`; `site:reddit.com "<competitor>" "vs" OR "alternative" OR "switched"`; `"<problem>" "anyone know" OR "recommend"`; `"<category> is broken" OR "frustrated with <category>"` | threads and posts where buyers ask for help or compare tools in their own words |
 
+With Reddit off in the blog's config, skip the two `site:reddit.com` templates; the Forum and X bucket takes its two queries from the other two.
+
 Buyer-stage modifiers: awareness (how to, guide), consideration (best, vs, alternatives), decision (pricing, reviews), implementation (templates, examples, setup).
 
 If a brand name has another meaning (a word, a company in another field), add its
