@@ -1,30 +1,77 @@
 #!/usr/bin/env node
 import { fileURLToPath } from 'node:url'
-import { dirname } from 'node:path'
-import { ensureInstalled } from './src/deps.mjs'
+import { dirname, join } from 'node:path'
+import { readFileSync } from 'node:fs'
+import { ensureInstalled, installAsync, isInstalled, releaseLockIfMine } from './src/deps.mjs'
 
 const root = dirname(fileURLToPath(import.meta.url))
 const [cmd, ...rest] = process.argv.slice(2)
 
-try {
-  ensureInstalled(root)
-} catch (err) {
-  process.stderr.write(`${err.message}\n`)
-  process.exit(1)
-}
-
-if (cmd === 'install') {
-  process.exit(0)
-}
-
-// Dynamic imports: the packages exist only after ensureInstalled.
-if (cmd === undefined) {
-  const { startServer } = await import('./src/server.mjs')
-  await startServer()
-} else if (cmd === 'status' || cmd === 'open-login' || cmd === 'close-login') {
-  const { runCli } = await import('./src/cli.mjs')
-  process.exit(await runCli(cmd, rest))
+if (cmd === undefined && !isInstalled(root)) {
+  // First start after a plugin update: node_modules is missing or from another
+  // version. Answer the MCP handshake from a dependency-free shim while npm runs,
+  // or Claude Code kills the server after 30 seconds mid-install.
+  const { runBootstrap } = await import('./src/bootstrap.mjs')
+  const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
+  let child
+  const quit = () => {
+    try { child?.kill('SIGTERM') } catch {}
+    releaseLockIfMine(root)
+    process.exit(0)
+  }
+  process.on('SIGTERM', quit)
+  process.on('SIGINT', quit)
+  const { done } = runBootstrap({
+    stdin: process.stdin,
+    stdout: process.stdout,
+    stderr: process.stderr,
+    version,
+    // The server module is imported here, before the shim lets go of stdin, so a
+    // broken install leaves the shim answering with the reason.
+    install: async () => {
+      await installAsync(root, { onSpawn: (c) => { child = c } })
+      child = undefined
+      return import('./src/server.mjs')
+    },
+    // The SDK Server keeps no "initialized" gate: its tools/list and tools/call
+    // handlers answer without having seen initialize (checked against
+    // @modelcontextprotocol/sdk 1.32.1, server/index.js and shared/protocol.js).
+    // What initialize would have stored is the client's capabilities, used only
+    // for server-to-client requests (sampling, elicitation, roots), which this
+    // server never makes. So no initialize is replayed: the real server simply
+    // starts reading the same stdin, from the bytes the shim left unread.
+    handover: async ({ result }) => {
+      process.off('SIGTERM', quit)
+      process.off('SIGINT', quit)
+      await result.startServer()
+      // The shim paused stdin; a new 'data' listener does not resume a paused stream.
+      process.stdin.resume()
+    },
+    onEnd: quit,
+  })
+  done.catch((err) => {
+    process.stderr.write(`pilcrino-browser: could not start the server: ${err?.message ?? err}\n`)
+    process.exit(1)
+  })
 } else {
-  process.stderr.write(`usage: node bin.mjs [status <sites...> | open-login <sites...> | close-login | install]\n`)
-  process.exit(2)
+  try {
+    ensureInstalled(root)
+  } catch (err) {
+    process.stderr.write(`${err.message}\n`)
+    process.exit(1)
+  }
+
+  // Dynamic imports: the packages exist only after ensureInstalled.
+  if (cmd === 'install') {
+    process.exit(0)
+  } else if (cmd === undefined) {
+    const { startServer } = await import('./src/server.mjs')
+    await startServer()
+  } else if (cmd === 'status' || cmd === 'open-login' || cmd === 'close-login') {
+    const { runCli } = await import('./src/cli.mjs')
+    process.exit(await runCli(cmd, rest))
+  } else {
+    process.stderr.write(`usage: node bin.mjs [status <sites...> | open-login <sites...> | close-login | install]\n`)
+    process.exit(2)
+  }
 }

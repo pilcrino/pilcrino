@@ -188,6 +188,12 @@ Chrome by mistake leaves Pilcrino waiting. If Google asks you to prove you are n
 Pilcrino brings its window forward with a tab titled "Pilcrino: pass the
 check": pass it there and retry.
 
+Right after a plugin update, the browser installs its packages the first time
+it starts. For a minute or two its tools answer that it is installing; wait
+and try again, and it carries on by itself. Nothing needs deleting by hand: if
+an earlier install was cut off, the lock it left behind is cleared
+automatically.
+
 ## Uninstall
 
 Quit Claude Code first (a running session recreates some of these files).
@@ -236,7 +242,11 @@ retrospective (`blog-retro`).
 The Pilcrino browser is the bundled `pilcrino-browser` MCP server
 (`browser/`), started on demand from `.mcp.json` with `node`; it needs Node
 (see What you need) and Chrome and installs its own packages the first time
-it starts. Its Chrome runs on the profile at `~/.pilcrino/browser`; the
+it starts. While that install runs, a small built-in stand-in answers Claude
+Code's handshake and every tool call says "installing", so Claude Code does
+not give up on the server; when the packages are in, the real server takes
+over and tells Claude Code its tool list has changed. A lock left by a killed
+install (its process is gone) is removed on the next start. Its Chrome runs on the profile at `~/.pilcrino/browser`; the
 `open_login` tool quits it and opens the sign-in pages in a Chrome on the same
 profile without remote control, because Google refuses to sign in a browser
 under remote control, and the next tool call relaunches it once that Chrome
@@ -417,6 +427,13 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.54.0 - the browser survives a plugin update
+
+- After every `/plugin update`, the Pilcrino browser stopped working for every owner until someone deleted a file by hand. The new version's folder has no packages yet, so the browser's first start ran `npm install` before answering Claude Code; Claude Code gives a server 30 seconds to answer, killed it mid-install, and the lock file the install held (`browser/.install.lock`) stayed behind. Every later start waited on that lock and was killed again.
+- The browser now answers Claude Code at once from a small stand-in with no packages of its own and installs in the background. Meanwhile its tool list is empty and every tool call answers "pilcrino-browser is installing its packages after a plugin update; try again in a minute". When the install is done the real server takes over the same connection and Claude Code is told the tool list changed. If the install fails, the browser stays up and every tool call gives the reason.
+- A lock whose process is gone is removed at once, whatever its age, so a killed install no longer blocks the next start. A lock held by a live install is still waited on, for up to 5 minutes.
+- When the packages are already installed (every start but the first after an update), nothing changes. `node browser/bin.mjs install`, which setup runs, still installs synchronously.
 
 ### 0.53.0 - README fixes from the fresh-Mac re-test
 
