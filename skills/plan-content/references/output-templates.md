@@ -18,7 +18,8 @@ Companion files: `<plan file>` (the queue), `competitors.md`. Raw research in
 
 - <N> Google searches through the logged-in browser: who ranks, People Also Ask,
   related searches, AI Overview presence.
-- <N> Reddit threads read in full for pain points in buyers' words.
+- <N> Reddit threads read in full for pain points in buyers' words (or "Reddit
+  research off in the blog's config").
 - <N> competitor homepages and pricing pages.
 - No keyword-volume tool. Search scores are judgments from SERP shape.
 
@@ -62,7 +63,8 @@ Every spoke links to its hub and to one spoke in another pillar.
 - Every post names its buyer or situation in the slug or angle.
 - One target query per post; its fan-out sub-questions are H2s.
 - Headings, schema and page anatomy: per `standards/blog-craft.md`.
-- Forum quotes with links.
+- Forum quotes with links, when the research found any; a post without source
+  quotes states its claims without quotes rather than inventing them.
 - Natural-language slugs that match the query. Alternatives posts at
   `/blog/<x>-alternatives`.
 - No "what is X" posts.

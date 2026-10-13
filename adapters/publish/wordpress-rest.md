@@ -19,7 +19,7 @@ Read by: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` at Stage 4b.
 | `publish.wordpress.apply_inbound_links_live` | `true`/`false`, default `false` — when true AND this post's WordPress status is `publish` (see `## On Gate 2 approval`), the planned inbound-link rows are applied to LIVE target posts via REST instead of left as a hand-apply action item |
 | `{route_prefix}` | `blog.route_prefix` (default `/blog/`), this blog's post URL prefix, for the repository's markdown links (§Staging step 6). Never used to build this post's WordPress address: that is the REST response's `link` (`wp_link` in `pr-monitor.json`, re-fetched before live inbound links are written), because a site with date permalinks or a changed slug serves the post elsewhere |
 
-Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password. The password is resolved by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads `blog-ops/config.yaml` and prints the value from whichever source it names: the environment variable `publish.wordpress.app_password_env` names, or the macOS keychain item whose service is `publish.wordpress.app_password_keychain` and whose account is `publish.wordpress.username` (`security find-generic-password -s <service> -a <user> -w`). The literal secret is never inlined in a command line, never echoed, never written to any file or log; it exists only in the `WP_APP_PASSWORD` variable of the shell that uses it.
+Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password. The password is resolved by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads `blog-ops/config.yaml` and prints the value from whichever source it names: the environment variable `publish.wordpress.app_password_env` names, or the macOS keychain item whose service is `publish.wordpress.app_password_keychain` and whose account is `publish.wordpress.username` (`security find-generic-password -s <service> -a <user> -w`). This adapter's own commands never inline the literal secret in a command line, never echo it and never write it to any file or log; it exists only in the `WP_APP_PASSWORD` variable of the shell that uses it. Where the secret rests depends on the source the owner chose: the keychain route keeps it in the macOS keychain only; the environment-variable route stores it in a local file (the owner's shell profile, or under the console the per-blog environment file below).
 
 **Bind it at the top of EVERY Bash block that runs a `curl` below.** Claude Code's Bash tool starts a fresh shell per call, so a variable set in one block does not survive to the next; a block that skips the line sends `-u "$WP_USER:"` and gets a 401 indistinguishable from a revoked password. The three lines every such block starts with (the blocks below show the password line and assume the other two):
 
@@ -40,9 +40,9 @@ something to route around: reaching into the operator's shell profile (`zsh -lic
 of this contract mentions, it works until it doesn't, and hides the real defect.
 For the env-var source under the console: the run inherits the console's
 environment, which a `launchd` agent gets from its plist and NOT from your
-interactive shell; the fix is `console/scripts/install-agent.sh`, which propagates
-`publish.wordpress.app_password_env` into the agent's `EnvironmentVariables`, and
-the console's `wp_auth` preflight check reports the same condition up front. For
+interactive shell; the console gives each blog's worker the variable from that
+blog's own environment file under `~/.pilcrino/console/environments/`, and its
+`wp_auth` preflight check reports a missing value up front. For
 the keychain source: setup stores the item with `security add-generic-password -U
 -s <service> -a <username> -w`; the launch agent runs in the user's session, so
 `security` can read it there.

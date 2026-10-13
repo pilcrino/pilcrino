@@ -41,10 +41,13 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    listing sites with their state. Use a listed site's state as its answer
    and never call `login_status` for it: the console checked it within 15
    minutes, and probing a signed-out X again trips X's login rate limit. X
-   listed as anything but `signed_in` means skip Step 5b's X round. Call
-   `login_status` only for the sites of `["google","reddit","x"]` the line
-   does not list, and not at all when it lists all three. Google and
-   Reddit must be `signed_in`: any `signed_out` among them fails with
+   listed as anything but `signed_in` means skip Step 5b's X round. The
+   sites in play are `google`, plus `reddit` and `x` unless Step 0's research
+   switches turned them off; a switched-off site is never probed, never
+   required and its listed state is ignored. Call `login_status` only for the
+   sites in play the line does not list, and not at all when it lists them
+   all. Google, and Reddit when it is in play, must be `signed_in`: any
+   `signed_out` among them fails with
    `login_required`, `blocked` with `blocked`, `error` or a failed tool call
    with `browser_unavailable`. X is optional: its state only decides whether
    Step 5b's X round runs. Interactive runs call `open_login` for the
@@ -94,6 +97,9 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    }
    ```
 
+   `report.quote` is empty, with empty `quoteSource` and `quoteUrl`, when
+   the voice file holds no quote; a quote from a Google snippet names its
+   site in `quoteSource` ("Google result, quora.com"), never a score.
    `pageType` is one of the eight values in `references/money-pages.md`;
    `origin` is `research` or `owner`; an idea's `competitors` per
    `references/money-pages.md` rule 1. At most 30 competitors. When
@@ -229,6 +235,11 @@ there is no profile or competitors dir; say so once and continue.
   - Standalone: no console call anywhere in this run. Read and write
     `{ops_dir}/content-plan.md` as the Standalone mode section says.
 - Strategy dir: `{ops_dir}/content-strategy/`; create it and `research/` inside.
+- Research switches. With a config, `modules.reddit_research: false` turns
+  Reddit off for this run (no sign-in check, no thread reading in Step 5) and
+  `modules.x_research: false` turns X off (no sign-in check, no Step 5b). A
+  key that is missing or `true` leaves the source on. Without a config both
+  stay on.
 
 ## Step 1: Read what exists
 
@@ -283,10 +294,12 @@ The sign-in gate: call
 
 ```
 mcp__plugin_pilcrino_pilcrino-browser__login_status
-  sites: ["google", "reddit", "x"]
+  sites: ["google"<, "reddit" unless Reddit is off><, "x" unless X is off>]
 ```
 
-Google and Reddit must return `signed_in`. Otherwise:
+The list is `["google", "reddit", "x"]` unless a research switch (Step 0)
+turned Reddit or X off. Google, and Reddit when it is on, must return
+`signed_in`. Otherwise:
 - `signed_out`: call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the signed-out
   required sites, then stop: "Sign in to <site> in the Pilcrino window that just
   opened, then quit it with Cmd+Q and run /pilcrino:plan-content again."
@@ -302,6 +315,7 @@ Google and Reddit must return `signed_in`. Otherwise:
   `browser_unavailable`.
 
 X is optional. Remember its state; it only decides whether Step 5b runs.
+When X is off in the config it is not probed and Step 5b is skipped.
 
 **Reading a page.** There is no page-text dump: the only way to read a page is
 `capture`, which runs a script in the tab and writes its JSON result to a file,
@@ -336,7 +350,10 @@ Then `Read` the file. Close each tab with `tabs` `action: close` (one call per
 Derive 16 to 24 queries from the description using the buckets and templates in
 `references/queries.md`. In a `new` batch the money-page candidates from
 `references/money-pages.md` come first and their queries join the bank. Every
-bucket gets at least two. Write the buyer's words,
+bucket gets at least two. When Reddit is off (Step 0), the two
+`site:reddit.com` templates of the Forum and X bucket are not used; that
+bucket takes its two queries from its other templates (`"<problem>" "anyone
+know"` and `"<category> is broken"`). Write the buyer's words,
 not the vendor's. If a brand name is ambiguous, add its domain or category word.
 
 In `extend` mode: 12 to 16 queries, none from the query log, at least half built
@@ -369,6 +386,15 @@ every URL that looks worth a visit; do not visit it. Finish the bank first.
 
 ## Step 5: Voice of customer
 
+When Reddit is off (Step 0), skip the thread reading below and the
+`site:reddit.com` searches. Open the voice file with the line "Reddit research
+is off in the blog's config." and list only quotes that appear verbatim in the
+captured Google SERP snippets, each with its URL (no score: a snippet shows
+none). When no snippet holds an attributable quote, this step's part of the
+file holds that line plus "No attributable quotes were found in the search
+results." and nothing else; Step 5b still appends its `## X` section when X
+runs. Never write a quote that is not on a captured page. `threads` is 0.
+
 Candidates are the Reddit threads listed in the SERPs' "Discussions and forums"
 blocks and organic results, minus any URL already quoted in an earlier `*-voice.md`.
 Rank by comment count, threads without a count last; take the top eight. If fewer than six, search Google for
@@ -395,12 +421,15 @@ tell the owner which case it was.
 Write `{strategy dir}/research/<date>-voice.md` (same suffix rule): pain points as
 verbatim quotes with score and URL, tools named and what people say about them,
 questions asked as thread titles, numbers with a source. Nothing without a URL.
+This format is for Reddit threads; quotes from SERP snippets (Reddit off)
+carry their URL only.
 
 ## Step 5b: X
 
-Only when X is `signed_in` (from `login_status`, or in autopilot from the
-console's sign-in line). Otherwise skip X and write
-"X skipped: not signed in" in the notes. When signed in, for the four pain and
+Only when X is on (Step 0) and `signed_in` (from `login_status`, or in
+autopilot from the console's sign-in line). When X is off in the config, skip
+it and write "X skipped: off in the blog's config" in the notes; when it is
+not signed in, write "X skipped: not signed in". When signed in, for the four pain and
 comparison queries with the most forum results, `navigate` to
 `https://x.com/search?q=<URL-encoded query>&f=top`, `wait` 2000 ms, `capture`
 with the page script (Step 2) to `{raw}/x-<n>.json`, and `Read` the file. If

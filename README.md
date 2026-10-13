@@ -11,10 +11,15 @@ and illustrates the post, then opens a pull request on GitHub that you read,
 comment on and approve; merging it publishes on a site built from the
 repository. Pilcrino never merges or publishes a post itself.
 
-It runs on macOS only. It does not host or deploy your blog: your site must
-already publish from its GitHub repository (or be a WordPress site), and
-Pilcrino only adds posts to it. Research and writing run on your Claude plan
-in a long Claude Code session.
+It runs on macOS only. It does not host or deploy your blog, and it only
+adds posts to it. Every blog needs a GitHub repository, because every post is
+reviewed as a pull request. A site built from that repository publishes when
+the pull request merges, and WordPress gets the post as a draft that you
+publish in WordPress admin. For a paste platform Pilcrino copies the
+formatted post to your clipboard before you approve: you paste it in, check
+it there, say "approve", and merging files the copy in the repository. A site
+that is not live yet is fine. Research
+and writing run on your Claude plan in a long Claude Code session.
 
 Scope of "never publishes": the plugin never merges a pull request or
 publishes a blog post. The `post-to-linkedin` skill does post to your LinkedIn
@@ -53,24 +58,30 @@ offering to install them: click Install, wait for it to finish, then run the
 command again.
 
 1. Command Line Tools. Type `git --version`. If a dialog appears, that is the
-   installer: click Install. When `git --version` prints a version, you are
-   done.
+   installer: click Install. (Terminal may also print a note about
+   `xcode-select`; that is normal and needs no action.) When
+   `git --version` prints a version, you are done.
 2. Homebrew (the installer for the next two). Paste the one-line command from
-   https://brew.sh and follow its prompts. When it ends with "Next steps", run
-   the two or three commands it prints: they add Homebrew to your PATH, and
-   without them the next window will say `command not found: brew`. Check:
+   https://brew.sh and follow its prompts: it asks for your Mac password
+   (nothing shows as you type; press Return when done) and then asks you to
+   press Return to continue. When it ends with "Next steps", run the two or
+   three commands it prints: they add Homebrew to your PATH, and without them
+   the next window will say `command not found: brew`. Check:
    `brew --version`.
-3. Node and the GitHub CLI: `brew install node@22 gh`. Check: `node --version`
-   prints v22.13 or newer (24 is fine too), `gh --version` prints a version.
+3. Node and the GitHub CLI: `brew install node@22 gh`. Answer `y` if it asks
+   a yes or no question. Check: `node --version` prints v22.13 or newer (24
+   is fine too), `gh --version` prints a version. If `node --version` says
+   "command not found", run `brew link --overwrite node@22` and check again.
 4. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
-   take the defaults, and finish the sign-in in the browser window it opens.
-   Check: `gh auth status` says "Logged in".
+   take the defaults, and finish the sign-in in the browser window it opens
+   (your Mac's default browser, usually Safari). Check: `gh auth status`
+   says "Logged in".
 
 Then, in Claude Code:
 
-5. Run `claude` in Terminal. Which folder you are in does not matter yet. At
-   the safety question, choose "Yes, I trust this folder"; the highlighted
-   default exits.
+5. Run `claude` in Terminal. Which folder you are in does not matter yet
+   (it will after setup, see Quickstart). At the safety question, choose
+   "Yes, I trust this folder"; the highlighted default exits.
 6. Type these two commands into Claude Code's prompt, one at a time (they are
    Claude Code commands, not Terminal commands):
 
@@ -81,8 +92,9 @@ Then, in Claude Code:
 
    The install screen asks for a scope; the default, "Install for you", is
    right.
-7. Check: type `/plugin`. The Installed tab lists `pilcrino` with 12 skills and
-   a `pilcrino-browser` server, and the Errors tab is empty.
+7. Check: type `/plugin`. It opens on the Discover tab; press Tab to reach
+   Installed, which lists `pilcrino` with 12 skills and a `pilcrino-browser`
+   server, Tab again for Errors, which should be empty, and Esc to close.
 
 Pilcrino works best in Claude Code's auto mode (Shift+Tab switches modes).
 When Claude Code still asks whether it may read or write one of Pilcrino's own
@@ -98,7 +110,10 @@ files, "Yes, and don't ask again" is safe.
    it), or nowhere yet (it creates a GitHub repository with your consent). A
    WordPress, Webflow or other blog that is not built from a repository still
    gets a GitHub repository, because every post is reviewed as a pull request
-   and the repository keeps the post files.
+   and the repository keeps the post files. After setup, start Claude Code
+   in the blog's folder (`cd <blog folder>` then `claude`) for every later
+   command, because the skills read `blog-ops/config.yaml` from the folder
+   you start in.
 2. **Answer the interview.** One question at a time, each with a recommended
    answer (reply `default` to take it); setup saves as it goes, so you can
    stop and run it again later to continue. It reads your site (which
@@ -112,8 +127,11 @@ files, "Yes, and don't ask again" is safe.
 3. **Plan what to write:** `/pilcrino:plan-content`. It researches your
    product, its competitors and what people search for, and writes a list of
    posts to `blog-ops/content-plan.md`. About 30 minutes, no questions asked
-   while it runs. Comparison posts about competitors that have no fact sheet
-   yet are in the plan too, marked to research the competitor first.
+   while it runs. For a blog not registered with the Pilcrino app,
+   comparison posts about competitors that have no fact sheet yet are in the
+   plan too, marked to research the competitor first; for a registered blog
+   they wait until the competitor is researched, and the report says how to
+   add it.
 4. **Write a post:** `/pilcrino:blog-post-workflow new`. A few questions at the
    start, then about 40 minutes of work ending in a pull request. Best-of,
    alternatives and comparison posts need a research profile for every
@@ -125,9 +143,14 @@ files, "Yes, and don't ask again" is safe.
 You can also just say what you want ("Can you make me a content plan?",
 "Write a how-to about ...") and Claude Code picks the right skill.
 
-Your site must already deploy from GitHub. If it builds a preview for every
-pull request, Pilcrino shows you that preview; if not, you read the post in
-the pull request itself.
+Every blog needs a GitHub repository, because every post is reviewed as a
+pull request. A site built from that repository publishes when the pull
+request merges; on WordPress you publish the draft in WordPress admin. On a
+paste platform you paste the formatted post Pilcrino copies for you, check it
+there and then say "approve"; merging files the repository copy. A site that
+is not live yet is fine: you read the post in the
+pull request (or in its preview, if your site builds one for every pull
+request).
 
 ## Reviewing and publishing a post
 
@@ -371,9 +394,14 @@ each slot to its adapter in `adapters/images/`:
 ### Publish adapters
 
 Every adapter publishes through a pull request, so every blog needs a GitHub
-repository. The site must already deploy from that repository (or be a
-WordPress site); a per-PR preview deploy is optional and, for Astro, is read
-from the CI comment named by `publish.astro.preview_comment_marker`.
+repository. A live site built from the repository publishes on merge; when the
+site is not live yet (`publish.site_live: false`) the merge only files the
+post, and nothing is published until the site is online. WordPress gets the
+post as a draft through its REST API, and the owner clicks Publish in
+WordPress admin. On a paste platform the owner pastes the formatted post and
+checks it there before approving; the merge files the repository copy. A
+per-PR preview deploy is optional and, for Astro, is read from the CI comment
+named by `publish.astro.preview_comment_marker`.
 
 | Adapter | `publish.adapter` value | Frontmatter template(s) | How it publishes |
 |---|---|---|---|
@@ -389,6 +417,14 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.53.0 - README fixes from the fresh-Mac re-test
+
+- Install: the `/plugin` check says how to reach the Installed and Errors tabs (Tab, Tab, Esc), since `/plugin` opens on Discover and the tab bar scrolls off a small Terminal window. The steps also mention the `xcode-select` note after `git --version`, Homebrew's hidden password prompt and its "Press RETURN", brew's yes or no question, and that the GitHub sign-in opens in the default browser. A fallback `brew link --overwrite node@22` is given for a Homebrew that does not link Node.
+- The intro and Quickstart no longer say the site must already deploy from GitHub. Every blog needs a GitHub repository because every post is reviewed as a pull request; a site built from it publishes on merge, WordPress gets a draft the owner publishes in WordPress admin, a paste platform gets the formatted post on the clipboard to paste and check before approval (the merge then files the repository copy), and a site that is not live yet is fine. The developer section's Publish adapters paragraph says the same.
+- Quickstart says that after setup every command runs with Claude Code started in the blog's folder, because the skills read `blog-ops/config.yaml` from there.
+- `plan-content` honours `modules.reddit_research` and `modules.x_research` when the blog has a config: a source that is off is not probed by `login_status`, not required at the sign-in gate, and its round is skipped. With Reddit off, the two `site:reddit.com` query templates are not used, and the voice-of-customer file's Reddit part holds only quotes visible verbatim in the captured Google results, each with its URL; when there are none it says so and invents nothing. The X section is still appended when X is on and signed in. The strategy's "forum quotes" rule applies only when research found quotes. Without a config nothing changes.
+- Quickstart says comparison posts waiting for a competitor fact sheet are in the plan only for blogs not registered with the Pilcrino app; for a registered blog they wait until the competitor is researched.
 
 ### 0.52.0 - every agent names its model
 
