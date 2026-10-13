@@ -390,6 +390,12 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.52.0 - every agent names its model
+
+- Every agent file now names its model, so a terminal run never hands an agent the session's model. The researcher and the humanizer stay on Sonnet; the plan reviewer moves from Sonnet to Opus; the writer, reviewer, image planner and image builder, which named nothing before, are now Opus.
+- `tests/lint.sh` fails on an agent file without a `model:` line.
+- The console contract adds the console-appended park reason `agent_model_unavailable`: the app does not start a run when an agent it passes has no saved model or one the Claude account no longer offers.
+
 ### 0.51.0 - comparison posts go into the plan
 
 - `plan-content`, standalone blogs: an alternatives, vs, review or export post whose competitor has no fact sheet yet is added to `content-plan.md` as `planned`, with a `Profile first: <name>, <name>` line after its `Mention:` line in the Details block. A test run had held nine such posts, the core of a product blog, in `strategy.md` until five research runs and a re-plan; now they are in the plan, the post workflow copies the line into the brief and offers to research the competitors when the post is started. Registered blogs keep today's rule (the console owns that check); autopilot is unchanged.

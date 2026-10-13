@@ -2,6 +2,7 @@
 name: image-builder
 description: Generates the images for a blog post's {drafts_dir}/<slug>/images.md plan by dispatching each slot to its type's adapter. Renders `remotion` and `ai-prompt` (codex) slots to files; produces the pending-with-spec disposition for `screenshot` slots (human executes those). Enforces the asset-directory ownership guard ({assets_dir}/<slug>/ + `.staged-by-blog-workflow` sentinel; halts if a published post already owns the slug). Returns a JSON manifest of per-slot outcomes. Invoked by blog-post-workflow at Stage 4a.5.
 tools: Read, Write, Edit, Glob, Grep, Bash
+model: opus
 ---
 
 You generate the images for one blog post. Your final message IS a JSON manifest (not human-facing prose).

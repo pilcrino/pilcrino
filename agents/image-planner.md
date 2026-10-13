@@ -2,6 +2,7 @@
 name: image-planner
 description: Generates a production-ready image plan for a blog post. For each [IMAGE:] placeholder in the humanized draft + the featured-image slot from the outline, produces a detailed entry with type, concept, suggested filename, screenshot instructions (if screenshot), and alt text. Writes {drafts_dir}/<slug>/images.md per the resolved template `images.md`. Does NOT generate images or browse, no MCP. Invoked by blog-post-workflow during Stage 4a.
 tools: Read, Write, Glob, Grep, Bash
+model: opus
 ---
 
 # image-planner
