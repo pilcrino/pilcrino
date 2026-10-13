@@ -69,7 +69,7 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
    node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/post-to-clipboard.mjs" "$WT_ABS/{content_dir}/<slug>.md" <--cover-key "$COVER_KEY" when publish.markdown.cover_key is set>
    open "$WT_ABS/{assets_dir}/<slug>"
    ```
-   The script renders the body (frontmatter left out) to HTML, puts it on the clipboard as formatted text, and prints one line per frontmatter field (`title: ...`, `description: ...`, `date: ...`, `tags: ...`, `author: ...`, `cover: <file>`); `open` shows the image folder in Finder. The banner then says, with the printed values filled in and only the fields the script printed:
+   The script renders the body (frontmatter left out) to HTML, puts it on the clipboard as formatted text, and prints one line per frontmatter field (`title: ...`, `description: ...`, `date: ...`, `tags: ...`, `author: ...`, `cover: <file>`), then, only when the body has any, one `contains:` line counting its tables and code blocks (`contains: 1 table, 2 code blocks`). The `contains:` line is not a CMS field: never list it among the fields. `open` shows the image folder in Finder. The banner then says, with the printed values filled in and only the fields the script printed:
 
    > To put the post on <Platform>: I copied the post's text to your clipboard, already formatted, and opened its image folder in Finder. In <Platform>, create a new post and paste into the post body. Then fill these fields one by one:
    > - Title: <title>
@@ -79,6 +79,8 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
    > - Author: <author>
    > - Cover image: <cover file>, from the folder I opened
    > Each picture in the text shows its file name: replace it with the file of that name from the same folder. When it looks right in <Platform>, tell me "approve". If the clipboard has changed since, say "copy the post again".
+
+   When the script printed a `contains:` line and the platform is `ghost` or `generic`, add before "When it looks right", with the counts filled in and only the parts that apply: "This post has <N table(s)> and <N code block(s)>. Many rich-text editors drop a pasted table or flatten a code block without saying so, so check each one is there after pasting. If one is missing, add it in <Platform> by hand (an embed, or an image of the table) before you approve." Not for `jekyll`: the owner puts the markdown file itself in `_posts`, and the site renders tables and code blocks from it.
 
    Registered blogs only, add: "Or download the post as a zip from the Pilcrino app." Never mention the app to an owner whose blog is not registered with it. For `jekyll` add: "Name the file `YYYY-MM-DD-<slug>.md` when you put it in `_posts`." "Copy the post again" re-runs the two commands above. When the script exits 1, give its one-line reason, still run `open`, and name the post file to open instead (`$WT_ABS/{content_dir}/<slug>.md`). The order matters: after the merge and cleanup the app serves the published copy from the owner's checkout, which only has the post once they pull.
 7. **Layout line for the Gate 2 banner.** `Layout: not checked (the markdown adapter has no site preview)`. Never omit the line.
