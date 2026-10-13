@@ -428,6 +428,10 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.55.0 - paste platforms warn about tables and code blocks
+
+- A fresh-Mac test on a Webflow blog pasted a post with a five-row table and two code blocks, and nothing warned the owner that a rich-text editor may drop a pasted table or flatten a code block without saying so. `post-to-clipboard.mjs` now counts the post's tables and code blocks, nested ones included, and prints a `contains:` line after the field lines when there are any. For Ghost and other paste platforms the Gate 2 banner then names them and asks the owner to check each one after pasting, adding a missing one by hand before approving. Jekyll is left out: its owner commits the markdown file itself.
+
 ### 0.54.0 - the browser survives a plugin update
 
 - After every `/plugin update`, the Pilcrino browser stopped working for every owner until someone deleted a file by hand. The new version's folder has no packages yet, so the browser's first start ran `npm install` before answering Claude Code; Claude Code gives a server 30 seconds to answer, killed it mid-install, and the lock file the install held (`browser/.install.lock`) stayed behind. Every later start waited on that lock and was killed again.

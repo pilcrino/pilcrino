@@ -5,7 +5,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { bannerFields, bareFilename, parseArgs, splitFrontmatter } from './post-to-clipboard.mjs'
+import { bannerFields, bareFilename, containsLine, parseArgs, splitFrontmatter } from './post-to-clipboard.mjs'
 
 const SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'post-to-clipboard.mjs')
 const dir = mkdtempSync(join(tmpdir(), 'pilcrino-p2c-test-'))
@@ -125,6 +125,7 @@ See [Clockfold](https://clockfold.example/notes).
     'tags: invoicing, time tracking',
     'author: Dana Reyes',
     'cover: featured.png',
+    'contains: 1 table',
   ].join('\n'))
   assert.match(html, /<h1>Body heading<\/h1>/)
   assert.match(html, /<h2>Why hourly<\/h2>/)
@@ -149,6 +150,33 @@ test('cli --no-clipboard: a post without frontmatter prints no fields', () => {
   const { fields, html } = split(r.stdout)
   assert.equal(fields, '')
   assert.match(html, /^<h1>Plain<\/h1>/)
+})
+
+test('containsLine: singular, plural, either part alone, nothing when neither', () => {
+  assert.equal(containsLine({ tables: 1, codeBlocks: 2 }), 'contains: 1 table, 2 code blocks')
+  assert.equal(containsLine({ tables: 3, codeBlocks: 1 }), 'contains: 3 tables, 1 code block')
+  assert.equal(containsLine({ tables: 0, codeBlocks: 1 }), 'contains: 1 code block')
+  assert.equal(containsLine({ tables: 2, codeBlocks: 0 }), 'contains: 2 tables')
+  assert.equal(containsLine({ tables: 0, codeBlocks: 0 }), '')
+})
+
+test('cli --no-clipboard: tables and code blocks are counted after the fields, nested ones too', () => {
+  const body = [
+    '| Tool | Price |', '|---|---|', '| A | $5 |', '',
+    '```bash', 'echo hi', '```', '',
+    '- item', '', '      indented code in a list', '',
+    '> | q | r |', '> |---|---|', '> | 1 | 2 |', '',
+    'Inline `code` is not a block.', '',
+  ].join('\n')
+  const r = run([post(`---\ntitle: T\n---\n${body}`), '--no-clipboard'])
+  assert.equal(r.code, 0, r.stderr)
+  assert.equal(split(r.stdout).fields, 'title: T\ncontains: 2 tables, 2 code blocks')
+})
+
+test('cli --no-clipboard: a post with no tables or code blocks prints no contains line', () => {
+  const r = run([post('---\ntitle: T\n---\nJust `inline` code and text.\n'), '--no-clipboard'])
+  assert.equal(r.code, 0, r.stderr)
+  assert.equal(split(r.stdout).fields, 'title: T')
 })
 
 test('cli: a missing file exits 1 with one line on stderr', () => {

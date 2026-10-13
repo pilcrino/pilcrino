@@ -7,6 +7,9 @@
 //
 // stdout: one line per field present, in this order:
 //   title: ..., description: ..., date: ..., tags: a, b, author: ..., cover: <filename>
+// then, only when the body has any, one `contains:` line naming the blocks a
+// rich-text editor may drop or flatten on paste (`contains: 1 table, 2 code blocks`).
+// The `contains:` line is a warning for the banner, not a CMS field.
 // With --no-clipboard the clipboard is left alone and stdout carries the field
 // lines, one empty line, then the HTML (for tests and non-macOS machines).
 // Diagnostics go to stderr. Exit 1 on any failure, 2 on a usage error.
@@ -133,6 +136,29 @@ export function renderBody(marked, body) {
   return md.parse(body)
 }
 
+/**
+ * Counts the blocks a rich-text editor may drop or flatten when the post is
+ * pasted: tables and code blocks (fenced or indented), wherever they sit,
+ * including inside lists and quotes.
+ */
+export function countBlocks(marked, body) {
+  const md = new marked.Marked({ gfm: true })
+  const counts = { tables: 0, codeBlocks: 0 }
+  md.walkTokens(md.lexer(body), (token) => {
+    if (token.type === 'table') counts.tables++
+    else if (token.type === 'code') counts.codeBlocks++
+  })
+  return counts
+}
+
+/** The `contains:` line, or '' when the body has neither tables nor code blocks. */
+export function containsLine({ tables, codeBlocks }) {
+  const parts = []
+  if (tables > 0) parts.push(`${tables} ${tables === 1 ? 'table' : 'tables'}`)
+  if (codeBlocks > 0) parts.push(`${codeBlocks} ${codeBlocks === 1 ? 'code block' : 'code blocks'}`)
+  return parts.length ? `contains: ${parts.join(', ')}` : ''
+}
+
 function ensureBrowserPackages() {
   const r = spawnSync(process.execPath, [join(BROWSER_ROOT, 'bin.mjs'), 'install'], { stdio: ['ignore', 2, 2] })
   if (r.status !== 0) throw new Error(`could not install the browser packages (node ${join(BROWSER_ROOT, 'bin.mjs')} install exited ${r.status ?? r.signal})`)
@@ -168,7 +194,7 @@ async function main(argv) {
     ensureBrowserPackages()
     const marked = await loadMarked()
     const html = renderBody(marked, body)
-    const lines = fieldLines(bannerFields(data, args.coverKey))
+    const lines = [fieldLines(bannerFields(data, args.coverKey)), containsLine(countBlocks(marked, body))].filter(Boolean).join('\n')
     if (args.clipboard) {
       if (process.platform !== 'darwin') throw new Error('the clipboard copy needs macOS; rerun with --no-clipboard to print the HTML')
       copyHtml(html)
