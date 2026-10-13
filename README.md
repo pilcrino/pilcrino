@@ -58,28 +58,31 @@ offering to install them: click Install, wait for it to finish, then run the
 command again.
 
 1. Command Line Tools. Type `git --version`. If a dialog appears, that is the
-   installer: click Install. When `git --version` prints a version, you are
-   done.
-2. Homebrew (the installer for the GitHub CLI). Paste the one-line command from
-   https://brew.sh and follow its prompts. When it ends with "Next steps", run
-   the two or three commands it prints: they add Homebrew to your PATH, and
-   without them the next window will say `command not found: brew`. Check:
+   installer: click Install. (Terminal may also print a note about
+   `xcode-select`; that is normal and needs no action.) When
+   `git --version` prints a version, you are done.
+2. Homebrew (the installer for the next two). Paste the one-line command from
+   https://brew.sh and follow its prompts: it asks for your Mac password
+   (nothing shows as you type; press Return when done) and then asks you to
+   press Return to continue. When it ends with "Next steps", run the two or
+   three commands it prints: they add Homebrew to your PATH, and without them
+   the next window will say `command not found: brew`. Check:
    `brew --version`.
-3. The GitHub CLI: `brew install gh`. Check: `gh --version` prints a
-   version.
-4. Node: download the LTS installer from https://nodejs.org, double-click it
-   and follow the installer (it asks for your Mac password). Check:
-   `node --version` prints v22.13 or newer (24 is fine too).
-5. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
-   take the defaults, and finish the sign-in in the browser window it opens.
-   Check: `gh auth status` says "Logged in".
+3. Node and the GitHub CLI: `brew install node@22 gh`. Answer `y` if it asks
+   a yes or no question. Check: `node --version` prints v22.13 or newer (24
+   is fine too), `gh --version` prints a version. If `node --version` says
+   "command not found", run `brew link --overwrite node@22` and check again.
+4. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
+   take the defaults, and finish the sign-in in the browser window it opens
+   (your Mac's default browser, usually Safari). Check: `gh auth status`
+   says "Logged in".
 
 Then, in Claude Code:
 
-6. Run `claude` in Terminal. Which folder you are in does not matter yet
+5. Run `claude` in Terminal. Which folder you are in does not matter yet
    (it will after setup, see Quickstart). At the safety question, choose
    "Yes, I trust this folder"; the highlighted default exits.
-7. Type these two commands into Claude Code's prompt, one at a time (they are
+6. Type these two commands into Claude Code's prompt, one at a time (they are
    Claude Code commands, not Terminal commands):
 
    ```text
@@ -89,8 +92,9 @@ Then, in Claude Code:
 
    The install screen asks for a scope; the default, "Install for you", is
    right.
-8. Check: type `/plugin`. The Installed tab lists `pilcrino` with 12 skills and
-   a `pilcrino-browser` server, and the Errors tab is empty.
+7. Check: type `/plugin`. It opens on the Discover tab; press Tab to reach
+   Installed, which lists `pilcrino` with 12 skills and a `pilcrino-browser`
+   server, Tab again for Errors, which should be empty, and Esc to close.
 
 Pilcrino works best in Claude Code's auto mode (Shift+Tab switches modes).
 When Claude Code still asks whether it may read or write one of Pilcrino's own
@@ -415,7 +419,7 @@ See https://pilcrino.com.
 
 ### 0.53.0 - README fixes from the fresh-Mac re-test
 
-- Install: Node comes from the LTS installer on nodejs.org, as setup does, in its own step. `brew install node@22 gh` left `node` off the PATH (Homebrew's `node@22` is keg-only), so the `node --version` check failed; Homebrew now installs only the GitHub CLI (`brew install gh`). The steps after it are renumbered.
+- Install: the `/plugin` check says how to reach the Installed and Errors tabs (Tab, Tab, Esc), since `/plugin` opens on Discover and the tab bar scrolls off a small Terminal window. The steps also mention the `xcode-select` note after `git --version`, Homebrew's hidden password prompt and its "Press RETURN", brew's yes or no question, and that the GitHub sign-in opens in the default browser. A fallback `brew link --overwrite node@22` is given for a Homebrew that does not link Node.
 - The intro and Quickstart no longer say the site must already deploy from GitHub. Every blog needs a GitHub repository because every post is reviewed as a pull request; a site built from it publishes on merge, WordPress gets a draft the owner publishes in WordPress admin, a paste platform gets the formatted post on the clipboard to paste and check before approval (the merge then files the repository copy), and a site that is not live yet is fine. The developer section's Publish adapters paragraph says the same.
 - Quickstart says that after setup every command runs with Claude Code started in the blog's folder, because the skills read `blog-ops/config.yaml` from there.
 - `plan-content` honours `modules.reddit_research` and `modules.x_research` when the blog has a config: a source that is off is not probed by `login_status`, not required at the sign-in gate, and its round is skipped. With Reddit off, the two `site:reddit.com` query templates are not used, and the voice-of-customer file holds only quotes visible verbatim in the captured Google results, each with its URL; when there are none it says so and invents nothing. The strategy's "forum quotes" rule applies only when research found quotes. Without a config nothing changes.
@@ -474,7 +478,7 @@ See https://pilcrino.com.
 ### 0.47.0 - README for a first-time owner
 
 - A fresh-Mac test (a non-technical owner installing from the README alone) needed Google three times for a bare prerequisites list, and a README review found no word on supported systems, hosting, or what Pilcrino does not do. The README now opens with four plain sentences on what it writes, for which platforms, that you approve a pull request and merging publishes, and that it runs on macOS only and does not host or deploy your blog.
-- Install is a numbered list with one route and one check per prerequisite: Apple's Command Line Tools (and the dialog that appears on a new Mac), Homebrew with its PATH step, `brew install node@22 gh` ("Node 22.13 or newer, 24 is fine", the browser's real requirement; replaced by the nodejs.org installer in 0.52.0), `gh auth login`, GitHub CLI spelled out. The two `/plugin` commands are shown as Claude Code commands, with `claude`, the trust prompt and a `/plugin` check around them.
+- Install is a numbered list with one route and one check per prerequisite: Apple's Command Line Tools (and the dialog that appears on a new Mac), Homebrew with its PATH step, `brew install node@22 gh` ("Node 22.13 or newer, 24 is fine", the browser's real requirement), `gh auth login`, GitHub CLI spelled out. The two `/plugin` commands are shown as Claude Code commands, with `claude`, the trust prompt and a `/plugin` check around them.
 - Accounts are listed (Claude plan, GitHub, Google, Reddit and X when on, a WordPress application password, LinkedIn admin for `post-to-linkedin`), the GitHub repository moved from install to Quickstart (a WordPress or Webflow blog needs one too), and Quickstart carries rough times from the test runs: setup 1 to 1.5 hours on a new Mac, a plan about 30 minutes, about 2.5 minutes per competitor profile, a post about 40 minutes.
 - New "Reviewing and publishing a post" section: read the pull request, comment there or in Claude Code, approve, then merge or click Publish in WordPress yourself. "Never publishes" is scoped: the plugin never merges or publishes a post, `post-to-linkedin` posts when run, the app can auto-merge Astro posts if you choose. The recommended Claude Code permission mode is stated.
 - The browser section is three plain sentences for the owner (the sign-in window is a second Chrome next to your own; quit it with Cmd+Q; pass Google's check when asked); the mechanics moved to the developer section. Two wrong claims fixed: the browser needs Node, and setup has resumable steps rather than "six phases".
