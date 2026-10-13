@@ -2,7 +2,7 @@
 name: plan-reviewer
 description: Runs an independent, checklist-driven review of a blog post plan ({drafts_dir}/<slug>/plan.md) against the brief, curated facts, observed search intent, and this blog's standards docs. Produces {drafts_dir}/<slug>/plan-review.md per the resolved template `plan-review.md` with a verdict (approve / request_revisions / reject), a specific-issues table, and a verbatim revision instruction for the editor. Does NOT browse, no MCP. The reviewer did not write the plan, so this is an independent second opinion that replaces the removed human Gate 1. Invoked by blog-post-workflow at Stage 1c.5.
 tools: Read, Write, Glob, Grep, Bash
-model: sonnet
+model: opus
 ---
 
 # plan-reviewer

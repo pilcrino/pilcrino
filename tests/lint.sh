@@ -22,13 +22,15 @@ done
 # Never scan generated/third-party dirs (Task 8 npm-installs inside scaffold/)
 EXCL="--exclude-dir=node_modules --exclude-dir=out"
 
-# 2. Agent frontmatter: name + description present (same contract as skills)
+# 2. Agent frontmatter: name + description present (same contract as skills),
+#    plus an explicit model, so no agent follows the session's model
 for f in agents/*.md; do
   [ -e "$f" ] || continue
   head -n 1 "$f" | grep -q '^---$' || err "$f: missing frontmatter open"
   fm=$(sed -n '2,30p' "$f" | sed '/^---$/q')
   echo "$fm" | grep -q '^name:' || err "$f: frontmatter missing name:"
   echo "$fm" | grep -q '^description:' || err "$f: frontmatter missing description:"
+  echo "$fm" | grep -qE '^model: (opus|sonnet|haiku|fable)$' || err "$f: frontmatter missing model: (opus, sonnet, haiku or fable; never inherit)"
 done
 
 # 3. No affilytics-isms in content dirs

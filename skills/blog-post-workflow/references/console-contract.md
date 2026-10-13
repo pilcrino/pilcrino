@@ -374,7 +374,8 @@ is not. The console rejects a zero/missing `pr` at the approval route
 `verification_error`, `pr_conflicted`, `merge_failed`, `pr_create_failed`,
 `staging_conflicted`,
 `archive_missing`, `archive_state_unknown`, `limit_retries_exhausted`,
-`api_retries_exhausted`, `interrupted_retries_exhausted`, `other`, `unexpected_error`
+`api_retries_exhausted`, `interrupted_retries_exhausted`, `agent_model_unavailable`,
+`other`, `unexpected_error`
 
 Parking never corrupts checklist state: a parked slug is always resumable
 interactively via `/pilcrino:blog-post-workflow resume <slug>`.
@@ -476,7 +477,13 @@ own orchestration writes a `parked` line via `console/src/publish.ts`'s
   api_error auto-retries hit `max_api_retries` — a connection that keeps
   dropping is a condition for a human, not a blip to ride out),
   `interrupted_retries_exhausted` (`console/src/runwatch.ts` when a post's
-  killed runs were restarted `max_interrupt_retries` times, default 2).
+  killed runs were restarted `max_interrupt_retries` times, default 2),
+  `agent_model_unavailable` (the console was about to start a run, from the
+  scheduler or a post's manual start, and an agent that run passes has no
+  saved model or a saved model the Claude account no longer offers. Nothing
+  is spawned: the console never substitutes another model. The detail names
+  each agent and its saved model. Once the owner picks a model on the Agents
+  screen, Resume restarts the run that was planned).
 - **Both sides** (overlap — a `parked` event with one of these reasons could
   have come from either side): `wp_auth_failed` is emitted by the run (auth
   probe fails during staging) AND appended by the console

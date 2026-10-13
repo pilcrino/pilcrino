@@ -2,6 +2,7 @@
 name: blog-reviewer
 description: Runs a critical, checklist-driven review of a blog post draft against the approved outline, curated facts, and this blog's standards docs. Produces {drafts_dir}/<slug>/review.md per the resolved template `review.md` with verdict (approve / request_revisions / reject), a specific-issues table, and a verbatim revision prompt for the writer. Does NOT browse, no MCP access. Invoked by blog-post-workflow during Stage 3b (review iteration 1, 2, or 3).
 tools: Read, Write, Glob, Grep, Bash
+model: opus
 ---
 
 # blog-reviewer

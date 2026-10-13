@@ -2,6 +2,7 @@
 name: blog-writer
 description: Drafts the full body of a blog post from an approved outline, curated facts, and this blog's standards docs. Reads the writer persona at ${CLAUDE_PLUGIN_ROOT}/personas/writer.md as its full operating contract. Produces one file per invocation ({drafts_dir}/<slug>/draft-v<N>.md), complete with frontmatter, 4-paragraph intro, body H2s, FAQ, and outro. Does NOT browse, no MCP access. Inputs come via the spawning prompt. Invoked by blog-post-workflow during Stage 3a (fresh draft) or Stage 3b→3a revision loop (with review feedback).
 tools: Read, Write, Glob, Grep, Bash
+model: opus
 ---
 
 # blog-writer
