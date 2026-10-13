@@ -11,10 +11,12 @@ and illustrates the post, then opens a pull request on GitHub that you read,
 comment on and approve; merging it publishes on a site built from the
 repository. Pilcrino never merges or publishes a post itself.
 
-It runs on macOS only. It does not host or deploy your blog: your site must
-already publish from its GitHub repository (or be a WordPress site), and
-Pilcrino only adds posts to it. Research and writing run on your Claude plan
-in a long Claude Code session.
+It runs on macOS only. It does not host or deploy your blog, and it only
+adds posts to it. Every blog needs a GitHub repository, because every post is
+reviewed as a pull request; a site built from that repository publishes when
+the pull request merges, WordPress and paste platforms publish from the
+approved post afterwards, and a site that is not live yet is fine. Research
+and writing run on your Claude plan in a long Claude Code session.
 
 Scope of "never publishes": the plugin never merges a pull request or
 publishes a blog post. The `post-to-linkedin` skill does post to your LinkedIn
@@ -55,23 +57,26 @@ command again.
 1. Command Line Tools. Type `git --version`. If a dialog appears, that is the
    installer: click Install. When `git --version` prints a version, you are
    done.
-2. Homebrew (the installer for the next two). Paste the one-line command from
+2. Homebrew (the installer for the GitHub CLI). Paste the one-line command from
    https://brew.sh and follow its prompts. When it ends with "Next steps", run
    the two or three commands it prints: they add Homebrew to your PATH, and
    without them the next window will say `command not found: brew`. Check:
    `brew --version`.
-3. Node and the GitHub CLI: `brew install node@22 gh`. Check: `node --version`
-   prints v22.13 or newer (24 is fine too), `gh --version` prints a version.
-4. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
+3. The GitHub CLI: `brew install gh`. Check: `gh --version` prints a
+   version.
+4. Node: download the LTS installer from https://nodejs.org, double-click it
+   and follow the installer (it asks for your Mac password). Check:
+   `node --version` prints v22.13 or newer (24 is fine too).
+5. Sign the GitHub CLI in: `gh auth login`, press Enter on every question to
    take the defaults, and finish the sign-in in the browser window it opens.
    Check: `gh auth status` says "Logged in".
 
 Then, in Claude Code:
 
-5. Run `claude` in Terminal. Which folder you are in does not matter yet. At
-   the safety question, choose "Yes, I trust this folder"; the highlighted
-   default exits.
-6. Type these two commands into Claude Code's prompt, one at a time (they are
+6. Run `claude` in Terminal. Which folder you are in does not matter yet
+   (it will after setup, see Quickstart). At the safety question, choose
+   "Yes, I trust this folder"; the highlighted default exits.
+7. Type these two commands into Claude Code's prompt, one at a time (they are
    Claude Code commands, not Terminal commands):
 
    ```text
@@ -81,7 +86,7 @@ Then, in Claude Code:
 
    The install screen asks for a scope; the default, "Install for you", is
    right.
-7. Check: type `/plugin`. The Installed tab lists `pilcrino` with 12 skills and
+8. Check: type `/plugin`. The Installed tab lists `pilcrino` with 12 skills and
    a `pilcrino-browser` server, and the Errors tab is empty.
 
 Pilcrino works best in Claude Code's auto mode (Shift+Tab switches modes).
@@ -98,7 +103,10 @@ files, "Yes, and don't ask again" is safe.
    it), or nowhere yet (it creates a GitHub repository with your consent). A
    WordPress, Webflow or other blog that is not built from a repository still
    gets a GitHub repository, because every post is reviewed as a pull request
-   and the repository keeps the post files.
+   and the repository keeps the post files. After setup, start Claude Code
+   in the blog's folder (`cd <blog folder>` then `claude`) for every later
+   command, because the skills read `blog-ops/config.yaml` from the folder
+   you start in.
 2. **Answer the interview.** One question at a time, each with a recommended
    answer (reply `default` to take it); setup saves as it goes, so you can
    stop and run it again later to continue. It reads your site (which
@@ -125,9 +133,12 @@ files, "Yes, and don't ask again" is safe.
 You can also just say what you want ("Can you make me a content plan?",
 "Write a how-to about ...") and Claude Code picks the right skill.
 
-Your site must already deploy from GitHub. If it builds a preview for every
-pull request, Pilcrino shows you that preview; if not, you read the post in
-the pull request itself.
+Every blog needs a GitHub repository, because every post is reviewed as a
+pull request. A site built from that repository publishes when the pull
+request merges; WordPress and paste platforms publish from the approved post
+afterwards. A site that is not live yet is fine: you read the post in the
+pull request (or in its preview, if your site builds one for every pull
+request).
 
 ## Reviewing and publishing a post
 
@@ -390,6 +401,13 @@ See https://pilcrino.com.
 
 ## Changelog
 
+### 0.53.0 - README fixes from the fresh-Mac re-test
+
+- Install: Node comes from the LTS installer on nodejs.org, as setup does, in its own step. `brew install node@22 gh` left `node` off the PATH (Homebrew's `node@22` is keg-only), so the `node --version` check failed; Homebrew now installs only the GitHub CLI (`brew install gh`). The steps after it are renumbered.
+- The intro and Quickstart no longer say the site must already deploy from GitHub. Every blog needs a GitHub repository because every post is reviewed as a pull request; a site built from it publishes on merge, WordPress and paste platforms publish from the approved post, and a site that is not live yet is fine.
+- Quickstart says that after setup every command runs with Claude Code started in the blog's folder, because the skills read `blog-ops/config.yaml` from there.
+- `plan-content` honours `modules.reddit_research` and `modules.x_research` when the blog has a config: a source that is off is not probed by `login_status`, not required at the sign-in gate, and its round is skipped. With Reddit off, the voice-of-customer file draws on quotes in the captured Google pages and says Reddit research is off. Without a config nothing changes.
+
 ### 0.52.0 - every agent names its model
 
 - Every agent file now names its model, so a terminal run never hands an agent the session's model. The researcher and the humanizer stay on Sonnet; the plan reviewer moves from Sonnet to Opus; the writer, reviewer, image planner and image builder, which named nothing before, are now Opus.
@@ -443,7 +461,7 @@ See https://pilcrino.com.
 ### 0.47.0 - README for a first-time owner
 
 - A fresh-Mac test (a non-technical owner installing from the README alone) needed Google three times for a bare prerequisites list, and a README review found no word on supported systems, hosting, or what Pilcrino does not do. The README now opens with four plain sentences on what it writes, for which platforms, that you approve a pull request and merging publishes, and that it runs on macOS only and does not host or deploy your blog.
-- Install is a numbered list with one route and one check per prerequisite: Apple's Command Line Tools (and the dialog that appears on a new Mac), Homebrew with its PATH step, `brew install node@22 gh` ("Node 22.13 or newer, 24 is fine", the browser's real requirement), `gh auth login`, GitHub CLI spelled out. The two `/plugin` commands are shown as Claude Code commands, with `claude`, the trust prompt and a `/plugin` check around them.
+- Install is a numbered list with one route and one check per prerequisite: Apple's Command Line Tools (and the dialog that appears on a new Mac), Homebrew with its PATH step, `brew install node@22 gh` ("Node 22.13 or newer, 24 is fine", the browser's real requirement; replaced by the nodejs.org installer in 0.52.0), `gh auth login`, GitHub CLI spelled out. The two `/plugin` commands are shown as Claude Code commands, with `claude`, the trust prompt and a `/plugin` check around them.
 - Accounts are listed (Claude plan, GitHub, Google, Reddit and X when on, a WordPress application password, LinkedIn admin for `post-to-linkedin`), the GitHub repository moved from install to Quickstart (a WordPress or Webflow blog needs one too), and Quickstart carries rough times from the test runs: setup 1 to 1.5 hours on a new Mac, a plan about 30 minutes, about 2.5 minutes per competitor profile, a post about 40 minutes.
 - New "Reviewing and publishing a post" section: read the pull request, comment there or in Claude Code, approve, then merge or click Publish in WordPress yourself. "Never publishes" is scoped: the plugin never merges or publishes a post, `post-to-linkedin` posts when run, the app can auto-merge Astro posts if you choose. The recommended Claude Code permission mode is stated.
 - The browser section is three plain sentences for the owner (the sign-in window is a second Chrome next to your own; quit it with Cmd+Q; pass Google's check when asked); the mechanics moved to the developer section. Two wrong claims fixed: the browser needs Node, and setup has resumable steps rather than "six phases".
