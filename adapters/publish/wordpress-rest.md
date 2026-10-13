@@ -40,9 +40,9 @@ something to route around: reaching into the operator's shell profile (`zsh -lic
 of this contract mentions, it works until it doesn't, and hides the real defect.
 For the env-var source under the console: the run inherits the console's
 environment, which a `launchd` agent gets from its plist and NOT from your
-interactive shell; the fix is `console/scripts/install-agent.sh`, which propagates
-`publish.wordpress.app_password_env` into the agent's `EnvironmentVariables`, and
-the console's `wp_auth` preflight check reports the same condition up front. For
+interactive shell; the console gives each blog's worker the variable from that
+blog's own environment file under `~/.pilcrino/console/environments/`, and its
+`wp_auth` preflight check reports a missing value up front. For
 the keychain source: setup stores the item with `security add-generic-password -U
 -s <service> -a <username> -w`; the launch agent runs in the user's session, so
 `security` can read it there.
