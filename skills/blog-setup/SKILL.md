@@ -273,6 +273,11 @@ continue.
      fails (never pre-emptively), and give the exact three lines then: quit
      with `/exit`, in Terminal `cd <blog folder>` then `claude`, then
      `/pilcrino:blog-setup`.
+   - A browser tool that answers "pilcrino-browser is installing its
+     packages" is not a failure: right after a plugin update the browser
+     installs its packages on first start, which takes a minute or two.
+     Tell the owner once, wait a minute, and call it again; never ask for a
+     restart or for any file to be deleted for this.
 3. **GitHub CLI (`gh`).** `command -v gh >/dev/null 2>&1 && gh --version |
    head -1 || echo missing`.
    - Missing: "Pilcrino uses GitHub's command line tool to open each post

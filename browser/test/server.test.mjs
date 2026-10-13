@@ -4,19 +4,26 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
+import { ensureInstalled } from '../src/deps.mjs'
 
 test('lists exactly the eleven tools', async () => {
-  const bin = join(dirname(fileURLToPath(import.meta.url)), '..', 'bin.mjs')
-  const transport = new StdioClientTransport({ command: process.execPath, args: [bin] })
+  const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+  // Stamp node_modules as `node bin.mjs install` does (after `npm ci` there is no stamp yet),
+  // so bin.mjs starts the real server directly instead of the install-time shim.
+  ensureInstalled(root)
+  const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'bin.mjs')] })
   const client = new Client({ name: 't', version: '0' })
   await client.connect(transport)
-  const { tools } = await client.listTools()
-  assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'tabs', 'type', 'wait'])
-  const r = await client.callTool({ name: 'capture', arguments: { tabId: 't1', script: 'return 1', outFile: 'relative.json' } })
-  // outFile is validated before the tab lookup, so no Chrome is launched.
-  assert.equal(r.isError, true)
-  assert.equal(JSON.parse(r.content[0].text).code, 'bad_path')
-  await client.close()
+  try {
+    const { tools } = await client.listTools()
+    assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'tabs', 'type', 'wait'])
+    const r = await client.callTool({ name: 'capture', arguments: { tabId: 't1', script: 'return 1', outFile: 'relative.json' } })
+    // outFile is validated before the tab lookup, so no Chrome is launched.
+    assert.equal(r.isError, true)
+    assert.equal(JSON.parse(r.content[0].text).code, 'bad_path')
+  } finally {
+    await client.close()
+  }
 })
 
 async function inMemoryClient(session) {
