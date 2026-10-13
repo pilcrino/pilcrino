@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 const LOCK_STALE_MS = 10 * 60 * 1000
 const WAIT_MAX_MS = 5 * 60 * 1000
+// After linking the lock, wait this long and read it again before installing (see tryLock).
+const SETTLE_MS = 100
 const NPM_ARGS = ['install', '--omit=dev', '--no-audit', '--no-fund']
 
 function sleepSync(ms) {
@@ -33,36 +35,75 @@ export function isInstalled(root) {
   return paths(root).stamped()
 }
 
+/** The lock's text, inode and mtime, or null when it cannot be read (usually: it is gone). */
+function readLock(lock) {
+  try {
+    const text = readFileSync(lock, 'utf8').trim()
+    const st = statSync(lock)
+    return { text, ino: st.ino, mtimeMs: st.mtimeMs }
+  } catch {
+    return null
+  }
+}
+
+function lockIsMine(lock) {
+  return readLock(lock)?.text === String(process.pid)
+}
+
+/** Removes the lock only when it holds this process's PID. */
+function releaseLock(lock) {
+  if (lockIsMine(lock)) rmSync(lock, { force: true })
+}
+
 /**
- * Takes the lock or says why not. The lock is exclusive and created whole: the
- * PID goes into a private file that is then hard-linked to the lock name (the
- * link fails with EEXIST like an O_EXCL open), so no process ever reads a lock
- * without its PID. Returns 'taken', 'retry' (a stale lock was just removed) or
- * 'held' (a live process holds it).
+ * One attempt at the lock. Returns 'linked' (the lock now holds our PID; the
+ * caller still settles and re-reads it before installing), 'retry' (a stale
+ * lock was just removed, or the lock changed under us) or 'held' (a live
+ * process holds it).
+ *
+ * The lock is exclusive and created whole: the PID goes into a private file
+ * that is then hard-linked to the lock name (the link fails with EEXIST like an
+ * O_EXCL open), so no process ever reads a lock without its PID.
+ *
+ * Reclaiming a stale lock is the racy part. Two starts can read the same dead
+ * PID; if one removes it and links a fresh lock before the other removes "the
+ * stale lock", the second removes the fresh one. Two defences narrow this:
+ * a lock is only removed after a second read shows the same PID text and inode
+ * that were judged stale, and the caller waits SETTLE_MS after linking and
+ * checks the lock still holds its PID, so a contender that removed it in that
+ * window costs a lap of the loop, not a second npm. An overlap is still
+ * possible in theory: a contender stalled for longer than SETTLE_MS between its
+ * second read and its removal (a stopped or heavily swapped process) can remove
+ * a lock whose owner has already started npm. Closing that fully needs a kernel
+ * lock (flock), which Node does not expose.
+ *
+ * Process identity is the PID alone, with the age rule below as the fallback
+ * for a reused PID. Comparing the process start time as well would need ps or
+ * /proc code per platform; the bootstrap shim retries a failed install instead,
+ * so a reused PID delays the install by at most the age rule, not forever.
  */
 function tryLock(lock, d) {
+  const mine = String(process.pid)
   const tmp = `${lock}.${process.pid}.${Math.random().toString(36).slice(2)}`
-  writeFileSync(tmp, String(process.pid))
+  writeFileSync(tmp, mine)
   try {
     linkSync(tmp, lock)
-    return 'taken'
+    return 'linked'
   } catch (err) {
     if (err.code !== 'EEXIST') throw err
   } finally {
     rmSync(tmp, { force: true })
   }
-  let text, age
-  try {
-    text = readFileSync(lock, 'utf8').trim()
-    age = d.now() - statSync(lock).mtimeMs
-  } catch {
-    return 'retry'
-  }
-  const pid = /^\d+$/.test(text) ? Number(text) : 0
+  const seen = readLock(lock)
+  if (seen === null) return 'retry'
+  // A lock with our own PID is ours (left by an earlier attempt in this process).
+  if (seen.text === mine) return 'linked'
+  const pid = /^\d+$/.test(seen.text) ? Number(seen.text) : 0
   // A lock left by a killed install (its PID is gone, or unreadable) is cleared at once.
   // The age rule stays as a second check, for a PID that was reused by another process.
-  if (pid <= 0 || !d.pidAlive(pid) || age > LOCK_STALE_MS) {
-    rmSync(lock, { force: true })
+  if (pid <= 0 || !d.pidAlive(pid) || d.now() - seen.mtimeMs > LOCK_STALE_MS) {
+    const again = readLock(lock)
+    if (again !== null && again.text === seen.text && again.ino === seen.ino) rmSync(lock, { force: true })
     return 'retry'
   }
   return 'held'
@@ -70,10 +111,7 @@ function tryLock(lock, d) {
 
 /** Removes the lock only when this process holds it (used when exiting mid-install). */
 export function releaseLockIfMine(root) {
-  const lock = join(root, '.install.lock')
-  try {
-    if (readFileSync(lock, 'utf8').trim() === String(process.pid)) rmSync(lock, { force: true })
-  } catch {}
+  releaseLock(join(root, '.install.lock'))
 }
 
 function npmMissing(root) {
@@ -81,6 +119,10 @@ function npmMissing(root) {
 }
 
 const npmEnv = () => ({ ...process.env, npm_config_loglevel: 'error' })
+
+function lostLock(lock) {
+  process.stderr.write(`pilcrino-browser: another installer took ${lock} during npm install; waiting for its result\n`)
+}
 
 /**
  * Makes sure browser/node_modules holds the packages for this package.json
@@ -91,7 +133,7 @@ const npmEnv = () => ({ ...process.env, npm_config_loglevel: 'error' })
  */
 export function ensureInstalled(root, deps = {}) {
   const spawnSync = deps.spawnSync ?? nodeSpawnSync
-  const d = { sleep: deps.sleep ?? sleepSync, now: deps.now ?? Date.now, pidAlive: deps.pidAlive ?? pidAlive }
+  const d = { sleep: deps.sleep ?? sleepSync, now: deps.now ?? Date.now, pidAlive: deps.pidAlive ?? pidAlive, settleMs: deps.settleMs ?? SETTLE_MS }
   const { version, stamp, lock, stamped } = paths(root)
   if (stamped()) return { installed: false }
 
@@ -105,18 +147,22 @@ export function ensureInstalled(root, deps = {}) {
       if (stamped()) return { installed: false }
       continue
     }
+    if (d.settleMs > 0) d.sleep(d.settleMs)
+    if (!lockIsMine(lock)) continue
     try {
       if (stamped()) return { installed: false }
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
       const r = spawnSync('npm', NPM_ARGS, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
       if (r.error?.code === 'ENOENT') throw npmMissing(root)
-      if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status})`)
+      if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
+      // A lost lock means another installer is running npm now: it writes the stamp, not us.
+      if (!lockIsMine(lock)) { lostLock(lock); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }
     } finally {
-      rmSync(lock, { force: true })
+      releaseLock(lock)
     }
   }
 }
@@ -129,7 +175,12 @@ export function ensureInstalled(root, deps = {}) {
  */
 export async function installAsync(root, deps = {}) {
   const spawn = deps.spawn ?? nodeSpawn
-  const d = { sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))), now: deps.now ?? Date.now, pidAlive: deps.pidAlive ?? pidAlive }
+  const d = {
+    sleep: deps.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms))),
+    now: deps.now ?? Date.now,
+    pidAlive: deps.pidAlive ?? pidAlive,
+    settleMs: deps.settleMs ?? SETTLE_MS,
+  }
   const { version, stamp, lock, stamped } = paths(root)
   if (stamped()) return { installed: false }
 
@@ -143,6 +194,8 @@ export async function installAsync(root, deps = {}) {
       if (stamped()) return { installed: false }
       continue
     }
+    if (d.settleMs > 0) await d.sleep(d.settleMs)
+    if (!lockIsMine(lock)) continue
     try {
       if (stamped()) return { installed: false }
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
@@ -154,11 +207,13 @@ export async function installAsync(root, deps = {}) {
         child.on('close', (status, signal) => resolve(status ?? signal))
       })
       if (code !== 0) throw new Error(`npm install failed in ${root} (exit ${code})`)
+      // A lost lock means another installer is running npm now: it writes the stamp, not us.
+      if (!lockIsMine(lock)) { lostLock(lock); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }
     } finally {
-      rmSync(lock, { force: true })
+      releaseLock(lock)
     }
   }
 }

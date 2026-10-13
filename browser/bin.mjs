@@ -14,8 +14,27 @@ if (cmd === undefined && !isInstalled(root)) {
   const { runBootstrap } = await import('./src/bootstrap.mjs')
   const version = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version
   let child
-  const quit = () => {
-    try { child?.kill('SIGTERM') } catch {}
+  let childClosed = Promise.resolve()
+  let quitting = false
+  const quit = async () => {
+    if (quitting) return
+    quitting = true
+    // npm may still be writing node_modules: the lock stays until it has exited,
+    // or another installer could start on the same tree.
+    if (child) {
+      const c = child
+      try { c.kill('SIGTERM') } catch {}
+      let timer
+      const closed = await Promise.race([
+        childClosed.then(() => true),
+        new Promise((r) => { timer = setTimeout(() => r(false), 10_000) }),
+      ])
+      clearTimeout(timer)
+      if (!closed) {
+        try { c.kill('SIGKILL') } catch {}
+        await childClosed
+      }
+    }
     releaseLockIfMine(root)
     process.exit(0)
   }
@@ -27,10 +46,24 @@ if (cmd === undefined && !isInstalled(root)) {
     stderr: process.stderr,
     version,
     // The server module is imported here, before the shim lets go of stdin, so a
-    // broken install leaves the shim answering with the reason.
+    // broken install leaves the shim answering with the reason and retrying.
     install: async () => {
-      await installAsync(root, { onSpawn: (c) => { child = c } })
-      child = undefined
+      // Shutting down: no new npm run; the pending exit ends the process.
+      if (quitting) return new Promise(() => {})
+      try {
+        await installAsync(root, {
+          onSpawn: (c) => {
+            child = c
+            // 'close' is the end of npm; an 'error' without a pid is a spawn that never started.
+            childClosed = new Promise((r) => {
+              c.once('close', r)
+              c.once('error', () => { if (c.pid === undefined) r() })
+            })
+          },
+        })
+      } finally {
+        child = undefined
+      }
       return import('./src/server.mjs')
     },
     // The SDK Server keeps no "initialized" gate: its tools/list and tools/call

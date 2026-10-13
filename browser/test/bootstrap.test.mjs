@@ -3,7 +3,13 @@ import assert from 'node:assert/strict'
 import { PassThrough } from 'node:stream'
 import { runBootstrap } from '../src/bootstrap.mjs'
 
-function harness({ install } = {}) {
+const STATUS_TOOL = {
+  name: 'install_status',
+  description: 'Reports the Pilcrino browser package install that runs after a plugin update: how long it has been running, or why it failed and when it retries. The browser tools replace this one when the install is done.',
+  inputSchema: { type: 'object', properties: {} },
+}
+
+function harness({ install, sleep, now, retryMs } = {}) {
   const stdin = new PassThrough()
   const stdout = new PassThrough()
   const stderr = new PassThrough()
@@ -28,6 +34,9 @@ function harness({ install } = {}) {
     stdin, stdout, stderr, version: '9.9.9',
     install: install ?? (() => installed),
     handover: async (arg) => { handovers.push(arg) },
+    ...(sleep && { sleep }),
+    ...(now && { now }),
+    ...(retryMs !== undefined && { retryMs }),
   })
   const next = async (n) => {
     while (lines.length < n) await new Promise((r) => waiters.push(r))
@@ -48,7 +57,7 @@ test('answers the handshake, ping, tools/list, tools/call and unknown methods wh
   h.sendLine({ jsonrpc: '2.0', id: 2, method: 'ping' })
   assert.deepEqual(await h.next(2), { jsonrpc: '2.0', id: 2, result: {} })
   h.sendLine({ jsonrpc: '2.0', id: 3, method: 'tools/list' })
-  assert.deepEqual(await h.next(3), { jsonrpc: '2.0', id: 3, result: { tools: [] } })
+  assert.deepEqual(await h.next(3), { jsonrpc: '2.0', id: 3, result: { tools: [STATUS_TOOL] } })
   h.sendLine({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'login_status', arguments: {} } })
   assert.deepEqual(await h.next(4), {
     jsonrpc: '2.0', id: 4,
@@ -90,16 +99,66 @@ test('after the install, sends list_changed and hands over the unread bytes', as
   assert.equal(h.stdin.read().toString(), `${partial}od":"ping"}\n`)
 })
 
-test('a failed install keeps answering, with the reason in tools/call', async () => {
-  const h = harness()
-  h.rejectInstall(new Error('npm install failed in /x (exit 1)'))
-  assert.deepEqual(await h.done, { ok: false, reason: 'npm install failed in /x (exit 1)' })
-  assert.match(h.stderr(), /could not install its packages: npm install failed in \/x \(exit 1\)/)
+test('install_status is listed and reports the running install with its elapsed seconds', async () => {
+  let t = 1_000_000
+  const h = harness({ now: () => t })
   h.sendLine({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
-  assert.deepEqual(await h.next(1), { jsonrpc: '2.0', id: 1, result: { tools: [] } })
-  h.sendLine({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'tabs' } })
-  const r = await h.next(2)
-  assert.equal(r.result.isError, true)
-  assert.equal(r.result.content[0].text, 'pilcrino-browser could not install its packages: npm install failed in /x (exit 1)')
+  const list = await h.next(1)
+  assert.deepEqual(list.result.tools.map((x) => x.name), ['install_status'])
+  assert.deepEqual(list.result.tools[0].inputSchema, { type: 'object', properties: {} })
+  t += 42_000
+  h.sendLine({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'install_status', arguments: {} } })
+  assert.deepEqual(await h.next(2), {
+    jsonrpc: '2.0', id: 2,
+    result: { content: [{ type: 'text', text: 'pilcrino-browser is installing its packages after a plugin update (42 s so far). The browser tools appear when it is done.' }] },
+  })
+})
+
+test('a failed install keeps answering with the reason, retries, and hands over once one succeeds', async () => {
+  let t = 1_000_000
+  let attempts = 0
+  const sleeps = []
+  const install = async () => {
+    attempts++
+    if (attempts <= 2) throw new Error(`npm install failed in /x (exit ${attempts})`)
+    return { startServer: 'fake' }
+  }
+  // Each retry delay waits for the test to release it.
+  const sleep = (ms) => new Promise((r) => sleeps.push({ ms, go: r }))
+  const h = harness({ install, sleep, now: () => t })
+  const nextSleep = async (n) => { while (sleeps.length < n) await new Promise((r) => setImmediate(r)) }
+
+  await nextSleep(1)
+  assert.equal(sleeps[0].ms, 60_000)
+  assert.match(h.stderr(), /could not install its packages: npm install failed in \/x \(exit 1\); retrying in 60 s\n/)
+  // Tool discovery first, as Claude Code does: the status tool is there to call.
+  h.sendLine({ jsonrpc: '2.0', id: 1, method: 'tools/list' })
+  assert.deepEqual((await h.next(1)).result.tools.map((x) => x.name), ['install_status'])
+  t += 15_000
+  h.sendLine({ jsonrpc: '2.0', id: 2, method: 'tools/call', params: { name: 'install_status', arguments: {} } })
+  assert.deepEqual((await h.next(2)).result, {
+    content: [{ type: 'text', text: 'pilcrino-browser could not install its packages: npm install failed in /x (exit 1); retrying in 45 s' }],
+  })
+  // Any other tool keeps the isError answer with the reason.
+  h.sendLine({ jsonrpc: '2.0', id: 3, method: 'tools/call', params: { name: 'tabs' } })
+  const r = (await h.next(3)).result
+  assert.equal(r.isError, true)
+  assert.equal(r.content[0].text, 'pilcrino-browser could not install its packages: npm install failed in /x (exit 1)')
+
+  t += 45_000
+  sleeps[0].go()
+  await nextSleep(2)
+  assert.equal(attempts, 2)
+  h.sendLine({ jsonrpc: '2.0', id: 4, method: 'tools/call', params: { name: 'install_status', arguments: {} } })
+  assert.match((await h.next(4)).result.content[0].text, /npm install failed in \/x \(exit 2\); retrying in 60 s$/)
+  // One stderr line per failed attempt.
+  assert.equal(h.stderr().trim().split('\n').length, 2)
   assert.equal(h.handovers.length, 0)
+
+  sleeps[1].go()
+  assert.deepEqual(await h.done, { ok: true })
+  assert.equal(attempts, 3)
+  assert.deepEqual(await h.next(5), { jsonrpc: '2.0', method: 'notifications/tools/list_changed' })
+  assert.equal(h.handovers.length, 1)
+  assert.deepEqual(h.handovers[0].result, { startServer: 'fake' })
 })

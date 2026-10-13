@@ -64,7 +64,10 @@ test('first start without node_modules answers initialize at once and hands over
     send({ jsonrpc: '2.0', method: 'notifications/initialized' })
     send({ jsonrpc: '2.0', id: 2, method: 'tools/list' })
     const early = await waitFor((m) => m.id === 2)
-    assert.deepEqual(early.msg.result, { tools: [] })
+    assert.deepEqual(early.msg.result.tools.map((t) => t.name), ['install_status'])
+    send({ jsonrpc: '2.0', id: 5, method: 'tools/call', params: { name: 'install_status', arguments: {} } })
+    const status = await waitFor((m) => m.id === 5)
+    assert.match(status.msg.result.content[0].text, /is installing its packages after a plugin update \(\d+ s so far\)/)
 
     const changed = await waitFor((m) => m.method === 'notifications/tools/list_changed')
     assert.ok(changed.at >= 1500, `list_changed came before the install finished (${changed.at} ms)`)
