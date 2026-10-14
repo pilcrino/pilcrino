@@ -91,7 +91,7 @@ astro-git-pr.md §On review-loop edit as written: edit `$worktree/{content_dir}/
 
 ## On Gate 2 approval
 
-astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge, in SKILL.md Step 15.5's words, with the date sentence from astro-git-pr.md step 2b (that step dates the post on the branch here too): for a repo platform with `publish.site_live: true`, "merging it publishes the post; check the first post's page on the site"; with `publish.site_live: false`, "merging files the post in the repository; the site is not live yet"; absent, "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site"; for a paste platform, whatever `site_live` says, "merging it files the post in the repository; <Platform> has it only if you pasted it in". Never auto-merge.
+astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, `mv` the drafts folder to `{drafts_dir}/_archive/<slug>/` and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge, in SKILL.md Step 15.5's words, with the date sentence from astro-git-pr.md step 2b (that step dates the post on the branch here too): for a repo platform with `publish.site_live: true`, "merging it publishes the post; check the first post's page on the site"; with `publish.site_live: false`, "merging files the post in the repository; the site is not live yet"; absent, "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site"; for a paste platform, whatever `site_live` says, "merging it files the post in the repository; <Platform> has it only if you pasted it in". Then how to merge it (Step 15.5's merge line). Never merge on approval alone: the owner merges on GitHub, or asks Pilcrino to in the session (SKILL.md Step 15.6), and on a paste platform that merge only files the repository copy of a post the owner has pasted.
 
 ## On abandon
 
@@ -120,12 +120,12 @@ There is no authors map to reconcile: write "§6. N/A for the markdown adapter."
 Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links). The frontmatter date is the approval day (set on the branch at approval; the Pilcrino app re-dates it to the merge day when it merges). Merged on a later day by hand: run `/pilcrino:blog-post-workflow published <slug>` afterwards and it corrects the date.
-- [ ] Merge the pull request; your site builds from `{git.base_branch}`.
+- [ ] Merge the pull request ("Merge pull request", then "Confirm merge" on GitHub, or tell Pilcrino "merge it"); your site builds from `{git.base_branch}`.
 - [ ] After the build finishes, verify the live post per action-items §8.
 
 Paste platform (`jekyll`, `ghost`, `generic`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
-- [ ] Paste the post into <Platform> as the Gate 2 banner says (formatted text from the clipboard, then each field and image; set the date field to today), then merge the pull request. Registered with the Pilcrino app: the app's zip works too.
+- [ ] Paste the post into <Platform> as the Gate 2 banner says (formatted text from the clipboard, then each field and image; set the date field to today), then merge the pull request (on GitHub, or tell Pilcrino "merge it"; it files the repository copy). Registered with the Pilcrino app: the app's zip works too.
 - [ ] Jekyll only (emit this item only when `platform` is `jekyll`): name the file `YYYY-MM-DD-<slug>.md` in `_posts`.
 - [ ] Once <Platform> shows the post, verify it per action-items §8.

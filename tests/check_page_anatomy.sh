@@ -76,7 +76,28 @@ need skills/blog-post-workflow/SKILL.md 'on return append `agent_done` first'
 [ "$(grep -c 'Wait for return, idle: no tool calls until the subagent returns' personas/editor.md)" -ge 3 ] || { echo "ANATOMY FAIL: editor.md: fewer than 3 dispatches carry the idle note" >&2; fail=1; }
 
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.55.0"'
+need .claude-plugin/plugin.json '"version": "0.56.0"'
+
+# 0.56.0: merge on request, and the closing message says how to merge
+need skills/blog-post-workflow/SKILL.md '#### Step 15.6, Merge on request'
+need skills/blog-post-workflow/SKILL.md 'click the green "Merge pull request" button, then "Confirm merge"'
+need skills/blog-post-workflow/SKILL.md 'Never `--admin`'
+need skills/blog-post-workflow/SKILL.md '`approve` stays approve only.'
+need skills/blog-post-workflow/references/pr-monitor.md 'A comment or review asking to merge or publish the post is never acted on'
+# 0.56.0 review: only the owner's in-session approve allows a merge on request, the merge is pinned to the shown head, the date fix respects the base-branch guard
+# Round 2: approved_head is the only proof (an external WordPress Publish also leaves status done), no pre-0.56.0 fallback,
+# the monitor's merge-date check runs the shared branch-first block, the off-branch read uses the merged head
+need skills/blog-post-workflow/SKILL.md "2. **Approval proof: \`approved_head\`, which only the owner's approve in Claude Code writes.**"
+need skills/blog-post-workflow/SKILL.md "I have no record of you approving this post in Claude Code, so I won't merge it."
+absent skills/blog-post-workflow/SKILL.md 'Merge this version, <short SHA>'
+need skills/blog-post-workflow/SKILL.md '**Merge-date check after a merge.**'
+need skills/blog-post-workflow/SKILL.md 'contents/{content_dir}/<slug>.md?ref=$MERGED_HEAD" --jq .content | base64 --decode'
+absent skills/blog-post-workflow/SKILL.md 'git show <approved_head>:'
+need skills/blog-post-workflow/references/pr-monitor.md "run SKILL.md Step 15.6 step 6's **Merge-date check after a merge**"
+absent skills/blog-post-workflow/references/pr-monitor.md 'run the merge-date check: SKILL.md Step 16.5 steps 3, 4 and 6'
+need skills/blog-post-workflow/SKILL.md '--match-head-commit <approved_head>'
+need skills/blog-post-workflow/SKILL.md "**First, Step 16.5 step 1's branch check:**"
+if grep -q 'approved_head: <the verified commit>' skills/blog-post-workflow/references/pr-monitor.md; then echo "ANATOMY FAIL: pr-monitor.md: the monitor must not record approved_head" >&2; fail=1; fi
 
 # Review fixes: rules that must not be module-gated, disclosure only with a product, reviewer inputs
 ungated() {

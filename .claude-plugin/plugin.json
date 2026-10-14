@@ -1,6 +1,6 @@
 {
   "name": "pilcrino",
-  "description": "Writes blog posts for your product's blog: how-to guides, best-of lists, alternatives and comparisons with your competitors. Researches in its own Chrome, drafts, reviews and illustrates each post, then opens a pull request on GitHub for you to read, comment on and approve; merging it (or clicking Publish in WordPress) is what publishes. Pilcrino never publishes a post itself. Set up once per blog with blog-setup.",
-  "version": "0.55.0",
+  "description": "Writes blog posts for your product's blog: how-to guides, best-of lists, alternatives and comparisons with your competitors. Researches in its own Chrome, drafts, reviews and illustrates each post, then opens a pull request on GitHub for you to read, comment on and approve; merging it (or clicking Publish in WordPress) is what publishes. Pilcrino never publishes a post on its own: it merges an approved post only when you ask it to. Set up once per blog with blog-setup.",
+  "version": "0.56.0",
   "author": { "name": "Slav Gurmanov" }
 }

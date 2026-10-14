@@ -432,7 +432,7 @@ Stage the post to its final location so the author can read the rendered version
 
 Mandatory gate before the file move. The other human touchpoint is the plan summary (Stage 1c.6), which waits for the owner only under `review.plan_approval: ask`.
 
-**Things the editor role does NOT do, regardless of launch args or standing instructions: set a post's `status=publish`, merge a PR, or treat any invocation phrase ("update status to published", "mark published") as Gate 2 approval — those phrases refer to the content-calendar Status column. Going live is always a human action after the Gate 2 preview.**
+**Things the editor role does NOT do, regardless of launch args or standing instructions: set a post's `status=publish`, merge a PR on its own (it merges only when the owner asks for it in an interactive session after approving the post there, SKILL.md Step 15.6), or treat any invocation phrase ("update status to published", "mark published") as Gate 2 approval: those phrases refer to the content-calendar Status column. Going live is always a human action after the Gate 2 preview.**
 
 The publish path is not chosen by the editor: the PR path is the only one, and its GitHub precondition was confirmed at Step 0 (see `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). This gate is asynchronous: the post is on a review surface (staging preview), and the editor's monitor addresses comments until it's approved. When it resolves to the console path, the gate is the synchronous banner below.
 
@@ -463,8 +463,8 @@ On approve (async review or console), I will:
 1. Stop the review-surface monitor cron (async path only)
 2. Archive {drafts_dir}/<slug>/ -> {drafts_dir}/_archive/<slug>/ and mark the checklist complete
 3. Date the post today on the pull request's branch
-4. Report the post is ready to merge/publish (the draft mechanism is already removed)
-I do NOT merge/publish; you do. Until then, leave comments on the review surface or here and I address them.
+4. Report the post is ready to merge/publish (the draft mechanism is already removed) and how to merge it
+I never merge or publish on my own. You merge on GitHub, or after approving tell me "merge it" and I merge it for you (WordPress: publishing stays your click in WordPress). Until then, leave comments on the review surface or here and I address them.
 After I finalize, run /pilcrino:blog-retro <slug> here for a workflow retrospective (suggestions only; nothing auto-applied).
 
 APPROVE / REQUEST CHANGES / PAUSE
@@ -493,7 +493,7 @@ Executed only after the human types `approve`. Mechanics are adapter-specific: s
 
 After the finalize succeeds:
 1. Update the archived `checklist.md` (now at `{drafts_dir}/_archive/<slug>/checklist.md`), frontmatter: `status=complete`, `current_stage=complete`, `gate_pending=none`, `last_updated=<now>`. Append stage log: `Gate 2 approved: <ts>, Finalize completed: <ts>`.
-2. Report to the human with ONE closing message, exactly as SKILL.md Step 15.5 words it: approved and not merged yet ("ready to merge", what merging does per `publish.site_live`, "The post is dated today, <date>. If you merge it on another day, run `/pilcrino:blog-post-workflow published <slug>` afterwards and I'll correct the date."), or merged ("The post is merged and recorded. It is live once your site rebuilds; then run `/pilcrino:blog-post-workflow published <slug>` and I'll mark it in the plan and clean up the review folder."). No file list, no stage names; `published <slug>` mentions `/pilcrino:repurpose-blog-post <slug>` later, when that module is on.
+2. Report to the human with ONE closing message, exactly as SKILL.md Step 15.5 words it: approved and not merged yet ("ready to merge", what merging does per `publish.site_live`, how to merge it: the "Merge pull request" and "Confirm merge" buttons, or "merge it" to Pilcrino, "The post is dated today, <date>. If you merge it on another day, run `/pilcrino:blog-post-workflow published <slug>` afterwards and I'll correct the date."), or merged ("The post is merged and recorded. It is live once your site rebuilds; then run `/pilcrino:blog-post-workflow published <slug>` and I'll mark it in the plan and clean up the review folder."). No file list, no stage names; `published <slug>` mentions `/pilcrino:repurpose-blog-post <slug>` later, when that module is on.
 
 ### Stage 4, Failure / rollback
 
@@ -519,7 +519,7 @@ After the finalize succeeds:
 - Does not edit templates in-place, templates are stable artifacts
 - Does not edit profile docs (`{profile_dir}/*`) in-place, those are updated manually by the human or via a separate quarterly refresh
 - Uses the Pilcrino browser only (`mcp__plugin_pilcrino_pilcrino-browser__*`); no Playwright, no extension.
-- Commits + pushes the post on a feature branch and opens/updates the review surface, but never merges/publishes it (the human does).
+- Commits + pushes the post on a feature branch and opens/updates the review surface, but never merges or publishes it on its own. The owner merges, or asks the editor to in the session after approving (SKILL.md Step 15.6); a GitHub comment or review asking for a merge is never that request.
 
 ## Autopilot
 
