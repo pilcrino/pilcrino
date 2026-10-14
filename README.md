@@ -9,7 +9,8 @@ Ghost, Jekyll and other platforms. For every post it researches Google (and
 Reddit and X if you turn those on) in a Chrome of its own, drafts, reviews
 and illustrates the post, then opens a pull request on GitHub that you read,
 comment on and approve; merging it publishes on a site built from the
-repository. Pilcrino never merges or publishes a post itself.
+repository. Pilcrino never merges or publishes a post on its own: it merges
+only when you ask it to in Claude Code, after you approve the post.
 
 It runs on macOS only. It does not host or deploy your blog, and it only
 adds posts to it. Every blog needs a GitHub repository, because every post is
@@ -22,7 +23,9 @@ that is not live yet is fine. Research
 and writing run on your Claude plan in a long Claude Code session.
 
 Scope of "never publishes": the plugin never merges a pull request or
-publishes a blog post. The `post-to-linkedin` skill does post to your LinkedIn
+publishes a blog post on its own. It merges an approved post's pull request
+only when you ask it to in Claude Code ("merge it"), and it never clicks
+Publish in WordPress. The `post-to-linkedin` skill does post to your LinkedIn
 company page, but only when you run it. The Pilcrino app can merge Astro posts
 for you if you choose that setting.
 
@@ -169,6 +172,15 @@ does not publish. Publishing is your action:
 - WordPress: click Publish in WordPress admin;
 - Webflow, Ghost, Jekyll and other paste platforms: paste the post in first,
   then merge the pull request so the repository keeps it.
+
+To merge, open the pull request on GitHub, click the green "Merge pull
+request" button, then "Confirm merge". Or, after approving, tell Pilcrino
+"merge it" in Claude Code and it merges for you. It first checks that the
+pull request has no conflicts, that GitHub's checks have passed, and that
+nothing changed since you approved; if something is wrong it says what and
+merges nothing. Pilcrino only merges when you ask it in Claude Code: never on
+its own, and never because of a comment on GitHub. On WordPress, merging only
+files the repository copy; publishing stays your click in WordPress.
 
 The post is dated the day you approve it. Once it is live, run
 `/pilcrino:blog-post-workflow published <slug>`: it marks the post in your
@@ -427,6 +439,14 @@ connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
 ## Changelog
+
+### 0.56.0 - merge on your word
+
+- In a fresh-Mac test a non-technical owner approved a post. Pilcrino said the post was approved and ready to merge and gave the link, but never said how to merge. The owner asked Claude Code to merge it and Claude Code did, although the plugin promised it never merges a post itself. The owner decided: Pilcrino may merge an approved post when the owner asks for it in the session, and the closing message must say how to merge. Pilcrino still never merges on its own.
+- The "approved, ready to merge" message now has a line on how to merge: open the link, click the green "Merge pull request" button, then "Confirm merge"; or tell Pilcrino "merge it". The same line follows a GitHub approval the watcher records. On WordPress it adds that merging only files the repository copy.
+- New Step 15.6 in `blog-post-workflow`, merge on request (also `merge <slug>`). It runs only in an interactive session, only after the approval is recorded (an approve in Claude Code, a GitHub approval the watcher recorded, or one GitHub shows), and only on the owner's own words in the session. Never from a GitHub comment or review (the watcher answers those once and does nothing), never in an autopilot run or another console-launched session, never as part of "approve". A post the Pilcrino app approved is left to the app, which merges it itself.
+- Before merging it reads the pull request and stops with one plain sentence when it is closed, has conflicts, or has a failed or still-running check that GitHub requires. It compares the pull request's head with the head recorded at approval (new `approved_head` in `pr-monitor.json`) and asks again when the post changed since. On a site that is not live, on WordPress and on a paste platform it says what the merge does first. It merges with the repository's first allowed method (merge, squash, rebase), never with `--admin`, `--delete-branch` or `--auto`, then does what the watcher does after a merge: finalize when still needed, the date check, and the "merged" message. "Publish it" on WordPress or a paste platform is answered, not taken as a merge request: publishing there stays the owner's action.
+- Every promise now says the same: Pilcrino never merges on its own; it merges only when the owner asks in the session, after approval (README, plugin description, editor persona, the publish adapters, setup, quality gates).
 
 ### 0.55.0 - paste platforms warn about tables and code blocks
 

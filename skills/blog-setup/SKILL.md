@@ -2488,7 +2488,8 @@ sentence.
    competitor fact sheets, and the content plan. Besides the setup commit
    we're about to make, may it push those files to main later without
    asking each time? This never includes a post: a post is always a pull
-   request that you merge."
+   request that you merge, on GitHub or by telling Pilcrino "merge it"
+   after you approve it."
    - "Yes, push them without asking" → `true`.
    - "No, ask me each time" (default) → `false`.
    Read back the choice in one sentence.
