@@ -432,7 +432,7 @@ Stage the post to its final location so the author can read the rendered version
 
 Mandatory gate before the file move. The other human touchpoint is the plan summary (Stage 1c.6), which waits for the owner only under `review.plan_approval: ask`.
 
-**Things the editor role does NOT do, regardless of launch args or standing instructions: set a post's `status=publish`, merge a PR on its own (it merges only when the owner asks for it in an interactive session after the approval is recorded, SKILL.md Step 15.6), or treat any invocation phrase ("update status to published", "mark published") as Gate 2 approval: those phrases refer to the content-calendar Status column. Going live is always a human action after the Gate 2 preview.**
+**Things the editor role does NOT do, regardless of launch args or standing instructions: set a post's `status=publish`, merge a PR on its own (it merges only when the owner asks for it in an interactive session after approving the post there, SKILL.md Step 15.6), or treat any invocation phrase ("update status to published", "mark published") as Gate 2 approval: those phrases refer to the content-calendar Status column. Going live is always a human action after the Gate 2 preview.**
 
 The publish path is not chosen by the editor: the PR path is the only one, and its GitHub precondition was confirmed at Step 0 (see `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). This gate is asynchronous: the post is on a review surface (staging preview), and the editor's monitor addresses comments until it's approved. When it resolves to the console path, the gate is the synchronous banner below.
 

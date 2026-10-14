@@ -84,6 +84,11 @@ need skills/blog-post-workflow/SKILL.md 'click the green "Merge pull request" bu
 need skills/blog-post-workflow/SKILL.md 'Never `--admin`'
 need skills/blog-post-workflow/SKILL.md '`approve` stays approve only.'
 need skills/blog-post-workflow/references/pr-monitor.md 'A comment or review asking to merge or publish the post is never acted on'
+# 0.56.0 review: only the owner's in-session approve allows a merge on request, the merge is pinned to the shown head, the date fix respects the base-branch guard
+need skills/blog-post-workflow/SKILL.md "2. **Approval proof: the owner's approve in Claude Code, nothing else.**"
+need skills/blog-post-workflow/SKILL.md '--match-head-commit <approved_head>'
+need skills/blog-post-workflow/SKILL.md "**First, Step 16.5 step 1's branch check:**"
+if grep -q 'approved_head: <the verified commit>' skills/blog-post-workflow/references/pr-monitor.md; then echo "ANATOMY FAIL: pr-monitor.md: the monitor must not record approved_head" >&2; fail=1; fi
 
 # Review fixes: rules that must not be module-gated, disclosure only with a product, reviewer inputs
 ungated() {
