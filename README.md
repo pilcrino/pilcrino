@@ -106,7 +106,7 @@ against the file.
 
 ![Facts locked before drafting: five claims arrive one by one; four get a tick and a source and are filed under Statistics, Quotes, Named examples and Product facts; one is rejected with a reason; the Writer then reads only this file.](.github/assets/facts-file.gif)
 
-### Polish keeps every number and link
+### The Polisher removes AI phrasing, not facts
 
 After the reviewer approves, the Polisher changes how the post sounds and
 nothing it says. It runs seven passes: AI phrases (the shared list plus your
@@ -118,7 +118,7 @@ It must keep every number, link, heading, FAQ question, frontmatter value and
 it checks the list again, and if anything is missing or changed it restores
 the copy and tells you.
 
-![Polish keeps every number and link: AI phrases are flagged and rolled away, the numbers and links glide into the rewritten sentence, and a preservation check counts numbers, links, headings and markers before and after.](.github/assets/polish-keeps-facts.gif)
+![The Polisher removes AI phrasing, not facts: AI phrases are flagged and rolled away, the numbers and links glide into the rewritten sentence, and a preservation check counts numbers, links, headings and markers before and after.](.github/assets/polish-keeps-facts.gif)
 
 ### Images in your style
 
@@ -708,6 +708,11 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.56.2 - Props for the README characters
+
+- Each helper in the README images gets its own props: the Researcher a deerstalker, the Plan checker reading glasses and a stamp, the Writer a scarf and a mug, the Reviewer a newspaper hat and a bigger bug net, the Image planner a cap and a clapperboard, the Image builder a beret, a paintbrush and a palette. The banner, How a post is made, the agents, competitor fact sheets and images in your style are rebuilt.
+- "Polish keeps every number and link" is now "The Polisher removes AI phrasing, not facts", in the README and its gif.
 
 ### 0.56.1 - README with pictures
 
