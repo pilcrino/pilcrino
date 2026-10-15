@@ -17,17 +17,19 @@ The images in this folder share one look: the Pilcrino site's paper and characte
 
 ## Cast
 
-One helper per agent in `agents/`, each with a tool.
+One helper per agent in `agents/`, each with its props.
 
-| Agent | Helper | Tint | Tool |
+| Agent | Helper | Tint | Props |
 |---|---|---|---|
-| blog-researcher | Researcher | periwinkle `#9db8e6` | magnifier |
-| plan-reviewer | Plan checker | peach `#f0b89a` | clipboard |
-| blog-writer | Writer | mint `#a9cf9a` | pencil |
-| blog-reviewer | Reviewer | coral `#ec8a7a` | bug net; a red bug is an unsourced claim |
+| blog-researcher | Researcher | periwinkle `#9db8e6` | deerstalker, magnifier |
+| plan-reviewer | Plan checker | peach `#f0b89a` | reading glasses, clipboard, stamp |
+| blog-writer | Writer | mint `#a9cf9a` | scarf, mug, pencil |
+| blog-reviewer | Reviewer | coral `#ec8a7a` | newspaper hat, bug net; a red bug is an unsourced claim |
 | blog-humanizer | Polisher | lilac `#cdb8df` | paint roller |
-| image-planner | Image planner | sage `#bfcf8c` | chart board |
-| image-builder | Image builder | butter `#efc85f` | hard hat and wrench |
+| image-planner | Image planner | sage `#bfcf8c` | cap, clapperboard |
+| image-builder | Image builder | butter `#efc85f` | beret, paintbrush, palette |
+
+Where space is tight (the banner, the Images stop in the flow) `helper(..., {noleft:1})` drops the left-hand prop.
 
 The owner appears as a speech bubble (asking) or a reply in Claude Code, never as a helper.
 

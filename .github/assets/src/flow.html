@@ -48,7 +48,7 @@ ST.forEach((st,i)=>{const cx=xs[i],grp=g({opacity:reached(i)?1:.4}),active=cur==
   txt(cx-92,cy+40,merged?'you merged it':(open?'you: reading':''),{fs:15,a:'start',fill:merged?S.ok:S.muted,w:600,p:c});
   hands.pr=[cx,cy];
  } else if(st.k==='images'){
-  helper('imgbuild',cx-26,gy,.82,{p:grp,look:active?[0,.6]:undefined});helper('imgplan',cx+46,gy,.62,{p:grp,look:[-.6,.2]});
+  helper('imgbuild',cx-26,gy,.82,{p:grp,look:active?[0,.6]:undefined,noleft:1});helper('imgplan',cx+46,gy,.62,{p:grp,look:[-.6,.2],noleft:1});
   hands.images=[cx-70,gy-60];
  } else {
   const b=helper(st.k,cx,gy,.82,{p:grp,look:active?[0,.6]:undefined,mouth:st.k==='review'&&bugOn?'o':undefined,nopencil:active&&st.k==='draft'});

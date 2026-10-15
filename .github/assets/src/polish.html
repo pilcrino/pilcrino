@@ -4,12 +4,12 @@
 <svg id="s"></svg>
 <script src="kit.js"></script><script src="common.js"></script>
 <script>
-// Polish keeps every number and link: AI phrasing is flagged and rolled away, the locked numbers and links glide into the
+// The Polisher removes AI phrasing, not facts: AI phrasing is flagged and rolled away, the locked numbers and links glide into the
 // rewritten sentence, then the post-flight check counts them. 11 s loop. Example data is made up.
 (async()=>{await ready(1600,640);
 const t=TIME%11,MONO='ui-monospace,Menlo,monospace',FS=30,LH=56;
 const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
-txt(80,96,'Polish keeps every number and link',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+txt(80,96,'The Polisher removes AI phrasing, not facts',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
 const CAP=[[0,'It finds the phrases that sound like AI.'],[3.0,'It rewrites around them. Numbers and links stay exactly as they were.'],[5.8,'Then it checks that every one survived.']];
 let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
 txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});

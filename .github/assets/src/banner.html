@@ -14,7 +14,7 @@ el('line',{x1:x0-60,y1:base+8,x2:1100,y2:base+8,stroke:S.rule,'stroke-width':2.5
 // Researcher sits on the P
 helper('research',x0+pW/2-6,base-capH+2,.42,{look:[.9,.2]});
 // Image builder waits in the slot where the o goes, looking up
-const ox=x0+nw+40;helper('imgbuild',ox,base+6,.5,{look:[.7,-1],mouth:'o'});
+const ox=x0+nw+40;helper('imgbuild',ox,base+6,.5,{look:[.7,-1],mouth:'o',noleft:1});
 // Writer carries the o in from the right
 const wx=ox+210,wy=base+6,ws=.62,w=100*ws,bx=wx-w/2;
 const lift=wy-20*ws-118*ws-34;

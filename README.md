@@ -53,6 +53,11 @@ Claude plan in a long Claude Code session.
 
 ## What it does
 
+Seven subagents do the work, each with one job. This is what each one reads
+and what it writes.
+
+![The agents: what each subagent reads and the file it writes. Researcher: research/_raw/ to research/*.md. Plan checker: plan, brief and facts to plan-review.md. Writer: outline and facts to draft-vN.md. Reviewer: draft, outline and facts to review.md. Polisher: edits the draft in place. Image planner: draft and outline to images.md. Image builder: images.md to the image files.](.github/assets/the-agents.png)
+
 ### A content plan from research
 
 `/pilcrino:plan-content` turns your product into a list of posts worth
@@ -106,7 +111,7 @@ against the file.
 
 ![Facts locked before drafting: five claims arrive one by one; four get a tick and a source and are filed under Statistics, Quotes, Named examples and Product facts; one is rejected with a reason; the Writer then reads only this file.](.github/assets/facts-file.gif)
 
-### Polish keeps every number and link
+### The Polisher removes AI phrasing, not facts
 
 After the reviewer approves, the Polisher changes how the post sounds and
 nothing it says. It runs seven passes: AI phrases (the shared list plus your
@@ -118,7 +123,7 @@ It must keep every number, link, heading, FAQ question, frontmatter value and
 it checks the list again, and if anything is missing or changed it restores
 the copy and tells you.
 
-![Polish keeps every number and link: AI phrases are flagged and rolled away, the numbers and links glide into the rewritten sentence, and a preservation check counts numbers, links, headings and markers before and after.](.github/assets/polish-keeps-facts.gif)
+![The Polisher removes AI phrasing, not facts: AI phrases are flagged and rolled away, the numbers and links glide into the rewritten sentence, and a preservation check counts numbers, links, headings and markers before and after.](.github/assets/polish-keeps-facts.gif)
 
 ### Images in your style
 
@@ -398,8 +403,6 @@ Chrome was not found" means Chrome is not at the platform default; set
 `browser.executable` in `blog-ops/config.yaml`.
 
 ### What's in this repo
-
-![The agents: what each subagent reads and the file it writes. Researcher: research/_raw/ to research/*.md. Plan checker: plan, brief and facts to plan-review.md. Writer: outline and facts to draft-vN.md. Reviewer: draft, outline and facts to review.md. Polisher: edits the draft in place. Image planner: draft and outline to images.md. Image builder: images.md to the image files.](.github/assets/the-agents.png)
 
 | Category | Count | Where |
 |---|---|---|
@@ -708,6 +711,12 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.56.2 - Props for the README characters
+
+- Each helper in the README images gets its own props: the Researcher a deerstalker, the Plan checker reading glasses and a stamp, the Writer a scarf and a mug, the Reviewer a newspaper hat and a bigger bug net, the Image planner a cap and a clapperboard, the Image builder a beret, a paintbrush and a palette. The banner, How a post is made, the agents, the content plan, competitor fact sheets, the facts file, images in your style and the browser are rebuilt.
+- The agents image moves up to open "What it does".
+- "Polish keeps every number and link" is now "The Polisher removes AI phrasing, not facts", in the README and its gif.
 
 ### 0.56.1 - README with pictures
 

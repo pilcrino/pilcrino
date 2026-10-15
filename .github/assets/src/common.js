@@ -19,20 +19,24 @@ function sheet(x,y,o={}){const q=g({transform:`translate(${x} ${y}) rotate(${o.r
  if(o.bug)bug(14,10,1,-20,q);
  if(o.fixed)el('path',{d:`M10 6 l4 4 l8 -9`,fill:'none',stroke:S.ok,'stroke-width':3,'stroke-linecap':'round'},q);
  return q}
-// one helper with its tool. k: research|plan|draft|review|human|imgplan|imgbuild
+// one helper with its tools. k: research|plan|draft|review|human|imgplan|imgbuild. o.noleft drops the left-hand prop where space is tight
 function helper(k,cx,gy,s,o={}){const p=o.p||ROOT,w=100*s,x=cx-w/2;
  const col={research:S.c.peri,plan:S.c.peach,draft:S.c.mint,review:S.c.coral,human:S.c.lilac,imgplan:S.c.sage,imgbuild:S.c.butter}[k];
  const arms={l:[x-18*s,gy-70*s],r:[x+118*s,gy-74*s]};
- if(k==='research')arms.r=[x+120*s,gy-110*s];if(k==='plan')arms.l=[x-22*s,gy-78*s];if(k==='draft')arms.r=[x+118*s,gy-60*s];
- if(k==='review')arms.r=[x+112*s,gy-128*s];if(k==='human')arms.r=[x+110*s,gy-112*s];if(k==='imgplan')arms.l=[x-20*s,gy-56*s];if(k==='imgbuild')arms.r=[x+116*s,gy-90*s];
- const b=bot({p,x,gy,s:s*.9/.9*1,w:100,h:118,c:col,look:o.look||[-.3,-.1],mouth:o.mouth,hat:k==='imgbuild'?'hard':undefined,arms,shadow:o.shadow});
+ if(k==='research')arms.r=[x+120*s,gy-110*s];if(k==='plan'){arms.l=[x-22*s,gy-78*s];arms.r=[x+112*s,gy-128*s]}if(k==='draft')arms.r=[x+118*s,gy-60*s];
+ if(k==='review')arms.r=[x+112*s,gy-128*s];if(k==='human')arms.r=[x+110*s,gy-112*s];if(k==='imgbuild')arms.r=[x+116*s,gy-90*s];
+ const b=bot({p,x,gy,s:s*.9/.9*1,w:100,h:118,c:col,look:o.look||[-.3,-.1],mouth:o.mouth,hat:{imgbuild:'beret',review:'paper',research:'deer',imgplan:'cap'}[k],arms,shadow:o.shadow});
  const H=b.hands;
+ if(k==='plan')glasses(b,s,p);
+ if(k==='draft')scarf(b,s,p);
  if(k==='research')magnifier(H.r[0]+6*s,H.r[1]-6*s,28,1.15*s,p);
- if(k==='plan')clipboard(H.l[0]-6*s,H.l[1]-10*s,1.05*s,p,-8);
+ if(k==='plan'){clipboard(H.l[0]-6*s,H.l[1]-10*s,1.05*s,p,-8);stamp(H.r[0]+4*s,H.r[1]+4*s,14,s,p)}
+ if(k==='draft')cup(H.l[0]-16*s,H.l[1]-22*s,.85*s,p);
  if(k==='draft'&&!o.nopencil)pencil(H.r[0]+4*s,H.r[1]+2*s,35,1.15*s,p);
- if(k==='review')bugnet(H.r[0]+8*s,H.r[1]+10*s,18,1.05*s,p);
+ if(k==='review')bugnet(H.r[0]+6*s,H.r[1]+8*s,18,.8*s,p);
  if(k==='human')roller(H.r[0]+2*s,H.r[1]+6*s,-28,1.1*s,p,S.c.lilac);
- if(k==='imgplan')chartBoard(H.l[0]-26*s,H.l[1]-6*s,.95*s,p,-6);
- if(k==='imgbuild')wrench(H.r[0]+6*s,H.r[1],24,1.05*s,p);
+ if(k==='imgplan'&&!o.noleft)clapper(H.l[0]-22*s,H.l[1]-4*s,-8,.95*s,p);
+ if(k==='imgbuild'&&!o.noleft)palette(H.l[0]-18*s,H.l[1]-2*s,-12,s,p);
+ if(k==='imgbuild')brush(H.r[0]+4*s,H.r[1]+2*s,22,1.2*s,p,S.c.peri);
  return Object.assign(b,{hands:H});
 }

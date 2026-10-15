@@ -76,7 +76,7 @@ need skills/blog-post-workflow/SKILL.md 'on return append `agent_done` first'
 [ "$(grep -c 'Wait for return, idle: no tool calls until the subagent returns' personas/editor.md)" -ge 3 ] || { echo "ANATOMY FAIL: editor.md: fewer than 3 dispatches carry the idle note" >&2; fail=1; }
 
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.56.1"'
+need .claude-plugin/plugin.json '"version": "0.56.2"'
 
 # 0.56.0: merge on request, and the closing message says how to merge
 need skills/blog-post-workflow/SKILL.md '#### Step 15.6, Merge on request'
