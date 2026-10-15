@@ -1,0 +1,77 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// How a post is made: one row of stations, the sheet travels along it, one caption at a time. 28.75 s loop.
+(async()=>{await ready(1600,620);
+// K stretches the whole timeline: 1.25 gives about 2.5 s a stage, a 28.75 s loop
+const K=1.25,t=(TIME%(23*K))/K,MOVE=0.3;
+title(80,96,'How a post is made','Nothing goes live until you say so.');
+const gy=420,xs=[150,330,510,690,870,1050,1230,1450];
+const ST=[{k:'ask',l:'You ask'},{k:'research',l:'Research'},{k:'plan',l:'Plan'},{k:'draft',l:'Draft'},{k:'review',l:'Review'},{k:'human',l:'Polish'},{k:'images',l:'Images'},{k:'pr',l:'You approve'}];
+// where the sheet is, and what the caption says, from t0 on
+const SEG=[
+ {t0:0,st:0,cap:'Say what you want. Pilcrino asks a few questions.'},
+ {t0:2.0,st:1,cap:'Reads Google, Reddit and X. Every fact gets a source.'},
+ {t0:4.2,st:2,cap:'A second pair of eyes on the plan before writing.'},
+ {t0:6.2,st:3,cap:'Written in your voice, citing only the facts file.'},
+ {t0:8.4,st:4,cap:'Finds the claim with no source and sends it back.'},
+ {t0:10.6,st:3,cap:'Fixes line 93. Nothing else changes.'},
+ {t0:12.4,st:4,cap:'Second pass: approved.'},
+ {t0:13.8,st:5,cap:'Removes AI phrasing. Every number and link stays.'},
+ {t0:16.0,st:6,cap:'Drawn in your colours, showing your product.'},
+ {t0:18.2,st:7,cap:'You read it, approve it, and merge when ready.'},
+ {t0:20.4,st:7,cap:'Pilcrino never merges on its own.'}];
+let si=0;SEG.forEach((s,i)=>{if(t>=s.t0)si=i});
+const seg=SEG[si],cur=seg.st;
+const reached=i=>i===0||SEG.some(s=>s.st===i&&t>=s.t0-MOVE);
+// a station is done once the sheet has left it for the last time
+const done=i=>{let last=-1;SEG.forEach((s,j)=>{if(s.st===i)last=j});return i>0&&i<7&&last>=0&&last+1<SEG.length&&t>=SEG[last+1].t0};
+const bugOn=t>=9.0&&t<10.6,fixed=t>=11.4,merged=t>=20.55;
+el('path',{d:`M${xs[0]+60} ${gy+10} H${xs[7]-80}`,fill:'none',stroke:S.rule,'stroke-width':3,'stroke-dasharray':'2 12','stroke-linecap':'round'});
+const hands={};
+ST.forEach((st,i)=>{const cx=xs[i],grp=g({opacity:reached(i)?1:.4}),active=cur===i;
+ if(st.k==='ask'){const bx=cx-96,by=gy-150;
+  el('path',{d:`M${bx} ${by} h192 a12 12 0 0 1 12 12 v64 a12 12 0 0 1 -12 12 h-110 l-20 24 l2 -24 h-64 a12 12 0 0 1 -12 -12 v-64 a12 12 0 0 1 12 -12z`,fill:S.card,stroke:S.rule,'stroke-width':2.5},grp);
+  txt(cx+6,by+36,'Write a how-to',{fs:20,p:grp});txt(cx+6,by+62,'about onboarding.',{fs:20,p:grp});
+  hands.ask=[cx+40,gy-110];
+ } else if(st.k==='pr'){const open=t>=18.2,cy=gy-70;
+  // the card flips over when it merges
+  const f=t>=20.4&&t<20.7?Math.abs(Math.cos(Math.PI*(t-20.4)/0.3)):1;
+  const c=g({transform:`translate(${cx} 0) scale(${Math.max(f,.02)} 1) translate(${-cx} 0)`},grp);
+  el('rect',{x:cx-110,y:cy-54,width:220,height:108,rx:10,fill:S.card,stroke:S.rule,'stroke-width':2.5},c);
+  el('circle',{cx:cx-84,cy:cy-26,r:10,fill:merged?'#8E6BC2':(open?S.ok:S.rule)},c);
+  txt(cx-66,cy-19,merged?'Merged':'Pull request',{fs:19,a:'start',w:600,p:c});
+  txt(cx-92,cy+14,'How to write onboarding emails',{fs:14,a:'start',fill:S.muted,p:c});
+  txt(cx-92,cy+40,merged?'you merged it':(open?'you: reading':''),{fs:15,a:'start',fill:merged?S.ok:S.muted,w:600,p:c});
+  hands.pr=[cx,cy];
+ } else if(st.k==='images'){
+  helper('imgbuild',cx-26,gy,.82,{p:grp,look:active?[0,.6]:undefined});helper('imgplan',cx+46,gy,.62,{p:grp,look:[-.6,.2]});
+  hands.images=[cx-70,gy-60];
+ } else {
+  const b=helper(st.k,cx,gy,.82,{p:grp,look:active?[0,.6]:undefined,mouth:st.k==='review'&&bugOn?'o':undefined,nopencil:active&&st.k==='draft'});
+  hands[st.k]=st.k==='draft'?b.hands.r:b.hands.l;
+ }
+ txt(cx,gy+54,st.l,{f:S.tf,fs:28,w:400,p:grp});
+ if(done(i))el('path',{d:`M${cx-62} ${gy-128} l8 8 l14 -16`,fill:'none',stroke:S.ok,'stroke-width':4.5,'stroke-linecap':'round','stroke-linejoin':'round'},grp);
+});
+// the sheet: slides from the last station to this one over MOVE seconds, then rides in the hand
+const at=i=>hands[ST[SEG[i].st].k];
+if(si>0&&si<9||(si===9&&t<SEG[9].t0+MOVE)){
+ const k=Math.min(1,(t-seg.t0)/MOVE),e=k*k*(3-2*k),a=at(si-1),b=at(si);
+ const x=a[0]+(b[0]-a[0])*e,y=a[1]+(b[1]-a[1])*e-Math.sin(e*Math.PI)*30;
+ sheet(x,y-8,{rot:-8,ticks:si>=2,bug:bugOn,fixed:fixed&&!bugOn});
+}
+// sent back: a red arc from the reviewer to the writer
+if(t>=9.6&&t<10.9){
+ el('path',{d:`M${xs[4]-30} ${gy-150} q-90 -70 -180 -10`,fill:'none',stroke:S.acc,'stroke-width':3,'stroke-dasharray':'6 8','stroke-linecap':'round'});
+ el('path',{d:`M${xs[4]-210} ${gy-160} l-6 14 l14 -2`,fill:S.acc});
+}
+// one caption, under the station that holds the post
+const cf=Math.min(1,(t-seg.t0)/0.25);
+const cap=txt(xs[cur],gy+106,seg.cap,{fs:30,fill:S.muted,op:cf}),half=cap.getComputedTextLength()/2;
+cap.setAttribute('x',Math.max(60+half,Math.min(1540-half,xs[cur])));
+document.title='ready';})();
+</script>

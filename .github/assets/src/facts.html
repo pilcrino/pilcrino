@@ -1,0 +1,58 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Facts locked before drafting: claims from research are checked one by one and filed into facts.md; the writer cites only that file. 13 s loop.
+// Example data for an onboarding-email product; every name, number and domain is made up.
+(async()=>{await ready(1600,690);
+const t=TIME%13,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Facts locked before drafting',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'Every claim from research is checked before a word is written.'],[9.2,'The writer cites only this file. Anything else is marked [VERIFY:] for you.']];
+const ci=t>=CAP[1][0]?1:0;
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// facts.md, with the template's sections
+const fx=780,fw=740,fy=176;
+el('rect',{x:fx,y:fy,width:fw,height:494,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(fx+28,fy+42,'facts.md',{fs:22,f:MONO,a:'start',w:400});
+const SEC=['Statistics','Quotes','Named examples','Product facts','Rejected / not verifiable'];
+SEC.forEach((h,i)=>txt(fx+28,fy+84+i*84,h,{fs:18,a:'start',w:600,fill:i===4?S.acc:S.muted}));
+// claims: text, ok, the line it is filed as, the section
+const CL=[
+ ['Welcome emails get 4x the opens of a newsletter',1,'4x opens, source: emailbench.io/2026',0],
+ ['"Send the first email within five minutes"',1,'D. Ruiz, source: onboarding-lab.com',1],
+ ['Loopwise cut trial churn 18% with three emails',1,'Loopwise case, source: loopwise.com/blog',2],
+ ['Sequences can pause per user',1,'source: blog-ops/profile/product.md',3],
+ ['80% of users never open the second email',0,'reason: one blog post, no data behind it',4]];
+const T0=0.5,STEP=1.7;
+CL.forEach(([claim,ok,line,sec],i)=>{const c0=T0+i*STEP;if(t<c0)return;
+ const ly=fy+114+sec*84;
+ // filed: the line sits under its section
+ const fly=ease((t-c0-1.0)/0.45);
+ if(fly>=1){
+  el('path',ok?{d:`M${fx+28} ${ly-6} l6 6 l11 -13`,fill:'none',stroke:S.ok,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round'}:{d:`M${fx+29} ${ly-17} l11 11 m0 -11 l-11 11`,fill:'none',stroke:S.acc,'stroke-width':3.5,'stroke-linecap':'round'});
+  txt(fx+52,ly,ok?claim:claim,{fs:18,a:'start',w:500,fill:ok?S.ink:S.muted});
+  txt(fx+52,ly+23,line,{fs:15,f:MONO,a:'start',w:400,fill:ok?S.muted:S.acc});
+  return}
+ // in hand: the card appears on the left, gets its stamp, then flies to its section
+ const a=ease((t-c0)/0.3),cx0=100,cy0=300,x=cx0+(fx+40-cx0)*fly,y=cy0+(ly-30-cy0)*fly;
+ const q=g({opacity:a*(1-fly*0.3),transform:`translate(${x} ${y}) scale(${1-fly*0.25})`});
+ el('rect',{x:0,y:0,width:560,height:96,rx:10,fill:'#fff',stroke:S.rule,'stroke-width':2},q);
+ txt(24,40,claim,{fs:21,a:'start',p:q});
+ if(t>=c0+0.55){const st=ease((t-c0-0.55)/0.2);
+  if(ok){el('path',{d:'M24 66 l7 7 l13 -15',fill:'none',stroke:S.ok,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:st},q);
+   txt(54,74,line,{fs:16,f:MONO,a:'start',w:400,fill:S.ok,op:st,p:q})}
+  else{el('path',{d:'M26 58 l14 14 m0 -14 l-14 14',fill:'none',stroke:S.acc,'stroke-width':4,'stroke-linecap':'round',opacity:st},q);
+   txt(54,74,line,{fs:16,f:MONO,a:'start',w:400,fill:S.acc,op:st,p:q})}}
+});
+// the Researcher hands the claims over; the Writer takes the file at the end
+const wr=t>=9.2;
+helper(wr?'draft':'research',300,600,.8,{look:wr?[1,-.2]:[.4,-.9]});
+if(wr){const a=ease((t-9.2)/0.4);
+ el('path',{d:`M${360} ${510} C${520} ${510} ${620} ${470} ${fx-14} ${430}`,fill:'none',stroke:S.c.mint,'stroke-width':3,'stroke-dasharray':'2 9','stroke-linecap':'round',opacity:a});
+ txt(560,466,'reads only this',{fs:18,w:600,fill:shade(S.c.mint,.55),op:a})}
+document.title='ready';})();
+</script>

@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Competitor fact sheets: the Researcher reads a competitor's pricing page in the Pilcrino browser and writes a dated
+// fact sheet; the reviewer checks a draft's competitor price against it; after 14 days it offers to read the site again.
+// 13 s loop. Mailcrate and its prices are made up.
+(async()=>{await ready(1600,660);
+const t=TIME%13,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Competitor fact sheets',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,"It reads each competitor's site in its own browser and writes a dated fact sheet."],[4.6,"The reviewer checks a draft's competitor prices against it."],[8.4,'Older than 14 days? It offers to read the site again before the post.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// the competitor's pricing page in the Pilcrino browser
+const TI=[['Starter','$19','1,000 contacts'],['Growth','$49','10,000 contacts'],['Scale','$129','50,000 contacts']];
+const R0=0.6,RD=0.8,RE=10.0;   // first read, and the re-read after 14 days
+const reading=i=>(t>=R0+i*RD&&t<R0+(i+1)*RD)||(t>=RE+i*0.5&&t<RE+(i+1)*0.5);
+const wx=80,wy=176,ww=560,wh=300;
+el('rect',{x:wx,y:wy,width:ww,height:wh,rx:12,fill:'#fff',stroke:S.rule,'stroke-width':2.5});
+el('rect',{x:wx,y:wy,width:ww,height:40,rx:12,fill:'#efe6d2'});
+for(let i=0;i<3;i++)el('circle',{cx:wx+20+i*16,cy:wy+20,r:5,fill:'#d3c3a3'});
+txt(wx+80,wy+26,'mailcrate.com/pricing',{fs:15,f:MONO,a:'start',w:400,fill:S.muted});
+TI.forEach(([n,p,c],i)=>{const x=wx+24+i*176,y=wy+70,on=reading(i);
+ el('rect',{x,y,width:160,height:180,rx:10,fill:S.card,stroke:on?S.c.peri:S.rule,'stroke-width':on?4:2});
+ txt(x+80,y+38,n,{fs:20,w:600});txt(x+80,y+92,p,{fs:40,f:S.tf,w:400});txt(x+80,y+116,'/month',{fs:15,fill:S.muted});
+ txt(x+80,y+152,c,{fs:15,fill:S.muted})});
+helper('research',600,520,.66,{look:[-.8,-.8]});
+
+// the fact sheet: pricing rows fill in as each tier is read, under a Last verified date
+const fx=760,fy=176,fw=760,fh=300;
+el('rect',{x:fx,y:fy,width:fw,height:fh,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(fx+28,fy+42,'competitors/mailcrate.md',{fs:20,f:MONO,a:'start',w:400});
+const stale=t>=8.4&&t<RE+1.5,fresh2=t>=RE+1.5;
+const date=fresh2?'2026-10-29':'2026-10-15',dc=stale?S.acc:S.ok;
+if(t>=R0){el('rect',{x:fx+fw-282,y:fy+18,width:256,height:34,rx:17,fill:stale?'#f8e1dc':'#e3efd9',stroke:dc,'stroke-width':2});
+ txt(fx+fw-154,fy+41,'Last verified '+date,{fs:16,f:MONO,w:400,fill:dc})}
+if(stale)txt(fx+fw-26,fy+74,'14 days old',{fs:16,a:'end',w:600,fill:S.acc});
+txt(fx+28,fy+92,'Pricing',{fs:18,a:'start',w:600,fill:S.muted});
+TI.forEach(([n,p,c],i)=>{const k=ease((t-R0-(i+1)*RD+0.2)/0.3);if(k<=0)return;const y=fy+130+i*40,hi=t>=RE+i*0.5&&t<RE+(i+1)*0.5;
+ if(hi)el('rect',{x:fx+18,y:y-26,width:fw-36,height:36,rx:8,fill:'#e6eaf6'});
+ txt(fx+28,y,n,{fs:19,a:'start',op:k});txt(fx+170,y,p+'/month',{fs:19,f:MONO,a:'start',w:400,op:k});txt(fx+340,y,c,{fs:19,a:'start',fill:S.muted,op:k})});
+txt(fx+28,fy+fh-24,'Sources: mailcrate.com/pricing',{fs:16,f:MONO,a:'start',w:400,fill:S.muted,op:ease((t-R0-3*RD)/0.3)});
+
+// a line in the draft, checked against the sheet
+if(t>=4.6&&t<8.4){const a=ease((t-4.6)/0.35)*(1-ease((t-8.0)/0.4)),q=g({opacity:a});const dy=500;
+ el('rect',{x:fx,y:dy,width:fw,height:124,rx:14,fill:'#fff',stroke:S.rule,'stroke-width':2.5},q);
+ txt(fx+28,dy+34,'draft-v1.md',{fs:15,f:MONO,a:'start',w:400,fill:S.muted,p:q});
+ const s1="Mailcrate's Growth plan costs ";txt(fx+28,dy+72,s1,{fs:21,a:'start',p:q});
+ const cv=document.createElement('canvas').getContext('2d');cv.font='500 21px "Hanken Grotesk"';const x2=fx+34+cv.measureText(s1).width;
+ const ok=t>=5.6;
+ el('rect',{x:x2-4,y:dy+50,width:cv.measureText('$49 a month').width+8,height:32,rx:6,fill:ok?'#e3efd9':'#f3ecdc',stroke:ok?S.ok:S.rule,'stroke-width':2},q);
+ txt(x2,dy+72,'$49 a month',{fs:21,a:'start',p:q});
+ txt(x2+cv.measureText('$49 a month').width+6,dy+72,'.',{fs:21,a:'start',p:q});
+ if(ok){const b=ease((t-5.6)/0.3);
+  el('path',{d:`M${fx+28} ${dy+99} l6 6 l11 -13`,fill:'none',stroke:S.ok,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round',opacity:b},q);
+  txt(fx+52,dy+106,'matches mailcrate.md, verified 2026-10-15',{fs:16,a:'start',w:600,fill:S.ok,op:b,p:q})}
+ // the Reviewer with its net, beside the line
+ helper('review',fx-62,dy+118,.55,{look:[.9,-.2],p:q});
+}
+// "14 days later" marker
+if(t>=8.4&&t<RE+1.5){const a=ease((t-8.4)/0.3)*(1-ease((t-RE-1.2)/0.3));
+ el('rect',{x:wx,y:wy+wh+30,width:250,height:44,rx:22,fill:'#f8e1dc',stroke:S.acc,'stroke-width':2,opacity:a});
+ txt(wx+125,wy+wh+59,'14 days later',{fs:19,w:600,fill:S.acc,op:a})}
+document.title='ready';})();
+</script>

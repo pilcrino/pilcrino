@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Polish keeps every number and link: AI phrasing is flagged and rolled away, the locked numbers and links glide into the
+// rewritten sentence, then the post-flight check counts them. 11 s loop. Example data is made up.
+(async()=>{await ready(1600,640);
+const t=TIME%11,MONO='ui-monospace,Menlo,monospace',FS=30,LH=56;
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Polish keeps every number and link',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'It finds the phrases that sound like AI.'],[3.0,'It rewrites around them. Numbers and links stay exactly as they were.'],[5.8,'Then it checks that every one survived.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// tokens: plain words, flagged AI phrases (f), and locked numbers or links (n, l) that keep an id across the rewrite
+const W=s=>s.split(' ').map(x=>({s:x}));
+const N=(id,s)=>({s,id,k:'n'}),L=(id,s)=>({s,id,k:'l'}),F=s=>({s,k:'f'});
+const BEFORE=[F("In today's fast-paced world,"),F("it's worth noting that"),...W('welcome emails get'),N('a','4x the opens'),...W('of a newsletter'),L('b','(emailbench.io).'),F('Delving deeper,'),L('c','Loopwise'),...W('cut trial churn by'),N('d','18%,'),F('a true game-changer.')];
+const AFTER=[...W('Welcome emails get'),N('a','4x the opens'),...W('of a newsletter'),L('b','(emailbench.io).'),L('c','Loopwise'),...W('cut trial churn by'),N('d','18%'),...W('with three emails.')];
+const cv=document.createElement('canvas').getContext('2d');cv.font=`500 ${FS}px "Hanken Grotesk"`;
+const SP=cv.measureText(' ').width+2,PAD=8;
+function lay(list,x0,y0,maxW){let x=x0,y=y0;return list.map(tk=>{const w=cv.measureText(tk.s).width+(tk.k==='n'||tk.k==='l'?PAD*2:0);
+ if(x+w>x0+maxW){x=x0;y+=LH}const p={...tk,x,y,w};x+=w+SP;return p})}
+const cx=80,cy=176,cw=1000,ch=290;
+el('rect',{x:cx,y:cy,width:cw,height:ch,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(cx+28,cy+42,'draft-v2.md',{fs:20,f:MONO,a:'start',w:400,fill:S.muted});
+const A=lay(BEFORE,cx+32,cy+100,cw-64),B=lay(AFTER,cx+32,cy+100,cw-64);
+const M0=4.4,MORPH=ease((t-M0)/0.8);
+// the roller sweeps the card from left to right
+const SW0=3.0,SW1=4.3,sweep=t<SW0?-1:cx+(cw+40)*ease((t-SW0)/(SW1-SW0));
+function lockChip(p,x,y,a){const q=g({opacity:a});
+ el('rect',{x,y:y-FS+2,width:p.w,height:FS+12,rx:7,fill:p.k==='n'?'#e3efd9':'#e6eaf6',stroke:p.k==='n'?S.ok:S.c.peri,'stroke-width':2},q);
+ const e=txt(x+PAD,y,p.s,{fs:FS,a:'start',p:q,fill:p.k==='l'?'#3b5aa6':S.ink});if(p.k==='l')e.setAttribute('text-decoration','underline')}
+// before: flagged phrases get a red underline in turn, then fade where the roller has passed
+let fi=0;A.forEach(p=>{
+ if(p.k==='n'||p.k==='l'){if(MORPH<=0)lockChip(p,p.x,p.y,1);return}
+ let a=1-MORPH;
+ if(p.k==='f'){const ft=1.0+fi*0.4;fi++;
+  if(sweep>p.x+p.w*0.5)a=0;
+  if(t>=ft&&a>0)el('path',{d:`M${p.x} ${p.y+8} q4 -5 8 0 t8 0 t8 0`.replace(/t8 0( t8 0)*/,' '+Array(Math.max(1,Math.floor(p.w/8)-2)).fill('t8 0').join(' ')),fill:'none',stroke:S.acc,'stroke-width':2.5,opacity:a*ease((t-ft)/0.2)})}
+ if(a>0)txt(p.x,p.y,p.s,{fs:FS,a:'start',fill:p.k==='f'&&t>=1.0?S.acc:S.ink,op:a});
+});
+// after: new words fade in, locked chips glide from their old place to the new one
+if(MORPH>0)B.forEach(p=>{
+ if(p.k==='n'||p.k==='l'){const o=A.find(q=>q.id===p.id);lockChip(p,o.x+(p.x-o.x)*MORPH,o.y+(p.y-o.y)*MORPH,1);return}
+ txt(p.x,p.y,p.s,{fs:FS,a:'start',op:MORPH});
+});
+// the paint the roller leaves, and the Polisher riding along under the card
+if(t>=SW0&&t<SW1+0.6){const fade=1-ease((t-SW1)/0.6);
+ el('rect',{x:cx+4,y:cy+60,width:Math.max(0,Math.min(cw-8,sweep-cx-4)),height:ch-80,rx:8,fill:S.c.lilac,opacity:.18*fade})}
+const hx=t<SW0?cx+60:Math.min(cx+cw-40,Math.max(cx+60,sweep-40));
+helper('human',hx,cy+ch+118,.75,{look:[.8,-.6]});
+
+// the post-flight check, for the whole post
+const kx=1120,kw=400;
+el('rect',{x:kx,y:cy,width:kw,height:ch,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(kx+28,cy+42,'Preservation check',{fs:20,a:'start',w:600});
+txt(kx+28,cy+66,'whole post, before and after',{fs:16,a:'start',fill:S.muted});
+const CK=[['Numbers',12],['Links',9],['Headings',7],['[VERIFY:] markers',2]];
+CK.forEach(([n,c],i)=>{const y=cy+118+i*46,k=ease((t-5.9-i*0.45)/0.4);
+ txt(kx+28,y,n,{fs:20,a:'start',fill:k>0?S.ink:S.muted});
+ const shown=k>0?Math.round(c*k):0;
+ txt(kx+kw-70,y,`${shown} of ${c}`,{fs:20,f:MONO,a:'end',w:400,fill:k>=1?S.ok:S.muted,op:k>0?1:.4});
+ if(k>=1)el('path',{d:`M${kx+kw-56} ${y-8} l7 7 l13 -15`,fill:'none',stroke:S.ok,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round'});
+});
+document.title='ready';})();
+</script>

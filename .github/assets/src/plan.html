@@ -1,0 +1,49 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// A content plan from research: the Researcher reads four sources, then strategy.md's post table fills in, top score first.
+// Its Type column is search, share or experiment, as in plan-content's output template. 12 s loop.
+// Example blog: a product for onboarding emails. Mailcrate and Loopwise are made-up competitors.
+(async()=>{await ready(1600,620);
+const t=TIME%12,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'A content plan from research',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'It reads your product, Google, Reddit and your competitors.'],[5.3,'Ranked by customer impact, product fit, buying intent and ease.']];
+let ci=t>=CAP[1][0]?1:0;
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// four sources, read in turn
+const SRC=[['product.md','what you sell'],['Google','who ranks, and for what'],['Reddit','how buyers say it'],['mailcrate.com/pricing','what a competitor charges']];
+const R0=0.3,RD=1.2;
+let active=-1;SRC.forEach((s,i)=>{if(t>=R0+i*RD&&t<R0+i*RD+1.0)active=i});
+const sx=80,sw=350;
+SRC.forEach(([n,d],i)=>{const y=196+i*94,read=t>=R0+i*RD,on=i===active;
+ el('rect',{x:sx,y,width:sw,height:76,rx:10,fill:S.card,stroke:on?S.c.peri:S.rule,'stroke-width':on?4:2});
+ txt(sx+22,y+33,n,{fs:20,a:'start',w:i===0||i===3?400:600,f:i===0||i===3?MONO:S.bf,fill:read?S.ink:S.muted});
+ txt(sx+22,y+58,d,{fs:17,a:'start',fill:S.muted});
+ if(read&&!on)el('path',{d:`M${sx+sw-40} ${y+38} l7 7 l13 -15`,fill:'none',stroke:S.ok,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round'});
+});
+// the Researcher turns to whichever source it is reading
+const hy=active>=0?196+active*94+38:330;
+helper('research',520,470,.9,{look:active>=0?[-.9,(hy-380)/200]:[.9,-.2]});
+if(active>=0)el('path',{d:`M${sx+sw+10} ${hy} Q${460} ${hy} ${470} ${380}`,fill:'none',stroke:S.c.peri,'stroke-width':3,'stroke-dasharray':'2 9','stroke-linecap':'round'});
+
+// the plan, top score first
+const px=640,pw=880,py=180;
+el('rect',{x:px,y:py,width:pw,height:390,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(px+28,py+44,'content-strategy/strategy.md',{fs:22,f:MONO,a:'start',w:400});
+for(const [x,h] of [[px+28,'Score'],[px+130,'Type'],[px+320,'Slug']])txt(x,py+86,h,{fs:17,a:'start',fill:S.muted,w:600});
+el('line',{x1:px+24,y1:py+100,x2:px+pw-24,y2:py+100,stroke:S.rule,'stroke-width':2});
+const ROWS=[['8.6','search',S.c.mint,'mailcrate-alternatives'],['8.1','search',S.c.mint,'onboarding-email-sequence'],['7.7','search',S.c.mint,'mailcrate-vs-loopwise'],['7.2','share',S.c.peri,'we-read-200-welcome-emails'],['6.4','experiment',S.c.butter,'onboarding-email-teardown-video']];
+ROWS.forEach(([sc,ty,c,ti],i)=>{const a=ease((t-5.5-i*0.5)/0.35);if(a<=0)return;
+ const y=py+142+i*50,q=g({opacity:a,transform:`translate(${(1-a)*24} 0)`});
+ txt(px+28,y,sc,{fs:22,f:MONO,a:'start',w:400,p:q});
+ const w=ty.length*10.6+22;el('rect',{x:px+130,y:y-22,width:w,height:30,rx:15,fill:c,opacity:.55},q);
+ txt(px+130+w/2,y-1,ty,{fs:16,f:MONO,w:400,p:q});
+ txt(px+320,y,ti,{fs:20,f:MONO,a:'start',w:400,p:q});
+});
+document.title='ready';})();
+</script>

@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Images in your style: theme.ts feeds the Image builder; the cover comes out in the blog's colours, showing its own
+// product screen, with its watermark; a theme change recolours it. 12 s loop. Driplane is a made-up product.
+(async()=>{await ready(1600,640);
+const t=TIME%12,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+const mix=(a,b,k)=>{const p=h=>[1,3,5].map(i=>parseInt(h.slice(i,i+2),16)),A=p(a),B=p(b);return '#'+A.map((v,i)=>Math.round(v+(B[i]-v)*k).toString(16).padStart(2,'0')).join('')};
+txt(80,96,'Images in your style',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'Your colours and fonts live in one file, theme.ts.'],[3.0,"Each image is drawn from it: your title, your product's own screen, your watermark."],[8.0,'Change the theme, and every image renders in the new one.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// two themes for the same blog; the second arrives at 8 s
+const TA={background:'#f4f1ea',surface:'#ffffff',text:'#1d2a33',primary:'#1f7a6d',accent:'#e8664a',sans:'Hanken Grotesk'};
+const TB={background:'#eceefb',surface:'#ffffff',text:'#1b1f3b',primary:'#4b4fd6',accent:'#f2a541',sans:'Newsreader'};
+const K=ease((t-8.0)/0.8),P={};for(const k of ['background','surface','text','primary','accent'])P[k]=mix(TA[k],TB[k],K);
+const sans=K<0.5?TA.sans:TB.sans,sansCss=sans==='Newsreader'?S.tf:S.bf;
+
+// theme.ts
+const tx=80,ty=176,tw=470;
+el('rect',{x:tx,y:ty,width:tw,height:424,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(tx+28,ty+42,'theme.ts',{fs:22,f:MONO,a:'start',w:400});
+const LN=[['export const palette = {',null],['  background:','background'],['  surface:','surface'],['  text:','text'],['  primary:','primary'],['  accent:','accent'],['}',null],[`export const fonts = {`,null],[`  sans: '${sans}'`,null,'font'],['}',null],[`export const watermark = 'driplane.app'`,null]];
+LN.forEach(([s,k,f],i)=>{const a=ease((t-0.2-i*0.1)/0.25);if(a<=0)return;const y=ty+84+i*30;
+ const hi=(k&&K>0&&K<1)||(f&&K>0&&K<1);
+ const ind=s.startsWith('  ')?24:0;txt(tx+28+ind,y,s.trim(),{fs:17,f:MONO,a:'start',w:400,op:a,fill:hi?S.ink:(k||f?S.ink:S.muted)});
+ if(k){el('rect',{x:tx+214,y:y-16,width:20,height:20,rx:4,fill:P[k],stroke:S.rule,'stroke-width':1.5,opacity:a});
+  txt(tx+244,y,`'${P[k]}',`,{fs:17,f:MONO,a:'start',w:400,op:a})}
+});
+// the Image builder takes the theme and renders
+const work=t>=1.8&&t<5.4||t>=8.0&&t<9.4;
+helper('imgbuild',625,560,.72,{look:work?[.9,-.3]:[-.9,-.3]});
+if(t>=1.8){const a=ease((t-1.8)/0.4);
+ el('path',{d:`M${tx+tw+8} 390 Q 592 390 600 446`,fill:'none',stroke:S.c.butter,'stroke-width':3,'stroke-dasharray':'2 9','stroke-linecap':'round',opacity:a});
+ el('path',{d:`M652 446 Q 664 390 712 390`,fill:'none',stroke:S.c.butter,'stroke-width':3,'stroke-dasharray':'2 9','stroke-linecap':'round',opacity:a})}
+
+// the cover image, built layer by layer from the theme
+const ox=720,oy=176,ow=800,oh=424,L=k=>ease((t-k)/0.35);
+txt(ox,oy+oh+26,'featured.png',{fs:16,f:MONO,a:'start',w:400,fill:S.muted,op:L(2.9)});
+const q=g({opacity:L(3.0)});
+el('rect',{x:ox,y:oy,width:ow,height:oh,rx:8,fill:P.background,stroke:S.rule,'stroke-width':2},q);
+txt(ox+ow/2,oy+66,'How to write onboarding emails',{f:sansCss,fs:36,w:sans==='Newsreader'?400:600,fill:P.text,op:L(3.4),p:q});
+// the product's own screen, recreated as a mockup
+const wx=ox+90,wy=oy+102,ww=ow-180,wh=250,m=g({opacity:L(3.9)},q);
+el('rect',{x:wx,y:wy,width:ww,height:wh,rx:10,fill:P.surface,stroke:mix(P.background,P.text,.18),'stroke-width':1.5},m);
+el('rect',{x:wx,y:wy,width:ww,height:30,rx:10,fill:mix(P.background,P.surface,.4)},m);
+for(let i=0;i<3;i++)el('circle',{cx:wx+18+i*16,cy:wy+15,r:5,fill:mix(P.background,P.text,.25)},m);
+txt(wx+ww/2,wy+20,'Driplane',{f:sansCss,fs:14,w:600,fill:mix(P.surface,P.text,.6),p:m});
+el('rect',{x:wx+16,y:wy+46,width:130,height:wh-62,rx:6,fill:mix(P.background,P.surface,.5)},m);
+['Sequences','Contacts','Reports'].forEach((s,i)=>txt(wx+30,wy+76+i*30,s,{f:sansCss,fs:15,a:'start',w:i?500:600,fill:i?mix(P.surface,P.text,.5):P.text,p:m}));
+const STEPS=[['Day 0','Welcome'],['Day 2','First win'],['Day 5','Invite your team']];
+STEPS.forEach(([d,n],i)=>{const a=L(4.3+i*0.25);const cx=wx+180,cy=wy+60+i*62,s=g({opacity:a},m);
+ if(i)el('line',{x1:cx+14,y1:cy-24,x2:cx+14,y2:cy,stroke:P.primary,'stroke-width':3},s);
+ el('rect',{x:cx,y:cy,width:300,height:42,rx:8,fill:P.surface,stroke:P.primary,'stroke-width':2},s);
+ txt(cx+16,cy+27,d,{f:MONO,fs:14,a:'start',w:400,fill:P.primary,p:s});
+ txt(cx+80,cy+27,n,{f:sansCss,fs:17,a:'start',w:600,fill:P.text,p:s});
+});
+// accent, used once: the outcome
+const ac=g({opacity:L(5.1)},m);
+el('rect',{x:wx+500,y:wy+60,width:110,height:58,rx:8,fill:P.accent},ac);
+txt(wx+555,wy+86,'Sent in',{f:sansCss,fs:14,w:600,fill:'#fff',p:ac});
+txt(wx+555,wy+106,'4 min',{f:MONO,fs:16,w:400,fill:'#fff',p:ac});
+txt(ox+ow-24,oy+oh-20,'driplane.app',{f:MONO,fs:15,a:'end',w:400,fill:P.text,op:L(5.4)*0.55,p:q});
+document.title='ready';})();
+</script>
