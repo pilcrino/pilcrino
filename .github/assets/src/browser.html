@@ -1,0 +1,70 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Its own browser: research runs in Pilcrino's own Chrome with its own sign-ins; your Chrome is untouched. When Google
+// asks for a robot check, the "Pilcrino: pass the check" tab comes forward for you. 12 s loop.
+(async()=>{await ready(1600,660);
+const t=TIME%12,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Its own browser',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'Research runs in a Chrome of its own. Yours is untouched.'],[5.0,"If Google asks whether you're a robot, it hands you that tab."],[8.2,'You pass the check there, and it carries on.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+function win(x,y,w,h,tabs,act,q,muted){
+ el('rect',{x,y,width:w,height:h,rx:12,fill:muted?'#f3ecdc':'#fff',stroke:S.rule,'stroke-width':2.5},q);
+ el('rect',{x,y,width:w,height:44,rx:12,fill:muted?'#ebe2cd':'#efe6d2'},q);
+ for(let i=0;i<3;i++)el('circle',{cx:x+20+i*16,cy:y+22,r:5,fill:'#d3c3a3'},q);
+ let tx=x+78;tabs.forEach((tb,i)=>{const tw=tb.w||(muted?130:150);
+  el('rect',{x:tx,y:y+8,width:tw-6,height:36,rx:8,fill:i===act?(muted?'#f3ecdc':'#fff'):'transparent',stroke:tb.red?S.acc:'none','stroke-width':2},q);
+  if(tb.red)el('circle',{cx:tx+16,cy:y+26,r:5,fill:S.acc},q);
+  txt(tx+(tb.red?28:14),y+31,tb.s,{fs:15,a:'start',w:i===act?600:500,fill:muted?S.muted:S.ink,p:q});tx+=tw});
+}
+// your Chrome, left alone
+const yq=g({});
+win(80,200,480,330,[{s:'Mail'},{s:'Docs'},{s:'Calendar'}],0,yq,true);
+for(let i=0;i<5;i++)el('rect',{x:110,y:280+i*36,width:[380,300,340,260,320][i],height:14,rx:7,fill:'#e2d6bd'},yq);
+txt(80,566,'Your Chrome: your tabs, sign-ins and',{fs:18,a:'start',fill:S.muted,p:yq});
+txt(80,592,'extensions. Pilcrino never touches it.',{fs:18,a:'start',fill:S.muted,p:yq});
+
+// Pilcrino's Chrome: tabs open as the Researcher reads, then the check tab comes forward
+const CHK=5.0,PASS=7.6,DONE=8.6;
+const tabs=[{s:'Google',t:0.6},{s:'r/SaaS',t:1.8},{s:'X search',t:3.0}];
+const open=tabs.filter(tb=>t>=tb.t);
+let act=open.length-1;
+const showChk=t>=CHK&&t<DONE;
+if(showChk){open.push({s:'Pilcrino: pass the check',red:true,w:250});act=open.length-1}
+const lift=showChk?ease((t-CHK)/0.4)*(1-ease((t-DONE+0.4)/0.4)):0;
+const px=640,py=176,pw=880,ph=420;
+const pq=g({transform:`translate(${px+pw/2} ${py+ph/2}) scale(${1+lift*0.025}) translate(${-px-pw/2} ${-py-ph/2})`});
+if(lift>0)el('rect',{x:px+8,y:py+14,width:pw,height:ph,rx:12,fill:'rgba(110,80,50,.16)'},pq);
+win(px,py,pw,ph,open.length?open:[{s:'New tab'}],Math.max(0,act),pq,false);
+txt(px,py+ph+44,"Pilcrino's Chrome, on its own profile:",{fs:18,a:'start',fill:S.muted});
+txt(px+318,py+ph+44,'~/.pilcrino/browser',{fs:16,f:MONO,a:'start',w:400,fill:S.muted});
+const bx=px+30,by=py+76;
+if(showChk){const a=ease((t-CHK-0.2)/0.3),q=g({opacity:a},pq);
+ txt(bx,by+30,'google.com',{fs:15,f:MONO,a:'start',w:400,fill:S.muted,p:q});
+ el('rect',{x:bx,y:by+60,width:480,height:150,rx:10,fill:S.card,stroke:S.rule,'stroke-width':2},q);
+ txt(bx+28,by+102,'Our systems have detected unusual traffic.',{fs:19,a:'start',w:600,p:q});
+ const ok=t>=PASS;
+ el('rect',{x:bx+28,y:by+130,width:34,height:34,rx:6,fill:'#fff',stroke:ok?S.ok:S.muted,'stroke-width':2.5},q);
+ if(ok)el('path',{d:`M${bx+35} ${by+147} l7 7 l13 -15`,fill:'none',stroke:S.ok,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round'},q);
+ txt(bx+78,by+154,"I'm not a robot",{fs:19,a:'start',p:q});
+ // your pointer comes in to tick it
+ if(t>=6.6&&t<DONE){const k=ease((t-6.6)/0.9),mx=bx+600-(600-45)*k,my=by+300-(300-150)*k;
+  el('path',{d:`M${mx} ${my} l0 26 l7 -7 l6 13 l5 -2 l-6 -13 l10 0 z`,fill:S.ink,stroke:'#fff','stroke-width':1.5},q)}
+} else if(open.length){const k=open[act].s,q=g({},pq);
+ txt(bx,by+30,k==='Google'?'google.com/search?q=onboarding+emails':k==='r/SaaS'?'reddit.com/r/SaaS/comments/…':'x.com/search?q=onboarding+emails',{fs:15,f:MONO,a:'start',w:400,fill:S.muted,p:q});
+ for(let i=0;i<4;i++){const y=by+70+i*56;el('rect',{x:bx,y,width:[420,360,440,300,390][i],height:14,rx:7,fill:'#e8dfcc'},q);el('rect',{x:bx,y:y+22,width:[300,260,330,220,280][i],height:10,rx:5,fill:'#f0e9da'},q)}
+}
+// the sign-ins it keeps, on its own profile
+const sy=py+ph-40;txt(px+30,sy+5,'Signed in:',{fs:17,a:'start',w:600,fill:S.muted,p:pq});
+[['Google',0.6],['Reddit',1.8],['X',3.0]].forEach(([n,t0],i)=>{const x=px+130+i*120,on=t>=t0;
+ el('path',{d:`M${x} ${sy-2} l6 6 l11 -13`,fill:'none',stroke:on?S.ok:S.rule,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round'},pq);
+ txt(x+24,sy+5,n,{fs:17,a:'start',fill:on?S.ink:S.muted,p:pq})});
+// the Researcher at the window, stepping back while you pass the check
+helper('research',1430,600,.72,{look:showChk?[-.9,-.6]:[-.9,-.2],mouth:showChk&&t<PASS?'o':undefined});
+document.title='ready';})();
+</script>

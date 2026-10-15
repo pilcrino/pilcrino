@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// The agents: each subagent with what it reads and the file it writes. Static. Paths are under blog-ops/drafts/<slug>/.
+(async()=>{await ready(1600,660);
+const MONO='ui-monospace,Menlo,monospace';
+title(80,96,'The agents','What each one reads, and the file it writes.');
+const row=[
+ ['research','Researcher',['research/_raw/'],'research/*.md'],
+ ['plan','Plan checker',['plan.md','brief.md','facts.md'],'plan-review.md'],
+ ['draft','Writer',['outline.md','facts.md'],'draft-vN.md'],
+ ['review','Reviewer',['draft-vN.md','outline.md','facts.md'],'review.md'],
+ ['human','Polisher',['draft-vN.md'],'draft-vN.md, edited'],
+ ['imgplan','Image planner',['draft-vN.md','outline.md'],'images.md'],
+ ['imgbuild','Image builder',['images.md'],'the image files']];
+const gy=330,step=1460/7,x0=70+step/2;
+row.forEach(([k,name,ins,out],i)=>{const cx=x0+i*step;
+ helper(k,cx,gy,.9);
+ txt(cx,gy+54,name,{f:S.tf,fs:28,w:400});
+ ins.forEach((f,j)=>txt(cx,gy+96+j*26,f,{fs:18,f:MONO,fill:S.muted,w:400}));
+ // arrow down to the one file it writes, all at the same height
+ const ay=gy+96+2*26+18;
+ el('path',{d:`M${cx} ${ay} v28 m-7 -9 l7 9 l7 -9`,fill:'none',stroke:S.rule,'stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'});
+ const o=txt(cx,ay+68,out,{fs:18,f:MONO,w:400}),w=o.getComputedTextLength()+24;
+ const r=el('rect',{x:cx-w/2,y:ay+44,width:w,height:36,rx:8,fill:S.card,stroke:S.rule,'stroke-width':2});
+ r.parentNode.insertBefore(r,o);
+});
+document.title='ready';})();
+</script>

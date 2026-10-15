@@ -1,0 +1,38 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// The skills: /pilcrino: is typed, then the twelve commands drop in, one group at a time. 9 s loop.
+(async()=>{await ready(1600,720);
+const t=TIME%9,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+title(80,96,'The skills','Type /pilcrino: in Claude Code. Twelve commands, in four groups.');
+// the prompt, typed one character at a time
+const typed='/pilcrino:',n=Math.min(typed.length,Math.floor(t/0.12));
+el('rect',{x:80,y:176,width:1440,height:60,rx:12,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(108,215,'>',{fs:24,f:MONO,a:'start',fill:S.muted,w:400});
+const p=txt(140,215,typed.slice(0,n),{fs:24,f:MONO,a:'start',w:400});
+if(Math.floor(t*2.5)%2===0||n<typed.length)el('rect',{x:142+p.getComputedTextLength(),y:194,width:3,height:28,fill:S.ink});
+// four groups, each with a tint from the cast
+const G=[
+ {h:'Set up',c:S.c.peach,k:[['blog-setup','builds blog-ops/ for a blog']]},
+ {h:'Plan',c:S.c.peri,k:[['plan-content','a ranked list of posts'],['research-competitor','a dated competitor fact sheet']]},
+ {h:'Write',c:S.c.mint,k:[['blog-post-workflow','the whole post, ask to PR'],['review-blog-post','review any draft'],['humanize-text','remove AI phrasing'],['suggest-images',"plan a draft's images"],['generate-images','render the image plan'],['generate-image-codex','one AI illustration']]},
+ {h:'After publishing',c:S.c.lilac,k:[['repurpose-blog-post','X, LinkedIn, newsletter'],['post-to-linkedin','to your company page'],['blog-retro','lessons from the run']]}];
+const T0=1.5,GAP=0.55,cw=1440/4;
+G.forEach((gr,i)=>{const x=80+i*cw,gt=T0+i*GAP,a=ease((t-gt)/0.35);if(a<=0)return;
+ const q=g({opacity:a,transform:`translate(0 ${(1-a)*-14})`});
+ el('rect',{x,y:262,width:14,height:14,rx:3,fill:gr.c},q);
+ txt(x+24,276,gr.h,{f:S.tf,fs:26,a:'start',w:400,p:q});
+ gr.k.forEach(([cmd,gl],j)=>{const y=310+j*66,b=ease((t-gt-0.08*(j+1))/0.3);if(b<=0)return;
+  const r=g({opacity:b},q);
+  el('rect',{x,y,width:cw-24,height:56,rx:8,fill:S.card,stroke:S.rule,'stroke-width':1.5},r);
+  el('rect',{x,y,width:5,height:56,rx:2,fill:gr.c},r);
+  txt(x+18,y+22,cmd,{fs:19,f:MONO,a:'start',w:400,p:r});
+  txt(x+18,y+46,gl,{fs:18,a:'start',fill:S.muted,p:r});
+ });
+});
+document.title='ready';})();
+</script>

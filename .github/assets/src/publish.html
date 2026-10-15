@@ -1,0 +1,73 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Published as a pull request: you approve in Claude Code, say "merge it", it checks and merges. Never on its own.
+// A merge publishes only on a site built from the repository; WordPress publishing stays the owner's click. 12 s loop.
+(async()=>{await ready(1600,640);
+const t=TIME%12,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Published as a pull request',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'Every post ends as a pull request you read.'],[1.6,'You approve it in Claude Code. Approving does not publish.'],[4.6,'Say "merge it": it checks first, then merges.'],[8.0,'It never merges on its own.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// Claude Code: the conversation, newest at the bottom
+const cx=80,cy=176,cw=760,ch=430;
+el('rect',{x:cx,y:cy,width:cw,height:ch,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(cx+28,cy+40,'Claude Code',{fs:18,a:'start',w:600,fill:S.muted});
+const MSG=[
+ [0.2,'p',['The post is ready for you to read:','github.com/you/blog/pull/42']],
+ [2.2,'u',['approve']],
+ [2.8,'p',['Approved. To publish, merge it: click','"Merge pull request", or tell me "merge it".']],
+ [5.2,'u',['merge it']],
+ [5.9,'p',['No conflicts, checks passed, nothing changed','since you approved. Merged.']]];
+// typing in the input line before each of your messages
+const TYPE=[[1.5,2.2,'approve'],[4.6,5.2,'merge it']];
+let typed='';TYPE.forEach(([a,b,s])=>{if(t>=a&&t<b)typed=s.slice(0,Math.ceil(s.length*(t-a)/(b-a-0.15)))});
+el('rect',{x:cx+20,y:cy+ch-62,width:cw-40,height:44,rx:8,fill:'#fff',stroke:S.rule,'stroke-width':1.5});
+const it=txt(cx+40,cy+ch-33,'> '+typed,{fs:19,f:MONO,a:'start',w:400});
+if(typed||Math.floor(t*2.5)%2===0)el('rect',{x:cx+42+it.getComputedTextLength(),y:cy+ch-52,width:3,height:24,fill:S.ink});
+// lay the shown messages out bottom-up above the input line
+const shown=MSG.filter(m=>t>=m[0]);let y=cy+ch-80;
+const pos=[];for(let i=shown.length-1;i>=0;i--){const h=shown[i][2].length*28+24;y-=h;pos.unshift(y);y-=12}
+shown.forEach(([t0,who,lines],i)=>{const a=ease((t-t0)/0.3),top=pos[i];if(top<cy+56)return;
+ const q=g({opacity:a});
+ if(who==='u'){const w=Math.max(...lines.map(l=>l.length))*11+40;
+  el('rect',{x:cx+cw-24-w,y:top,width:w,height:lines.length*28+24,rx:10,fill:S.c.peach,opacity:.55},q);
+  lines.forEach((l,j)=>txt(cx+cw-44,top+33+j*28,l,{fs:19,f:MONO,a:'end',w:400,p:q}));
+ } else {
+  txt(cx+30,top+31,'¶',{f:S.tf,fs:26,a:'start',fill:S.acc,w:400,p:q});
+  lines.forEach((l,j)=>txt(cx+58,top+31+j*28,l,{fs:19,a:'start',p:q,fill:l.startsWith('github.com')?'#3b5aa6':S.ink}));
+ }
+});
+
+// the pull request on GitHub
+const px=900,py=176,pw=620,ph=270;
+const merged=t>=6.5;
+const f=t>=6.2&&t<6.8?Math.abs(Math.cos(Math.PI*(t-6.2)/0.6)):1;
+const c=g({transform:`translate(${px+pw/2} 0) scale(${Math.max(f,.02)} 1) translate(${-px-pw/2} 0)`});
+el('rect',{x:px,y:py,width:pw,height:ph,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5},c);
+txt(px+28,py+44,'github.com',{fs:16,f:MONO,a:'start',w:400,fill:S.muted,p:c});
+txt(px+28,py+90,'How to write onboarding emails',{fs:28,a:'start',w:600,p:c});
+const pill=merged?['Merged','#8E6BC2']:['Open',S.ok];
+el('rect',{x:px+28,y:py+112,width:merged?110:84,height:34,rx:17,fill:pill[1]},c);
+txt(px+28+(merged?55:42),py+135,pill[0],{fs:18,w:600,fill:'#fff',p:c});
+txt(px+(merged?152:126),py+135,'#42 · blog/how-to-write-onboarding-emails',{fs:16,f:MONO,a:'start',w:400,fill:S.muted,p:c});
+const ROWS=[[0.4,'All checks have passed'],[0.6,'No conflicts with the base branch']];
+ROWS.forEach(([r0,s],i)=>{const a=ease((t-r0)/0.3);if(a<=0)return;const y=py+188+i*36;
+ el('path',{d:`M${px+30} ${y-8} l7 7 l13 -15`,fill:'none',stroke:S.ok,'stroke-width':3.5,'stroke-linecap':'round','stroke-linejoin':'round',opacity:a},c);
+ txt(px+58,y,s,{fs:19,a:'start',op:a,p:c})});
+// what the merge does depends on the platform, so say both
+if(t>=7.0){const a=ease((t-7.0)/0.4),q=g({opacity:a,transform:`translate(0 ${(1-a)*12})`}),y0=py+ph+24;
+ el('rect',{x:px,y:y0,width:pw,height:136,rx:14,fill:'#fff',stroke:S.rule,'stroke-width':2.5},q);
+ txt(px+28,y0+36,'What the merge does',{fs:17,a:'start',w:600,fill:S.muted,p:q});
+ el('circle',{cx:px+36,cy:y0+67,r:7,fill:S.ok},q);
+ txt(px+54,y0+74,'Site built from this repository: it publishes the post.',{fs:18,a:'start',p:q});
+ el('circle',{cx:px+36,cy:y0+105,r:7,fill:S.rule},q);
+ txt(px+54,y0+112,'WordPress: it files the copy. You click Publish there.',{fs:18,a:'start',p:q});
+}
+document.title='ready';})();
+</script>

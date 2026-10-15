@@ -1,0 +1,62 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Setup: one question at a time, each with a recommended answer; answer in your own words, or "default" takes it.
+// Each answer is saved into blog-ops/ as it goes. 15.6 s loop. The answers are an example.
+(async()=>{await ready(1600,640);
+// K stretches the whole timeline: 1.2 is 20% slower, a 15.6 s loop
+const K=1.2,t=(TIME%(13*K))/K,MONO='ui-monospace,Menlo,monospace';
+const ease=k=>{k=Math.max(0,Math.min(1,k));return k*k*(3-2*k)};
+txt(80,96,'Setup, one question at a time',{f:S.tf,fs:64,a:'start',ls:-1.5,w:400});
+const CAP=[[0,'Most questions come with a recommended answer.'],[4.4,'Answer in your own words, or reply default to take it.'],[10.2,'It saves as it goes. Stop any time and pick up later.']];
+let ci=0;CAP.forEach((c,i)=>{if(t>=c[0])ci=i});
+txt(83,140,CAP[ci][1],{f:S.tf,fs:28,a:'start',i:true,fill:S.muted,w:400,op:ease((t-CAP[ci][0])/0.25)});
+
+// question, recommendation, your reply, the file it lands in
+const Q=[
+ ['Who reads this blog?','Founders of small SaaS teams (from your site)','solo founders and first marketing hires','profile/audience.md'],
+ ['How should posts sound?','Plain, first person, no hype','plain, a bit dry, first person','profile/voice.md'],
+ ['Draw images in your site\'s colours?','Yes, with Remotion','default','profile/image-style.md'],
+ ['How does a post go live?','Pull request to main; your site deploys on merge','yes, Netlify deploys main','config.yaml']];
+const Q0=0.3,QD=2.6,TY=1.0,TYD=0.9;
+const cx=80,cy=176,cw=880,ch=430;
+el('rect',{x:cx,y:cy,width:cw,height:ch,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(cx+28,cy+40,'Claude Code  /pilcrino:blog-setup',{fs:18,a:'start',w:600,fill:S.muted});
+// messages so far: each question is a card with its recommendation, each reply a bubble
+const M=[];Q.forEach(([q,r,a],i)=>{const t0=Q0+i*QD;M.push({t0,who:'p',q,r});M.push({t0:t0+TY+TYD,who:'u',a})});
+let typed='';Q.forEach(([q,r,a],i)=>{const a0=Q0+i*QD+TY;if(t>=a0&&t<a0+TYD)typed=a.slice(0,Math.ceil(a.length*(t-a0)/(TYD-0.1)))});
+el('rect',{x:cx+20,y:cy+ch-62,width:cw-40,height:44,rx:8,fill:'#fff',stroke:S.rule,'stroke-width':1.5});
+const it=txt(cx+40,cy+ch-33,'> '+typed,{fs:19,f:MONO,a:'start',w:400});
+if(typed||Math.floor(t*2.5)%2===0)el('rect',{x:cx+42+it.getComputedTextLength(),y:cy+ch-52,width:3,height:24,fill:S.ink});
+const shown=M.filter(m=>t>=m.t0),H=m=>m.who==='p'?86:48;
+let y=cy+ch-80;const pos=[];for(let i=shown.length-1;i>=0;i--){y-=H(shown[i]);pos.unshift(y);y-=12}
+// older messages scroll up under the header
+const cp=el('clipPath',{id:'chat'});el('rect',{x:cx,y:cy+54,width:cw,height:ch-124},cp);const chat=g({'clip-path':'url(#chat)'});
+shown.forEach((m,i)=>{const top=pos[i];const q=g({opacity:ease((t-m.t0)/0.3)},chat);
+ if(m.who==='p'){txt(cx+30,top+30,'¶',{f:S.tf,fs:26,a:'start',fill:S.acc,w:400,p:q});
+  txt(cx+58,top+30,m.q,{fs:21,a:'start',w:600,p:q});
+  el('rect',{x:cx+58,y:top+44,width:cw-120,height:34,rx:8,fill:'#e3efd9'},q);
+  txt(cx+72,top+67,'Recommended: '+m.r,{fs:18,a:'start',p:q,fill:'#2f5f24'});
+ } else {const w=m.a.length*11+40;
+  el('rect',{x:cx+cw-24-w,y:top,width:w,height:44,rx:10,fill:S.c.peach,opacity:.55},q);
+  txt(cx+cw-44,top+29,m.a,{fs:19,f:MONO,a:'end',w:400,p:q})}
+});
+
+// blog-ops/ fills in as the answers land
+const bx=1010,bw=510;
+el('rect',{x:bx,y:cy,width:bw,height:ch,rx:14,fill:S.card,stroke:S.rule,'stroke-width':2.5});
+txt(bx+28,cy+44,'blog-ops/',{fs:22,f:MONO,a:'start',w:400});
+const FILES=['config.yaml','profile/blog.md','profile/audience.md','profile/voice.md','profile/authors.md','profile/image-style.md'];
+const savedAt=f=>{if(f==='profile/blog.md'||f==='profile/authors.md')return 99;const i=Q.findIndex(q=>q[3]===f);return Q0+i*QD+TY+TYD+0.2};
+FILES.forEach((f,i)=>{const yy=cy+96+i*50,s0=savedAt(f),k=ease((t-s0)/0.3),flash=t>=s0&&t<s0+0.8?1-ease((t-s0)/0.8):0;
+ if(flash>0)el('rect',{x:bx+18,y:yy-28,width:bw-36,height:40,rx:8,fill:'#e3efd9',opacity:flash});
+ txt(bx+64,yy,f,{fs:19,f:MONO,a:'start',w:400,fill:k>0?S.ink:S.muted});
+ if(k>0)el('path',{d:`M${bx+30} ${yy-8} l7 7 l13 -15`,fill:'none',stroke:S.ok,'stroke-width':4,'stroke-linecap':'round','stroke-linejoin':'round',opacity:k});
+ else el('circle',{cx:bx+38,cy:yy-7,r:6,fill:'none',stroke:S.rule,'stroke-width':2});
+});
+txt(bx+28,cy+ch-28,'saved after every answer',{fs:17,a:'start',fill:S.muted});
+document.title='ready';})();
+</script>

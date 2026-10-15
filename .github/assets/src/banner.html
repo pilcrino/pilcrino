@@ -1,0 +1,25 @@
+<!doctype html><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;1,6..72,400&family=Hanken+Grotesk:wght@500;600&display=block" rel="stylesheet">
+<style>html,body{margin:0;padding:0;overflow:hidden}svg{display:block}</style>
+<svg id="s"></svg>
+<script src="kit.js"></script><script src="common.js"></script>
+<script>
+// Banner: the team builds the name. The last letter is still being carried in.
+(async()=>{await ready(1200,350);
+const FS=150,base=218,x0=140;
+const name=txt(x0,base,'Pilcrin',{f:S.tf,fs:FS,a:'start',ls:-3,w:400});
+const nw=name.getComputedTextLength(),pW=name.getSubStringLength(0,1),capH=FS*.665;
+txt(x0-62,base-4,'¶',{f:S.tf,fs:84,a:'start',fill:S.acc,w:400});
+el('line',{x1:x0-60,y1:base+8,x2:1100,y2:base+8,stroke:S.rule,'stroke-width':2.5});
+// Researcher sits on the P
+helper('research',x0+pW/2-6,base-capH+2,.42,{look:[.9,.2]});
+// Image builder waits in the slot where the o goes, looking up
+const ox=x0+nw+40;helper('imgbuild',ox,base+6,.5,{look:[.7,-1],mouth:'o'});
+// Writer carries the o in from the right
+const wx=ox+210,wy=base+6,ws=.62,w=100*ws,bx=wx-w/2;
+const lift=wy-20*ws-118*ws-34;
+bot({x:bx,gy:wy,s:ws,w:100,h:118,c:S.c.mint,look:[-.9,-.7],arms:{l:[bx+8,lift],r:[bx+w-8,lift]}});
+const o=txt(wx,lift+2,'o',{f:S.tf,fs:FS,w:400});o.setAttribute('transform',`rotate(-8 ${wx} ${lift-30})`);
+txt(x0,base+64,'Your product. Your voice. Your blog, researched and written.',{f:S.tf,fs:34,a:'start',i:true,fill:S.muted,w:400});
+document.title='ready';})();
+</script>

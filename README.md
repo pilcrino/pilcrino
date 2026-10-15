@@ -1,35 +1,146 @@
+<p align="center">
+  <img src=".github/assets/banner.png" alt="Pilcrino. Little helpers carry the letters of the name into place. Your product. Your voice. Your blog, researched and written." width="100%">
+</p>
+
 # Pilcrino
 
-Pilcrino writes blog posts for your product's blog from inside Claude Code:
-how-to guides, best-of lists, "alternatives to" posts and comparisons of your
-product with its competitors. It works with sites built from a GitHub
-repository (Astro, Hugo, Next.js, Eleventy and other markdown sites),
-creates drafts in WordPress, and hands you a file to paste in for Webflow,
-Ghost, Jekyll and other platforms. For every post it researches Google (and
-Reddit and X if you turn those on) in a Chrome of its own, drafts, reviews
-and illustrates the post, then opens a pull request on GitHub that you read,
-comment on and approve; merging it publishes on a site built from the
-repository. Pilcrino never merges or publishes a post on its own: it merges
-only when you ask it to in Claude Code, after you approve the post.
+[![Version](https://img.shields.io/github/v/tag/pilcrino/pilcrino?sort=semver&label=version)](https://github.com/pilcrino/pilcrino/tags)
+[![Licence: MIT](https://img.shields.io/badge/licence-MIT-green)](LICENSE)
 
-It runs on macOS only. It does not host or deploy your blog, and it only
-adds posts to it. Every blog needs a GitHub repository, because every post is
-reviewed as a pull request. A site built from that repository publishes when
-the pull request merges, and WordPress gets the post as a draft that you
-publish in WordPress admin. For a paste platform Pilcrino copies the
-formatted post to your clipboard before you approve: you paste it in, check
-it there, say "approve", and merging files the copy in the repository. A site
-that is not live yet is fine. Research
-and writing run on your Claude plan in a long Claude Code session.
+Blog posts for your product's blog, written inside Claude Code.
 
-Scope of "never publishes": the plugin never merges a pull request or
-publishes a blog post on its own. It merges an approved post's pull request
-only when you ask it to in Claude Code ("merge it"), and it never clicks
-Publish in WordPress. The `post-to-linkedin` skill does post to your LinkedIn
-company page, but only when you run it. The Pilcrino app can merge Astro posts
-for you if you choose that setting.
+- **A researched content plan.** It reads Google and your competitors, plus
+  Reddit and X if you turn them on, then ranks the posts your buyers are
+  looking for.
+- **Research first, with sources.** Google, plus Reddit and X if you turn
+  them on, read in its own signed-in browser. Every post targets one query
+  and answers it within the first forty words, the shape AI assistants quote.
+- **Competitor fact sheets.** It reads each competitor's pricing and
+  features and dates the sheet. It offers to read a sheet older than 14 days
+  again before a post uses it, and the reviewer checks competitor prices in
+  the draft against it.
+- **Facts locked before drafting.** The writer may only cite what is in the
+  facts file; anything else is flagged for you.
+- **A separate reviewer.** It sends weak drafts back: on my blogs, 64 of 88
+  first drafts.
+- **A final polish.** It removes AI phrasing and keeps every number, link
+  and citation intact.
+- **Images in your style.** Drawn images use your blog's colours and fonts
+  and show your own product, no stock art. AI illustrations and screenshots
+  are optional.
+- **Published as a pull request.** You read it and approve it. It never
+  merges on its own.
+
+![How a post is made: you ask, then research, plan, draft and review; the reviewer sends a claim with no source back to the writer, approves the fix, and the post is polished, illustrated and opened as a pull request you approve and merge.](.github/assets/how-a-post-is-made.gif)
+
+**Install**, in Claude Code:
+
+```text
+/plugin marketplace add pilcrino/pilcrino
+/plugin install pilcrino@pilcrino
+```
+
+A new Mac needs Chrome, Node and the GitHub CLI first: [What you need](#what-you-need)
+and [Install](#install) walk through it. Then run `/pilcrino:blog-setup`
+(see [Quickstart](#quickstart)).
+
+Pilcrino writes how-to guides, best-of lists, "alternatives to" posts and
+comparisons of your product with its competitors. It works with sites built
+from a GitHub repository (Astro, Hugo, Next.js, Eleventy and other markdown
+sites), creates drafts in WordPress, and hands you a file to paste in for
+Webflow, Ghost, Jekyll and other platforms. Research and writing run on your
+Claude plan in a long Claude Code session.
+
+## What it does
+
+### A content plan from research
+
+`/pilcrino:plan-content` turns your product into a list of posts worth
+writing. It reads your product description, searches Google for the queries
+your buyers run, reads Reddit and X (when you turn them on) for how they
+describe the problem, and scans your competitors' sites. Every post gets a
+target query, a page type (how-to, best-for, alternatives, vs, review and
+others), an angle and a score out of 10: customer impact 30%, product fit
+25%, buying intent 25%, ease 20%.
+
+The first run plans 30 posts grouped into pillars; later runs add 15 more
+without repeating any, and `/pilcrino:plan-content "<idea>"` turns one idea
+of yours into 3 to 8. A comparison post whose competitor has no fact sheet
+yet is marked to research that competitor first. The posts land in
+`blog-ops/content-plan.md`, and the scores, pillars and findings in
+`blog-ops/content-strategy/strategy.md`, in about 30 minutes, with no
+questions asked while it runs.
+
+![A content plan from research: the Researcher reads product.md, Google, Reddit and a competitor's pricing page, then strategy.md's post table fills with five posts, each with a score and a type, top score first.](.github/assets/content-plan.gif)
+
+### Competitor fact sheets
+
+`/pilcrino:research-competitor <name>` reads a competitor's site in the
+Pilcrino browser, never with a plain fetch, because pricing pages render
+with JavaScript and hide tiers behind toggles. The fact sheet records every
+public tier (monthly and annual price, what it is capped on, promotional
+versus renewal pricing), key claims quoted word for word, a table comparing
+the competitor with your product, every page it read, and a "Last verified"
+date.
+
+A post that names a competitor reads its sheet. When the sheet is missing or
+older than 14 days, Pilcrino offers to read the site again first, about 2.5
+minutes per competitor. The writer may cite competitor prices only from a
+fresh sheet, and the reviewer checks them. This needs the Competitors
+module, turned on in setup.
+
+![Competitor fact sheets: the Researcher reads a pricing page tier by tier into a dated fact sheet; the reviewer ticks a draft's price against it; fourteen days later the sheet is read again and its date updates.](.github/assets/competitor-fact-sheets.gif)
+
+### Facts locked before drafting
+
+Before a word of the draft is written, the editor builds `facts.md` from the
+research and your product file. Every statistic, quote and named example
+carries its source URL, product facts point at your own files, and competitor
+facts carry their sheet's "Last verified" date. Claims that cannot be
+verified go under "Rejected / not verifiable" with the reason, so they never
+reach the post.
+
+The writer may cite only what is in this file. Anything else it wants to say
+is marked `[VERIFY:]` for you to check, and the reviewer checks the draft
+against the file.
+
+![Facts locked before drafting: five claims arrive one by one; four get a tick and a source and are filed under Statistics, Quotes, Named examples and Product facts; one is rejected with a reason; the Writer then reads only this file.](.github/assets/facts-file.gif)
+
+### Polish keeps every number and link
+
+After the reviewer approves, the Polisher changes how the post sounds and
+nothing it says. It runs seven passes: AI phrases (the shared list plus your
+own from `voice.md`), em dashes, passive voice, third-person drift, sentence
+rhythm in every section, your voice, and a last grammar read.
+
+It must keep every number, link, heading, FAQ question, frontmatter value and
+`[VERIFY:]` marker. Before it starts it saves a copy and lists them; after,
+it checks the list again, and if anything is missing or changed it restores
+the copy and tells you.
+
+![Polish keeps every number and link: AI phrases are flagged and rolled away, the numbers and links glide into the rewritten sentence, and a preservation check counts numbers, links, headings and markers before and after.](.github/assets/polish-keeps-facts.gif)
+
+### Images in your style
+
+Setup turns your answers about palette, fonts, mood and watermark into
+`image-style.md` and, for drawn images, a Remotion project with a `theme.ts`.
+For each post the Image planner writes `images.md`: a cover and one entry per
+image slot in the draft, each with its type, concept, filename and alt text.
+
+The Image builder renders them. Drawn images come from `theme.ts`, so every
+colour, font and the watermark come from one file. AI illustrations through
+`codex` are optional, and screenshots of other sites stay a short to-do for
+you. The cover carries the post title word for word, and your product's own
+screens are recreated as mockups rather than captured, so nothing from a real
+account leaks.
+
+![Images in your style: theme.ts feeds the Image builder, which renders a cover with the post title, a mockup of the product's screen and the watermark; when the theme changes, the cover renders in the new colours.](.github/assets/images-in-your-style.gif)
 
 ## What you need
+
+It runs on macOS only. Pilcrino does not host or deploy your blog; it only
+adds posts to it. Every blog needs a GitHub repository, because every post
+is reviewed as a pull request. A site that is not live yet is fine.
 
 Software, installed once:
 
@@ -105,6 +216,8 @@ files, "Yes, and don't ask again" is safe.
 
 ## Quickstart
 
+![Setup, one question at a time: most questions come with a recommended answer; you answer in your own words or reply default, and each answer is saved into blog-ops/ as you go.](.github/assets/setup.gif)
+
 1. **Start Claude Code and run `/pilcrino:blog-setup`.** Start it in your
    site's folder if the site is on this Mac; otherwise anywhere. Setup first
    checks the Mac (Apple's developer tools, Node, the GitHub tool and its
@@ -157,6 +270,8 @@ request).
 
 ## Reviewing and publishing a post
 
+![Published as a pull request: you approve the post in Claude Code, say "merge it", Pilcrino checks for conflicts, failed checks and changes since your approval, then merges. On a site built from the repository the merge publishes the post; on WordPress you click Publish there.](.github/assets/published-as-a-pr.gif)
+
 Every post ends as a pull request on GitHub (a WordPress post also appears as
 a draft in WordPress admin, with a preview link). Read it there. To ask for
 changes, comment on the pull request, or tell Pilcrino in Claude Code; while
@@ -170,8 +285,10 @@ does not publish. Publishing is your action:
 - a site built from the repository (Astro, Hugo, Next.js, Eleventy): merge the
   pull request;
 - WordPress: click Publish in WordPress admin;
-- Webflow, Ghost, Jekyll and other paste platforms: paste the post in first,
-  then merge the pull request so the repository keeps it.
+- Webflow, Ghost, Jekyll and other paste platforms: Pilcrino copies the
+  formatted post to your clipboard before you approve. Paste it in, check it
+  there, say "approve", then merge the pull request so the repository keeps
+  it.
 
 To merge, open the pull request on GitHub, click the green "Merge pull
 request" button, then "Confirm merge". Or, after approving the post in Claude
@@ -186,7 +303,16 @@ The post is dated the day you approve it. Once it is live, run
 `/pilcrino:blog-post-workflow published <slug>`: it marks the post in your
 content plan and, if you merged on a later day, corrects the date.
 
+Scope of "never publishes": the plugin never merges a pull request or
+publishes a blog post on its own. It merges an approved post's pull request
+only when you ask it to in Claude Code ("merge it"), and it never clicks
+Publish in WordPress. The `post-to-linkedin` skill does post to your LinkedIn
+company page, but only when you run it. The Pilcrino app can merge Astro
+posts for you if you choose that setting.
+
 ## The Pilcrino browser
+
+![Its own browser: research runs in a Chrome of its own, signed in to Google, Reddit and X, while your Chrome is untouched; when Google asks for a robot check, a tab titled "Pilcrino: pass the check" comes forward for you.](.github/assets/its-own-browser.gif)
 
 Pilcrino researches in a Chrome of its own, with its own sign-ins, so your
 Chrome is untouched; setup opens a sign-in window once, and if a sign-in
@@ -239,6 +365,8 @@ through a `blog-ops/` workspace that the setup wizard builds. Plugin updates
 reach every blog; only the files a blog deliberately overrides drift from the
 shared defaults.
 
+![One plugin, many blogs: a new plugin version arrives once and every blog's plugin chip updates to it; each blog keeps its own voice, audience and image style files, and a template one blog overrode stays its own.](.github/assets/one-plugin-many-blogs.gif)
+
 The pipeline: intake Q&A, SERP research (plus optional Reddit and X research),
 research analysis, plan synthesis, plan-review gate, outline, draft,
 review-and-revise loop, humanization pass, marker auto-resolution
@@ -270,6 +398,8 @@ Chrome was not found" means Chrome is not at the platform default; set
 `browser.executable` in `blog-ops/config.yaml`.
 
 ### What's in this repo
+
+![The agents: what each subagent reads and the file it writes. Researcher: research/_raw/ to research/*.md. Plan checker: plan, brief and facts to plan-review.md. Writer: outline and facts to draft-vN.md. Reviewer: draft, outline and facts to review.md. Polisher: edits the draft in place. Image planner: draft and outline to images.md. Image builder: images.md to the image files.](.github/assets/the-agents.png)
 
 | Category | Count | Where |
 |---|---|---|
@@ -367,6 +497,8 @@ they are required (or module-gated) wizard output, unique per blog.
 
 ### Skills
 
+![The skills: typing /pilcrino: in Claude Code lists the commands in four groups: set up, plan, write, and after publishing.](.github/assets/the-skills.gif)
+
 Every entry point installed by this plugin (`skills/`), namespaced
 `pilcrino:<skill>` once installed:
 
@@ -438,7 +570,151 @@ and a dashboard: it runs these skills on a schedule for every blog you
 connect, and you approve, give feedback on and track posts from the browser.
 See https://pilcrino.com.
 
+## Frequently asked questions
+
+**What is Pilcrino?** A Claude Code plugin that writes blog posts for your
+product's blog. It plans what to write from research, researches each post
+with sources, locks the facts in a file before drafting, has a separate
+reviewer check the draft, removes AI phrasing without touching a number or
+link, draws the images in your style and opens a pull request for you to
+approve.
+
+**How is it different from asking Claude or ChatGPT for a post?** A post
+written from a prompt comes from memory. Pilcrino researches first and keeps
+every source, the writer may only cite the facts file, a separate reviewer
+sends weak drafts back, the polish is checked against the draft before it,
+and you get a pull request to read, not a block of text.
+
+**Is it free?** The plugin is free and MIT licensed, and runs on the Claude
+plan you already pay for. The Pilcrino app is separate: see
+https://pilcrino.com.
+
+**Which platforms does it publish to?** Sites built from a GitHub repository
+(Astro, Hugo, Next.js, Eleventy and other markdown sites), WordPress as a
+draft, and Webflow, Ghost, Jekyll and other platforms through a file you
+paste in.
+
+**Does it run on Windows or Linux?** No, macOS only today.
+
+**Does it invent statistics?** No. A post cites numbers only from
+`facts.md`, where each one has its source. A claim the writer cannot source
+is marked `[VERIFY:]` for you to check.
+
+**Does it publish on its own?** No. It never merges a pull request or clicks
+Publish on its own. It merges only when you ask it to in Claude Code, after
+you approve the post, and `post-to-linkedin` posts only when you run it. See [Reviewing and publishing a post](#reviewing-and-publishing-a-post).
+
+**Can it write comparison and alternatives posts about my competitors?** Yes,
+from a dated fact sheet per competitor (`/pilcrino:research-competitor
+<name>`). When a sheet is missing or older than 14 days, it offers to read
+the competitor's site before the post goes on. This needs the Competitors
+module, turned on in setup.
+
+**Do I need API keys?** No. Claude Code signed in to your Claude plan, the
+GitHub CLI signed in to your account, and Chrome. AI illustrations through
+`codex` are optional and need no OpenAI API key.
+
+**Can I run it for several blogs?** Yes. One plugin, and a `blog-ops/`
+folder in each blog's repository.
+
+**Where does my data go?** Research runs in a Chrome profile on your Mac
+(`~/.pilcrino/browser`). Posts and the `blog-ops/` workspace stay in your
+repository. A WordPress application password goes in your Mac's keychain, or
+in a settings file on your Mac (`~/.zshrc`) if you choose that in setup.
+Writing runs through Claude Code on your Claude plan.
+
+**How long does a post take?** About 40 minutes of work ending in a pull
+request. Setup takes 1 to 1.5 hours on a new Mac, installs included, and a
+content plan about 30 minutes.
+
+## Documentation index
+
+| Doc | What it covers |
+|---|---|
+| **Getting started** | |
+| [Install](#install) | Software, accounts and the plugin, step by step |
+| [Quickstart](#quickstart) | Setup, a content plan and the first post |
+| [Reviewing and publishing a post](#reviewing-and-publishing-a-post) | Comments, approval, merging and what a merge does |
+| [The Pilcrino browser](#the-pilcrino-browser) | Its own Chrome, sign-ins and the robot check |
+| [Uninstall](#uninstall) | Removing the plugin and its files on your Mac |
+| **Skills** | |
+| [`blog-setup`](skills/blog-setup/SKILL.md) | Creates or updates a blog's `blog-ops/` workspace |
+| [`plan-content`](skills/plan-content/SKILL.md) | A researched, scored list of posts |
+| [`research-competitor`](skills/research-competitor/SKILL.md) | A dated fact sheet for one competitor |
+| [`blog-post-workflow`](skills/blog-post-workflow/SKILL.md) | One post, from intake to pull request |
+| [`review-blog-post`](skills/review-blog-post/SKILL.md) | A standalone review of any draft |
+| [`humanize-text`](skills/humanize-text/SKILL.md) | The polish pass and its preservation check |
+| [`suggest-images`](skills/suggest-images/SKILL.md) | An image plan for a draft |
+| [`generate-images`](skills/generate-images/SKILL.md) | Renders an image plan through its adapters |
+| [`generate-image-codex`](skills/generate-image-codex/SKILL.md) | One AI illustration through `codex` |
+| [`repurpose-blog-post`](skills/repurpose-blog-post/SKILL.md) | An X thread, an X short take, a LinkedIn post and a newsletter |
+| [`post-to-linkedin`](skills/post-to-linkedin/SKILL.md) | Posts a published post to your LinkedIn company page, when you run it |
+| [`blog-retro`](skills/blog-retro/SKILL.md) | Lessons from a finished run |
+| **Agents** | |
+| [`blog-researcher`](agents/blog-researcher.md) | Analyses research into `research/*.md` |
+| [`plan-reviewer`](agents/plan-reviewer.md) | Independent review of the post plan |
+| [`blog-writer`](agents/blog-writer.md) | Drafts the post from the outline and facts |
+| [`blog-reviewer`](agents/blog-reviewer.md) | Checklist review of the draft |
+| [`blog-humanizer`](agents/blog-humanizer.md) | The polish pass on the approved draft |
+| [`image-planner`](agents/image-planner.md) | Writes `images.md` |
+| [`image-builder`](agents/image-builder.md) | Renders the images in `images.md` |
+| **Standards** | |
+| [`writing-standards.md`](standards/writing-standards.md) | Writing-craft rules every post follows |
+| [`blog-craft.md`](standards/blog-craft.md) | Post types, titles, headings, linking and placeholder markers |
+| **Publish adapters** | |
+| [`astro-git-pr.md`](adapters/publish/astro-git-pr.md) | Astro sites, as a pull request |
+| [`markdown.md`](adapters/publish/markdown.md) | Other markdown sites and paste platforms |
+| [`wordpress-rest.md`](adapters/publish/wordpress-rest.md) | WordPress drafts |
+| [`frontmatter/`](adapters/publish/frontmatter) | Frontmatter profiles per platform |
+| **Image adapters** | |
+| [`remotion.md`](adapters/images/remotion.md) | Drawn images from the blog's `theme.ts` |
+| [`ai-prompt.md`](adapters/images/ai-prompt.md) | AI illustration slots |
+| [`codex.md`](adapters/images/codex.md) | AI illustrations through `codex` |
+| [`screenshot.md`](adapters/images/screenshot.md) | Screenshots you capture |
+| **References** | |
+| [`config-schema.md`](skills/blog-post-workflow/references/config-schema.md) | Every `config.yaml` key and its invariants |
+| [`quality-gates.md`](skills/blog-post-workflow/references/quality-gates.md) | What each stage must produce |
+| [`competitor-profiles.md`](skills/blog-post-workflow/references/competitor-profiles.md) | How a post reads competitor fact sheets |
+| [`pr-monitor.md`](skills/blog-post-workflow/references/pr-monitor.md) | The pull request watcher |
+| [`console-contract.md`](skills/blog-post-workflow/references/console-contract.md) | How the Pilcrino app runs the workflow |
+| [`ai-citation.md`](skills/plan-content/references/ai-citation.md) | How AI citation feeds a plan's ease score |
+| [`evidence.md`](skills/plan-content/references/evidence.md) | Evidence rules for plan findings |
+| [`money-pages.md`](skills/plan-content/references/money-pages.md) | Pages a buyer reads before choosing |
+| [`queries.md`](skills/plan-content/references/queries.md) | Query patterns for research |
+| [`output-templates.md`](skills/plan-content/references/output-templates.md) | The plan's output files |
+| **Workspace** | |
+| [`scaffold/`](scaffold) | The Remotion starter project setup copies into a blog |
+| [`templates/`](templates) | Every file a post run writes, one template each |
+| [`personas/`](personas) | Editor, writer and repurposer |
+| [`CLAUDE.md`](CLAUDE.md) | Rules for Claude Code sessions working on the plugin |
+
+## Contributing
+
+Found a problem? Open an issue with the plugin version (shown by `/plugin`)
+and the stage the run stopped at (the last ticked line of
+`blog-ops/drafts/<slug>/checklist.md`). To propose a change, open a pull
+request from a branch: bump `version` in `.claude-plugin/plugin.json` and add
+a Changelog entry in the same pull request, and run what CI runs:
+`./tests/lint.sh`, `cd browser && npm ci && node --test test/*.test.mjs`, and
+`node --test` on the script tests under `adapters/` and
+`skills/blog-post-workflow/scripts/`. A new publish platform lands as an
+adapter in `adapters/publish/`; ask in an issue first.
+
+## Author
+
+Pilcrino is made by Slav and writes the posts on Slav's own blogs.
+[pilcrino.com](https://pilcrino.com) ·
+[X @lucky72o](https://x.com/lucky72o) ·
+[GitHub @lucky72o](https://github.com/lucky72o)
+
 ## Changelog
+
+### 0.56.1 - README with pictures
+
+- New top: a banner, one line on what Pilcrino is, eight bullets, the "How a post is made" gif and a short install block. "It runs on macOS only" moves to the first line of What you need; the scope of "never publishes" moves into Reviewing and publishing a post.
+- New "What it does" section, a few paragraphs and a gif per feature: the content plan, competitor fact sheets, the facts file, the polish pass and images in your style. Setup, publishing and the browser get a gif in their own sections; For developers gets "One plugin, many blogs", the agents and the skills.
+- New sections: Frequently asked questions, Documentation index, Contributing and Author.
+- The images, their sources and the style they share live in `.github/assets/` (`STYLE.md` says how to rebuild them).
 
 ### 0.56.0 - merge on your word
 
