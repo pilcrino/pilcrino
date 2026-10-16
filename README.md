@@ -568,10 +568,17 @@ named by `publish.astro.preview_comment_marker`.
 
 ### The Pilcrino app
 
-The plugin is complete on its own. The Pilcrino app adds background writes
-and a dashboard: it runs these skills on a schedule for every blog you
-connect, and you approve, give feedback on and track posts from the browser.
-See https://pilcrino.com.
+The plugin is complete on its own. Write with the plugin; the app is your
+editor's desk. It runs the same skills for you and adds:
+
+- the whole content plan written unattended, resuming on its own after
+  your Claude plan's limit;
+- plan, queue and progress on one screen;
+- preview and approve in the browser, or send a post back with a note;
+- rules and agent settings in a form, not a file;
+- all your blogs in one place.
+
+The app is on a waitlist: https://pilcrino.com/pricing.
 
 ## Frequently asked questions
 
@@ -589,8 +596,8 @@ sends weak drafts back, the polish is checked against the draft before it,
 and you get a pull request to read, not a block of text.
 
 **Is it free?** The plugin is free and MIT licensed, and runs on the Claude
-plan you already pay for. The Pilcrino app is separate: see
-https://pilcrino.com.
+plan you already pay for. The Pilcrino app is separate and paid: see
+https://pilcrino.com/pricing.
 
 **Which platforms does it publish to?** Sites built from a GitHub repository
 (Astro, Hugo, Next.js, Eleventy and other markdown sites), WordPress as a
@@ -711,6 +718,13 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.56.3 - README names what the app adds
+
+- README: "The Pilcrino app" lists the five things the app adds to the plugin
+  (unattended queue, one screen, preview and approve, rules in a form, every
+  blog in one place) and links the pricing page; the "Is it free?" answer
+  says the app is paid.
 
 ### 0.56.2 - Props for the README characters
 
