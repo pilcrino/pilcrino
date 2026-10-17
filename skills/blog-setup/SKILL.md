@@ -1257,14 +1257,25 @@ shouldn't need this doc open to answer):
 1. "Should this blog's research stage search Reddit for the target
    keyword? You'd sign in to Reddit once, in Pilcrino's own browser
    window, a few questions from now." (`modules.reddit_research`)
+   Quick path: omit, on.
 2. "Should this blog's research stage also search X (Twitter)? It is
    noisier than Reddit and needs an X account you sign in with once."
    (`modules.x_research`)
+   Quick path: omit, off.
 3. "Does this blog promote its own product?" (`modules.product`). If yes,
    run the product interview below.
+   Quick path: ask, as a menu, exact wording "Do posts promote a product
+   of yours?" (Yes / No). Yes asks one more counted question, the
+   product's address, and runs "Product from first-party evidence" below
+   instead of the product interview.
 4. "Will posts reference or compare named competitors?"
    (`modules.competitors`). If yes, ask (4a) and seed the competitor
    methodology below.
+   Quick path: ask, as the competitor names question from the competitor
+   section below, exact wording "Name the competitors posts may compare
+   you with, or say none." Free text. `modules.competitors` is true iff
+   at least one name was given; the timing menu is omitted ("the first
+   time a post names it").
 4a. If (4) is yes: "Where should competitor profiles live: the default
     location inside this blog's own workspace (`blog-ops/profile/competitors`),
     or an existing directory this blog already shares with other
@@ -1272,9 +1283,11 @@ shouldn't need this doc open to answer):
     unset, `{competitors_dir}` resolves to the default). Existing
     directory → ask for its repo-relative path and write
     `competitors.profile_dir: <path>` to `config.yaml`.
+    Quick path: omit, the default location.
 5. "Enable the repurpose skill (turns a published post into an X thread,
    an X short take, a LinkedIn post, and a newsletter)?"
    (`modules.repurpose`)
+   Quick path: omit, on.
 
 Merge into `config.yaml`:
 
@@ -1292,7 +1305,38 @@ competitors:
                              #   the whole `competitors:` block otherwise
 ```
 
-### If `modules.product` is on: product interview
+### Product from first-party evidence (quick path)
+
+On the quick path the nine product questions below are not asked. One
+counted question, the product's address ("What is <product>'s website
+address?"; the name comes from that page), then read the product's own
+site (its home page and the features, pricing and about pages the home
+page links to) plus PRODUCT.md and README in the repository, and fill
+`product.md` from that **cited first-party evidence**: every feature,
+differentiator and claim line ends with its source in brackets, `(from
+<url or file>)`. This is a deliberate relaxation, for this path only, of
+"Features and differentiators come from the owner only" below: the
+evidence is the owner's own product pages, and the owner reads the whole
+feature list back in the summary before the commit (Phase 6) instead of
+here. Section by section when the evidence is silent:
+
+- Identity (1, 2): from the home page. When even that fails to say what
+  the product does, ask one counted fallback: "In one sentence, what does
+  <product> do?"
+- Features, differentiators, unique-in-category (3, 4, 5): only what the
+  pages say; an empty section reads "none found at setup".
+- First-party data (6): "none yet".
+- Positioning (7): the first menu option, "Teach first; name <product>
+  once, in a side note near the end", written as its read-back sentence
+  and said to the owner in one sentence as every standing rule is.
+- Existing posts (8): the posts Phase 1.5 fetched that mention the
+  product; "none yet" otherwise.
+- Pricing page (9): the pricing link found on the product site. When none
+  is found: "No pricing page found at setup. Posts never state a price;
+  they point to <Primary CTA target from blog.md> instead." Never "No
+  public pricing page yet": setup has not been told there is none.
+
+### If `modules.product` is on: product interview (detailed path)
 
 1. Product name
 2. What the product does, in 1-3 sentences
@@ -1406,12 +1450,19 @@ website addresses if you know them. Reply `none` if you'd rather decide
 post by post." For each name, note the name and, when given, the site; a
 missing site is found by the research skill later, not guessed now. Read
 the list back.
+Quick path: this is modules question 4 ("Name the competitors posts may
+compare you with, or say none."), already asked and counted; do not ask
+again. The explanation paragraph above is said in one sentence after the
+names ("Pilcrino researches a fact sheet on each of them, in its own
+browser, before a post names them.").
 
 **Then offer to profile them, as a menu with two timings:**
 - "Research them now, right after the browser sign-in step (about 2.5
   minutes each, <N> competitors, roughly <N × 2.5> minutes)."
 - "Research each one the first time a post names it; Pilcrino offers it
   then."
+Quick path: omit, "the first time a post names it"; the menu is not
+shown.
 Record the choice. On "now", Phase 3.5 ends by running
 `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` in this
 session once per competitor, in the order given, after the sign-in check
