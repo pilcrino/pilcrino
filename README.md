@@ -719,6 +719,25 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ## Changelog
 
+### 0.57.0 - Setup has a quick path
+
+- `blog-setup` offers two paths: quick setup, about ten questions with the
+  rest taken from the site and the repository, or detailed setup, every
+  question. Every question shows its place ("Question 3 of 10"); defaults
+  are menu clicks, never typed. Everything setup derived is shown in one
+  summary before it is saved, where any line can be changed. No colour
+  codes, font stacks or check counts reach the owner, and setup never
+  mentions the app. The content plan file and the approval settings are
+  always written. Setup ends with a What next menu: plan posts, write a
+  post, research a competitor, change an answer.
+- Content pillars and the posts' address prefix are derived, never asked;
+  the prefix is built from a live post link or from the site's own routing
+  under the deployment path, so a blog under `/docs/` gets `/docs/...`
+  links and image addresses. A WordPress site installed under a path keeps
+  that path in its API address and its links. "Site live" is derived only
+  from deployment evidence that names this repository's base branch and
+  the site's host; otherwise it is asked.
+
 ### 0.56.3 - README names what the app adds
 
 - README: "The Pilcrino app" lists the five things the app adds to the plugin

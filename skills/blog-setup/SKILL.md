@@ -236,7 +236,7 @@ resolves to."
     - "Quick setup (recommended)": about ten questions, everything else
       taken from your site and repository and shown to you before it is
       saved.
-    - "Detailed setup": every question, about forty, one at a time, each
+    - "Detailed setup": every question, about fifty, one at a time, each
       with a default to click.
 
     Record the choice in `{profile_dir}/setup-notes.md` as `Path: quick`
@@ -3052,16 +3052,18 @@ recorded, in this order:
 Filled from the question lists above; Global rule 10 reads it. T on the
 detailed path, before any yes adds a block:
 
-| Adapter | Base T |
-|---|---|
-| astro-git-pr | <N> |
-| wordpress-rest | <N> |
-| markdown | <N> |
+| Adapter | Base T | Made of |
+|---|---|---|
+| astro-git-pr | 56 | identity 10, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 4 |
+| wordpress-rest | 54 | as above with publishing 5 (folders, address, username) |
+| markdown | 55 | as above with publishing 6 (folders, platform, image serving) |
 
-Add: product on +9, competitors on +2 (names, timing), a second or later
-author +1 each, writing samples present -4 (the sample pass answers tone,
-lexicon, forbidden phrases and allowlist). Say the new total once when a
-yes changes it.
+Add: product on +9, competitors on +3 (names, timing, folder), a second
+or later author +1 each, writing samples present -4 (the sample pass
+answers tone, lexicon, forbidden phrases and allowlist). Say the new total
+once when a yes changes it. The identity count excludes the questions
+derived on both paths (pillars, route prefix) and the trailing slash,
+which is read for every known platform.
 
 ### Completion (both paths)
 
