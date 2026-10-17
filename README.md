@@ -235,13 +235,15 @@ files, "Yes, and don't ask again" is safe.
    in the blog's folder (`cd <blog folder>` then `claude`) for every later
    command, because the skills read `blog-ops/config.yaml` from the folder
    you start in.
-2. **Answer the interview.** One question at a time, each with a recommended
-   answer (reply `default` to take it); setup saves as it goes, so you can
-   stop and run it again later to continue. It reads your site (which
-   fields your posts can carry, whether there is a draft switch, how the
-   site goes live) and asks before changing anything in it. It opens the
-   sign-in window for the Pilcrino browser once (see below). Allow 1 to 1.5
-   hours on a new Mac, installs included. Setup writes a `blog-ops/` folder
+2. **Answer the questions.** Quick setup asks about ten, each with the
+   recommended answer as the first choice, and takes the rest from your
+   site and repository; detailed setup asks every question. Everything it
+   derived is shown to you before it is saved. Setup saves as it goes, so
+   you can stop and run it again later to continue. It reads your site
+   (which fields your posts can carry, whether there is a draft switch,
+   how the site goes live) and asks before changing anything in it. It
+   opens the sign-in window for the Pilcrino browser once (see below).
+   Setup writes a `blog-ops/` folder
    in your repository (plus a `tools/remotion/` image project when you turn
    on drawn images) and, at the end, asks before committing and pushing
    those files to your main branch; every post needs them there.
