@@ -1043,15 +1043,31 @@ below for anything the samples didn't reveal (credibility message,
 anecdote bank, additional forbidden phrases, additional allowlist domains
 — these are rarely visible from 2-3 posts alone).
 
+**Quick path.** The samples question is not asked. When Phase 1.5 fetched
+posts, derive the voice from them and skip the "Confirm, edit, or tell me
+what's off" prompt: the derived traits go to the summary (Phase 6). With
+no posts, derive what the home page shows; with nothing at all, write
+tone "direct, clear, practical" and the per-question defaults below. Only
+the credibility question (2) is asked.
+
 ### Interview: voice
 
 Ask one at a time (skip any already answered by the writing-sample pass):
 
 1. Tone in 3-5 adjectives (e.g. "direct, funny, no-nonsense")
+   Quick path: derive from the samples or the home page; else "direct,
+   clear, practical".
 2. Credibility message: the one-line authority statement that opens every
    post's expertise-statement sentence (e.g. "After testing 50 pairs of
    trail shoes over 200 miles, here's what held up.")
+   Quick path: ask, **both paths**, always, as the quick path's question
+   5 (right after the audience question). Exact wording: "What makes you
+   the one to write this? One sentence, for example: after ten years
+   running support teams, I..." Free text, no default: it cannot be
+   derived without inventing an authority claim, and every post's
+   expertise statement comes from it.
 3. Lexicon: words or phrases this blog uses often, signature phrasing
+   Quick path: derive from the samples; else "none yet".
 4. Personal-anecdote bank: 3-5 short personal stories or experiences an
    author can draw on across posts. Say "I'll only use what you tell me; I
    won't invent stories." **A story is never a product claim.** Record each
@@ -1060,6 +1076,7 @@ Ask one at a time (skip any already answered by the writing-sample pass):
    mean their product syncs reliably), do not turn it into a feature or a
    lead point; the product interview in Phase 3 asks about features
    directly, and only the owner's answers there count.
+   Quick path: omit, "none yet" (never invented).
 5. Positioning: what value proposition should posts lead with, and in
    what priority order (most relevant if `modules.product` will be on,
    but useful for any blog with an opinion to push). Suggest only points
@@ -1067,13 +1084,17 @@ Ask one at a time (skip any already answered by the writing-sample pass):
    never ones derived from a story in answer 4; when the product module
    will be on, say that the detailed product questions come later and
    keep this to the order of emphasis.
+   Quick path: derive from Phase 3's product answer (write this section
+   after Phase 3); "none yet" without a product.
 6. Additional forbidden phrases: any phrases, beyond the generic AI-tell
    list in `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, this
    blog specifically wants banned
+   Quick path: omit, none.
 7. Additional allowlist domains: any extra reputable domains (beyond
    `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §Authoritative-site
    allowlist) this blog wants permitted to cite even when they show up in
    the target keyword's top-10 SERP
+   Quick path: omit, none.
 
 Write `{profile_dir}/voice.md` — the section names below are exact; other
 components grep for them by these literal headings:
@@ -1126,6 +1147,7 @@ for these literal section names.
 
 1. How many authors/voices write for this blog? (1 = single voice; more
    than 1 = multiple named voices, plus optionally a co-signed "we" voice)
+   Quick path: omit, one.
 2. For each author: name, a short slug (lowercase, e.g. `alex`), a 1-2
    sentence bio, area of expertise, voice notes (how this author's tone
    differs from the blog's general voice — sentence-length habits,
@@ -1136,8 +1158,16 @@ for these literal section names.
    identity** (`git config user.name`, the `gh` login's display name) as an
    example or default: it is often not the owner. With no name yet, ask
    plainly ("What name goes on your posts?") with no example.
+   Quick path: the name is derived only when every post Phase 1.5 fetched
+   carries the same single byline; with several names, a guest name, or
+   no fetched posts, ask "What name goes on your posts?", counted. Slug
+   from the name. Bio and expertise only from that person's about page on
+   the site or the credibility answer; otherwise "none yet". Voice notes,
+   byline format, sign-off: the blog's defaults. The git-identity ban
+   holds.
 3. If more than 1 author: ask when to use "we" (co-signed) vs. a specific
    author's voice — write this into a Selection rubric.
+   Quick path: omit (one author).
 
 Write `{profile_dir}/authors.md`:
 
