@@ -644,12 +644,18 @@ Ask one at a time:
     (`/` for a root-routed blog). Evidence is one of two kinds, and the
     two are never combined with each other:
     - **A complete path, used as is.** The common leading path of two or
-      more post links on the live site (Phase 1.5 discovers them), with
-      every segment that is only digits dropped (dates:
-      `/journal/2026/05/post/` and `/journal/2026/06/other/` give
-      `/journal/`; `https://example.com/some-post` gives `/`). One link
-      only: use it only when it has no digit-only segment; links that
-      disagree after dropping dates: not evidence, fall through.
+      more post links on the live site (Phase 1.5 discovers them). A
+      digit-only segment is a date, and dropped, only when the links
+      differ in it (`/journal/2026/05/post/` and `/journal/2026/06/other/`
+      give `/journal/` because `05` and `06` differ, and `2026` sits
+      between a varying segment and the slug); a digit-only segment that
+      is part of the deployment base (the site config's base path or the
+      site address's path, `https://example.com/2026/`) is kept. A
+      digit-only segment common to every link and not in the deployment
+      base is ambiguous (all posts from one month): not evidence, fall
+      through. One link only: use it only when it has no digit-only
+      segment outside the deployment base. `https://example.com/some-post`
+      gives `/`.
     - **A site-relative route, with the deployment base prepended exactly
       once.** The deployment base is the path in the site's own config
       (Hugo `baseURL`, Astro `base`, Next.js `basePath`), else the path of
@@ -1088,8 +1094,8 @@ Ask one at a time (skip any already answered by the writing-sample pass):
 2. Credibility message: the one-line authority statement that opens every
    post's expertise-statement sentence (e.g. "After testing 50 pairs of
    trail shoes over 200 miles, here's what held up.")
-   Quick path: ask, **both paths**, always, as the quick path's question
-   5 (right after the audience question). Exact wording: "What makes you
+   Quick path: ask, **both paths**, always, right after the audience
+   question (its number is whatever the running count says). Exact wording: "What makes you
    the one to write this? One sentence, for example: after ten years
    running support teams, I..." Free text, no default: it cannot be
    derived without inventing an authority claim, and every post's
@@ -2734,8 +2740,9 @@ sentence.
    - "The reviewer's approval is enough" → `auto`. Read back: "Posts go
      from plan to draft without waiting for you; you still review the
      finished post."
-   Quick path: omit, `ask`, shown in the summary; a correction there to
-   `auto` is kept.
+   Quick path: omit, `ask` when `review.plan_approval` is absent; when
+   the key is already on file (a resumed run, an earlier correction),
+   keep its value. Shown in the summary; a correction there is kept.
 2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
    keeps its files on your repository's main branch: these setup files,
    competitor fact sheets, and the content plan. Besides the setup commit
@@ -2805,8 +2812,11 @@ to the owner rule 8):
    before it goes live."
 Record both paths in Global rule 9's list. These two files are committed
 with the rest in the commit step below, and the summary that follows
-lists them in one line ("Content plan: empty, ready for posts; every post
-waits for your approval").
+describes them in one line built from what is actually on file: the plan's
+row count ("Content plan: empty, ready for posts" or "Content plan: <N>
+posts, kept as they were") and the saved policy ("every post waits for
+your approval" for `gated`; for an existing `auto` block, "approved posts
+are merged without a further step", which the owner can change there).
 
 ### The summary before the commit (both paths)
 
@@ -3119,8 +3129,12 @@ detailed path, before any yes adds a block:
 | wordpress-rest | 53 | as above with publishing 5 (folders, address, username) |
 | markdown | 54 | as above with publishing 6 (folders, platform, image serving) |
 
-Add: product on +9, competitors on +3 (names, timing, folder), a second
-or later author +1 each, writing samples present -1 (the sample pass
+The table is the existing-blog case. Recompute T from the branch
+actually taken, at the moment it is taken: a brand-new blog answers only
+the first live-site question (research 1, so -3); a second author adds
+its details and the co-signed-voice question (+2), each later author +1;
+product on +9; competitors on +3 (names, timing, folder); writing
+samples present -1 (the sample pass
 answers tone and lexicon and adds its own confirmation; credibility,
 anecdotes, positioning, forbidden phrases and the allowlist are still
 asked). Say the new total once when a yes changes it. The identity count
