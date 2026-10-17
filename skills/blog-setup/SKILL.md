@@ -1636,6 +1636,8 @@ pictures", "screenshots you take"; never "strategy", "adapter", "slot",
    <installed / not installed on this Mac>), screenshots you take yourself
    when a post needs one." Ask it as a multi-select menu. → `images.enabled`
    (`remotion`, `ai-prompt`, `screenshot`), must be non-empty (invariant 1).
+   Quick path: omit. `remotion` on, `ai-prompt` on iff `command -v codex`
+   finds it, `screenshot` on.
 2. "Which of those should be the default for a post's featured image?" —
    if only one strategy was enabled, skip this question and set
    `images.featured_default` to it. If more than one, offer "let the
@@ -1645,8 +1647,10 @@ pictures", "screenshots you take"; never "strategy", "adapter", "slot",
    **Validate immediately** (Global rule, enforced at entry): if the
    user's answer is not a member of `images.enabled` from question 1,
    reject it and re-ask; don't defer this check to Phase 6.
+   Quick path: omit, the planner picks (key omitted).
 3. If `remotion` ∈ enabled: "Where should the Remotion project live in
    this repo?" (default `tools/remotion`) → `images.remotion.project_dir`.
+   Quick path: omit, `tools/remotion`.
 
 Merge into `config.yaml`:
 
@@ -1667,35 +1671,39 @@ defaults — still ask every question, still let the user override any
 subset; the evidence just changes the starting point, it never gets
 silently accepted.
 
-1. Palette: 8 hex colors — `background`, `surface`, `border`, `text`,
-   `muted`, `primary`, `accent`, `warn`. Offer the scaffold's defaults
+1. Palette and fonts, one question. The file takes 8 hex colours
+   (`background`, `surface`, `border`, `text`, `muted`, `primary`,
+   `accent`, `warn`) and two font stacks (sans, mono). Sources, in order:
+   the hexes and font names Phase 1.5 extracted from the live site's CSS;
+   the stylesheet in the repository; else the scaffold's defaults
    (`#FAFAFA`, `#FFFFFF`, `#E5E7EB`, `#1F2937`, `#6B7280`, `#2563EB`,
-   `#0E9F8E`, `#E11D48`) as the starting point — or, if Phase 1.5 extracted
-   hexes from the live site's CSS, or the site's stylesheet in the repo
-   declares colours, offer those instead; let the user override any subset
-   either way. Ask it in colour words, not codes: "Images use a light
-   off-white background, dark grey text, a blue main colour and a teal
-   highlight (that is the standard set / that is what your site's
-   stylesheet uses). Keep these, or tell me your brand colours?" Show the
-   codes only when asked or when the owner gives their own.
-2. Fonts: sans-serif stack and monospace stack. Defaults:
-   `Inter, ui-sans-serif, sans-serif` and `ui-monospace, monospace`, or
-   the site's own fonts when the repo or Phase 1.5 names them. Say now,
-   once, that a webfont the site loads from its own files is usually not
-   installed on this Mac, so the test image will show a standard system
-   font in its place; that is expected and the posts' own pages are not
-   affected.
+   `#0E9F8E`, `#E11D48`; `Inter, ui-sans-serif, sans-serif`;
+   `ui-monospace, monospace`). Ask it as one menu, in words: "Images will
+   use your site's colours and fonts, found in its stylesheet" (or "the
+   standard set: off-white background, dark grey text, blue main colour,
+   teal highlight" when nothing was found) / "Tell me my brand colours in
+   words". The codes and stacks go in the file and are never printed
+   unless the owner gives their own. No caveats about theme slots,
+   headless Chrome or webfonts here; the test render says its one line
+   below.
+   Quick path: derive, same sources, no question.
+2. (Folded into 1.)
 3. Mood words: 3-5 adjectives describing the visual mood (e.g. "clean,
    confident, technical") — pre-fill from Phase 1.5's image-set
    characterization if it ran.
+   Quick path: omit, Phase 1.5's characterization or "clean, confident,
+   practical".
 4. Watermark text (default: the blog's domain, e.g. `trailnotes.example`)
    and opacity (default `0.55`)
+   Quick path: omit, the defaults.
 5. Annotation conventions for screenshot markup: accent color (default:
    reuse the `accent` palette token), stroke width (default `3px`),
    corner radius (default `6px`)
+   Quick path: omit, the defaults.
 6. Aspect-ratio default for `ai-prompt` images (default `3:2`,
    matching the Remotion canvas so a mixed featured/in-post set stays
    visually consistent)
+   Quick path: omit, `3:2`.
 7. Featured-image variation archetypes (to the owner: "cover image
    layouts"): offer the default list below (mirrors the built-in list in
    `${CLAUDE_PLUGIN_ROOT}/skills/suggest-images/SKILL.md` §Featured-slot
@@ -1710,6 +1718,7 @@ silently accepted.
    `pattern-break` (a pattern with one odd element), `scene-vignette` (a
    small scene), `negative-space` (mostly empty, one element). Keep at
    least 4 (fewer starves the rotation). Default answer: keep all seven.
+   Quick path: omit, all seven.
 
 Write `{profile_dir}/image-style.md`:
 
@@ -1822,18 +1831,15 @@ title band never vary; only the composition does.
    ```bash
    cd "<REMOTION_DIR>" && npx remotion still SampleDiagram --output=out/preview-sample-v1.png
    ```
-7. `Read` the rendered PNG yourself, then **open it for the owner before
-   asking anything**: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
-   (macOS opens it in Preview). Then ask, giving the path too: "I've opened
-   the test image on your screen (it is also at
-   `<REMOTION_DIR>/out/preview-sample-v1.png`). It uses your colours and
-   watermark. <If a webfont is not installed: 'The text is in a standard
-   system font because <font> is not installed on this Mac; that is
-   expected and does not affect your posts.'> Does it look right, or should
-   a colour change?" Never recommend "looks right" on the owner's behalf.
-   If not right, go back to the image-style.md interview, adjust, rewrite
-   `theme.ts`, re-render and open it again. The test render is not
-   committed (`out/` is ignored, step 5).
+7. `Read` the rendered PNG yourself to confirm it rendered, then open it
+   for the owner: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
+   (macOS opens it in Preview). Report one line and ask nothing (both
+   paths): "Test image rendered; I've opened it on your screen." plus,
+   when a webfont fell back, "It uses a standard font on this Mac; your
+   site is not affected." Never a list of problems to decide on, never a
+   question: the owner changes colours in the summary before the commit
+   (Phase 6), which rewrites `theme.ts` and re-renders. The test render is
+   not committed (`out/` is ignored, step 5).
 
 ### If `ai-prompt` is enabled: check codex + offer a test generation
 
@@ -1844,7 +1850,8 @@ title band never vary; only the composition does.
    `failed` and its `Prompt:` block stays a pasteable manual fallback; it
    never breaks the pipeline). Warn, don't block the wizard, and don't add
    a config invariant for it.
-3. If found: offer "Want me to fire one test generation to confirm codex
+3. If found, detailed path only (quick path: omit, no test generation):
+   offer "Want me to fire one test generation to confirm codex
    imagegen works?" If yes, run `${CLAUDE_PLUGIN_ROOT}/skills/generate-image-codex/SKILL.md`
    with a minimal throwaway prompt (e.g. "a simple flat-vector test image,
    a single blue circle on a white background, no text") and an explicit
