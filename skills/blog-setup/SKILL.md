@@ -1915,6 +1915,24 @@ Netlify, Vercel, Cloudflare Pages and GitHub Pages do that)?"
 - "I don't know" → `publish.site_live: false`; say: "I'll treat it as not
   live for now. Once it is, run this setup again and change the answer."
 
+Quick path: derive when deployment evidence ties the entered site to this
+repository's base branch, else ask the menu above, counted. The value
+means "online and rebuilds from this repository's base branch", so the
+evidence must name both the base branch and the site's host:
+- GitHub Pages: `gh api repos/<owner>/<repo>/pages` answers, its
+  `html_url` or `cname` is on the site address's host, and `source.branch`
+  equals the base branch.
+- Netlify, Vercel, Cloudflare Pages: on the base branch's latest commit
+  (`git rev-parse origin/<base branch>`), `gh api
+  repos/<owner>/<repo>/commits/<sha>/status` or `.../check-runs` shows a
+  successful deployment from that host whose `target_url` or environment
+  URL is on the site address's host.
+A `netlify.toml`, `vercel.json` or workflow file in the repository, a host
+named in the site's response headers, or page text matching the blog are
+not evidence on their own: a copied repository has all three. When `gh`
+cannot read the repository, ask. WordPress and hosted CMS: online iff the
+site address answers; there is no rebuild part.
+
 For a WordPress or a hosted CMS (Webflow, Ghost(Pro)) blog the rebuild part
 does not apply: ask only "Is the site online now?" and write the answer.
 Say what the value changes, in one sentence that fits how posts reach this
@@ -1961,6 +1979,11 @@ problem).
      paste into <Platform> before you approve it; the repository keeps a
      copy."
    → `publish.adapter`.
+   Quick path: ask, the detected option first, counted as question 8
+   ("Where posts go"). The adapter steps that need the owner afterwards
+   (the WordPress password dialog, the Astro format edit consent) are
+   actions, done as today and not counted; the WordPress username is a
+   counted question.
 
 ### If `astro-git-pr`
 
@@ -1992,9 +2015,11 @@ problem).
 3. `content_dir` (default `src/content/blog`; read where the blog
    collection's entries live, `src/content/<name>/`, and offer that). To
    the owner: "Posts go in the folder `<path>`, where your existing posts
-   are. Reply `default` or give another folder."
+   are." Menu: "Keep that folder" / "Another folder".
+   Quick path: derive, the collection's folder; state it in one line.
 4. `assets_dir` (default `src/assets/blog`). To the owner: "Images go in
    `<path>`."
+   Quick path: omit, the default; state it in the same line as 3.
 5. Frontmatter template: read the content collection schema before asking
    anything. Find it in `src/content.config.ts` or `src/content/config.ts`
    (the `defineCollection({ schema: z.object({...}) })` for the blog
@@ -2113,12 +2138,15 @@ problem).
    authors map in `astro.config.mjs` or `src/content/authors/`; offer what
    you found, default no. If yes → repo-relative path →
    `publish.astro.authors_map_check`. If no, omit the key.
+   Quick path: derive, present iff `src/content/authors/` or an authors
+   map in the Astro config exists; else omit the key.
 8. "When a pull request is opened on your repository, does something post
    a comment with a preview link (Netlify, Vercel and Cloudflare do this
    when connected)? If so, paste the first line of one such comment."
    Default no. The HTML comment marker it upserts (e.g.
    `<!-- blog-preview -->`) → `publish.astro.preview_comment_marker`; if
    none, omit the key.
+   Quick path: omit the key, no question.
 
 Verify the directories exist on disk:
 ```bash
@@ -2145,19 +2173,26 @@ Verify the directories exist on disk:
    images to WordPress's media library when it stages the post. Use the
    standard folders (`content/blog` and `blog-ops/assets`), or choose
    others?" Default: standard.
+   Quick path: omit, standard.
 4. `frontmatter_template` — state, don't ask: fixed at
    `adapters/publish/frontmatter/wordpress.md` for this adapter (unlike
    Astro, there's no Starlight-vs-content-collections choice to interview
    for). Write no `frontmatter_keys` (absent means every key of the
    template; WordPress takes them all).
-5. `base_url`: default the blog URL from Phase 1. Check it answers:
+5. `base_url`: default the **site address** from Phase 1 question 2
+   (`setup-notes.md` `Site address:`), never `blog.url`: a WordPress
+   installed under a path (`https://example.com/journal`) answers only at
+   `https://example.com/journal/wp-json/`. Check it answers:
    `curl -sf "<base_url>/wp-json/" | head -c 200` must return JSON with the
    site's `name`; if not, say "That address does not answer as a WordPress
    site (the `/wp-json/` page is missing or blocked). Check the address, or
    ask your host whether the REST API is turned off." and ask again.
+   Quick path: derive (the site address), the probe runs as written; a
+   failed probe asks for the address again, counted once.
 6. `username`: "What is your WordPress username, the one you sign in to
    wp-admin with? Pilcrino uploads drafts as this user." Never ask for the
    normal password.
+   Quick path: ask, counted (it cannot be derived).
 7. **The application password, stored in the Mac's keychain.** Say first,
    in these words or close to them: "WordPress lets you create a separate
    password just for tools like Pilcrino, called an application password.
@@ -2211,8 +2246,7 @@ Verify the directories exist on disk:
    again in `<blog folder>`; otherwise the post can't log in to WordPress.
    I'll check the password now in a way that reads the file." (The
    wizard's own Bash calls do not see the new line either: the probe below
-   runs in a shell that reads `~/.zshrc`.) Say also that the Pilcrino app,
-   if used later, needs the same value in its own settings.
+   runs in a shell that reads `~/.zshrc`.)
 8. `default_status` — state, don't ask: this is always `draft` in v1; the
    adapter never publishes past draft, the human clicks Publish in WP
    admin. To the owner: "Pilcrino uploads each post as a WordPress draft;
@@ -2272,10 +2306,13 @@ possible: `/<slug>/` → `/%postname%/`, `/YYYY/MM/DD/<slug>/` →
 `/%year%/%monthnum%/%day%/%postname%/`, `/blog/<slug>/` →
 `/blog/%postname%/`; no published post and no settings → omit the key).
 Then correct Phase 1's guesses from it, with one sentence to the owner:
-`blog.route_prefix` is the fixed path before `%postname%` (`/` for
-`/%postname%/`, `/blog/` for `/blog/%postname%/`, `/` for a date-based
-structure, whose dates vary per post) and `blog.trailing_slash` is whether
-the structure ends in `/`. A date-based structure (any `%year%`,
+`blog.route_prefix` is the installation path (the path of the site
+address, `/journal/` for `https://example.com/journal`, nothing for a bare
+host) followed by the fixed path before `%postname%` (nothing for
+`/%postname%/`, `blog/` for `/blog/%postname%/`, nothing for a date-based
+structure, whose dates vary per post), so `https://example.com/journal`
+with `/%postname%/` gives `/journal/`, never `/`; and `blog.trailing_slash`
+is whether the structure ends in `/`. A date-based structure (any `%year%`,
 `%monthnum%` or `%day%`): say "Your site puts the date in every post's
 address (`/2026/02/17/hello-world/`). That works, but addresses without
 dates rank and share better and never go stale. I recommend changing it
@@ -2341,11 +2378,14 @@ above.
    `content/posts` or `content/blog`, whichever exists): the folder in this
    repo where each post lands as `<slug>.md`. To the owner: "Posts go in
    the folder `<path>`."
+   Quick path: derive, the existing posts folder, else the default.
 3. `assets_dir` (default `posts/images`; Hugo `static/images`, Next.js
    `public/images`): each post's images land in `<assets_dir>/<slug>/`.
+   Quick path: derive, from item 5's folder-to-URL pair.
 4. "Which platform reads these files?" Detect it from the repo as in the
    adapter choice above and confirm in one line rather than asking a menu
    of seven; ask the menu only when nothing in the repo says.
+   Quick path: derive; ask only when nothing in the repo says, counted.
    → `publish.markdown.platform`, one of:
    - `astro`: `title`, `description`, `pubDate`, `tags`, `author`, `heroImage` (an Astro content collection)
    - `hugo`: `title`, `description`, `date`, `tags`, `author`, `cover`
@@ -2413,8 +2453,28 @@ above.
    way as Hugo's: the template's keys minus the draft key).
 5. Repo platforms only (`astro`, `hugo`, `nextjs`, `eleventy`; skip for
    `jekyll`, `ghost`, `generic`): "How does your site serve a post's
-   images?" → `publish.markdown.image_url_prefix`. Offer two answers, the
-   platform's usual layout first as the default:
+   images?" → `publish.markdown.image_url_prefix`.
+   **Derive a folder-to-URL pair from the configuration first, both
+   paths.** The adapter uses the prefix verbatim for the cover and every
+   body image and adds no base path itself, so the deployment base (the
+   path of the site address from Phase 1 question 2, or Next.js
+   `basePath` in `next.config.*`, whichever the platform uses) is
+   prepended to the URL exactly once:
+   - `hugo`: folder `static/images` (or the `static` dir the config
+     names), URL `<base>/images`; `https://example.com/docs/` gives
+     `/docs/images`.
+   - `nextjs`: folder `public/images`, URL `<basePath>/images`.
+   - `eleventy`: only a folder the config actually passes to
+     `addPassthroughCopy`, at the URL it maps to (`{ "media": "assets" }`
+     gives folder `media`, URL `<base>/assets`); set `assets_dir` to that
+     folder. No passthrough in the config: the pair is not established.
+   - `astro`: relative paths, no prefix.
+   When the pair is established: detailed path, offer it as the first
+   menu option with "relative, my site copies the folder next to the
+   post" second; quick path, write it and state it in one line. When it
+   is not established (Eleventy without a passthrough, a Hugo config with
+   an unusual static layout): ask the menu below on both paths, counted
+   on the quick path. The two answers, the platform's usual layout first:
    - the usual layout for the platform:
      - `hugo`: files under `static/images/<slug>/`, served at `/images`
      - `nextjs`: files under `public/images/<slug>/`, served at `/images`
@@ -2457,11 +2517,7 @@ site is online and builds from GitHub." Paste platforms (`jekyll`, `ghost`,
 `generic`): "Before you approve each post, you paste it into <Platform>:
 Pilcrino hands you the post text ready to paste and opens the folder with
 its images, and lists the fields (title, description, date, tags, cover)
-one by one. Merging then files the post in this repository." Mention
-"or download the post's zip from the Pilcrino app" ONLY when this blog is
-registered with the app (`~/.pilcrino/console/blogs.json` lists this
-folder, or Phase 7 has already added a `console:` block); otherwise the
-app has not been introduced and the sentence confuses.
+one by one. Merging then files the post in this repository." 
 
 Verify the directories exist on disk:
 ```bash
@@ -2554,7 +2610,9 @@ Either branch writes `{profile_dir}/site-conventions.md` (shape:
 `${CLAUDE_PLUGIN_ROOT}/templates/site-conventions.md`) and presents it to
 the user for confirmation before treating it as final, per that adapter
 section's own last step — never silently accepted, same as every other
-pre-filled doc in this wizard.
+pre-filled doc in this wizard. Quick path: the confirmation is the
+summary before the commit (Phase 6), one line ("Categories: <list>, from
+your site"), not a question here.
 
 **Cross-check `blog.trailing_slash`.** Both adapters' inspection procedures
 read the site's actual permalink format and compare it against
