@@ -1,6 +1,6 @@
 ---
 name: blog-setup
-description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then interviews the owner one question at a time (identity and niche, voice and authors, modules, images, publishing, final checks) plus a one-time sign-in to the Pilcrino browser, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). An optional research pass, offered when the blog already has live content, pre-fills audience, voice and image style from the live site with consent. Reads the site to fit it (Astro content schema and draft flag, Hugo theme cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain through a hidden prompt, scaffolds the Remotion image project when remotion is enabled, and probes the publish adapter's auth at most once per run. Ends by running scripts/validate-config.mjs (config-schema.md invariants 1 to 16), committing and pushing the setup files with consent, and handing off to `/pilcrino:blog-post-workflow new`. An optional last step prepares the blog for the Pilcrino app. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
+description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). An optional research pass, offered when the blog already has live content, pre-fills audience, voice and image style from the live site with consent. Reads the site to fit it (Astro content schema and draft flag, Hugo theme cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain through a hidden prompt, scaffolds the Remotion image project when remotion is enabled, and probes the publish adapter's auth at most once per run. Ends by running scripts/validate-config.mjs (config-schema.md invariants 1 to 16), committing and pushing the setup files with consent, and ending with a What next menu (plan posts, write a post, research a competitor, change an answer). Always writes blog-ops/content-plan.md and the console block. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
 ---
 
@@ -55,10 +55,10 @@ rules; they override the wording of any example in this file.
    Never a numbered list of questions, never "also, ..." with a second one.
    When a question has a fixed set of answers, ask it with `AskUserQuestion`
    as a menu; when it needs free text, ask it in prose.
-3. **Defaults are a word, never a key press.** An empty Enter does nothing
+3. **Defaults are clicked, never a key press.** An empty Enter does nothing
    in Claude Code, so never write "press Enter for X" or "hit return".
-   Write: "reply `default` for X" (the word `default`, spelled out) or
-   offer the default as the first menu option. Accept `default`, `keep`,
+   Offer the default as the first menu option (rule 10 below says how).
+   Where a question stays free text, accept `default`, `keep`,
    `use the default`, `ok` and the like as the default.
 4. **Never offer `/` or any slash-prefixed text as an answer.** Typing `/`
    opens Claude Code's command menu and restarts the skill. A URL path such
@@ -77,6 +77,25 @@ rules; they override the wording of any example in this file.
    to GitHub), repeat it in one sentence before moving on.
 7. **Say what you did, not how.** "Saved your answers" rather than file
    paths and keys, except for the final summary, which names the folder.
+8. **Nothing internal, ever.** On top of rule 1, never print to the owner:
+   a hex code, a font stack, a count of checks or invariants ("Checks
+   passed", never "14 pass" or "pass by vacuity"), a file name other than
+   the final folder, or the word "app". The Pilcrino app is never
+   mentioned during setup, on either path, at any step.
+9. **Known answers are stated, not asked.** When evidence settles a value
+   (the repository, the live site, an earlier answer), say it in one line
+   with its source and move on: "Language: English, from your site."
+10. **Defaults are clicked.** Every question that has a default is an
+    `AskUserQuestion` menu with the default first, labelled with the value
+    in owner words ("Keep `Trail Notes`" / "Another name"). A question
+    stays free text only when it has no default or the default is a
+    paragraph too long for a label; then the menu is "Use the suggestion"
+    / "I'll type my own", and the suggestion is printed above it. Never
+    write "reply `default` for X" to the owner.
+11. **Every derived value is shown before it is saved.** A value setup
+    took from evidence or from a convention appears in the summary before
+    the commit (Phase 6), one line per topic in owner words, where the
+    owner can change it. Nothing derived is saved unseen.
 
 ## What gets produced
 
@@ -126,10 +145,10 @@ resolves to."
 1. **One question at a time.** Never dump a numbered list of questions and
    ask the user to answer all of them in one message. Ask, wait for the
    reply, ask the next one. Offer a sensible default in most questions
-   ("reply `default` for `<default>`", or the default as the first menu
-   option, per §How to talk to the owner rule 3) so the interview moves fast
-   for a user who's happy with conventions. Where an older line in this
-   file still says "press enter", read it as "reply `default`".
+   as the first menu option (§How to talk to the owner rule 10) so the
+   interview moves fast for a user who's happy with conventions. Where an
+   older line in this file still says "press enter" or "reply `default`",
+   read it as "the default is the first menu option".
 2. **Write artifacts immediately**, at the end of each phase, not batched
    at the very end of the whole wizard. A crash or an intentional stop
    after Phase 3 leaves Phases 1-3's files on disk, ready for a resumed run
@@ -213,6 +232,45 @@ resolves to."
    section of the file: a later note (Global rule 8's resume line, Phase
    3.5's sign-in line) goes above it, never under it. The post workflow's
    Step 0 reads this section to know which site files belong to setup.
+10. **Two paths and the counter.** On a fresh run, right after Phase 0d,
+    ask once with `AskUserQuestion`:
+    - "Quick setup (recommended)": about ten questions, everything else
+      taken from your site and repository and shown to you before it is
+      saved.
+    - "Detailed setup": every question, about forty, one at a time, each
+      with a default to click.
+
+    Record the choice in `{profile_dir}/setup-notes.md` as `Path: quick`
+    or `Path: detailed`. A resume run (0d found files) skips this menu:
+    "update" on a phase runs that phase's detailed questions pre-filled
+    with what is on file.
+
+    **Dispositions.** Every question in the phases below carries a line
+    `Quick path: <ask|derive|omit|action>. <rule>` right under it. On the
+    quick path: `ask` is asked and counted; `derive` is written from the
+    evidence the line names and shown in the summary; `omit` writes the
+    default the line names and shows it in the summary; `action` is a
+    consent or sign-in done as today, never counted. On the detailed path
+    every question is asked unless its line says "both paths", in which
+    case the derivation applies to both and the value is changed in the
+    summary, not asked. A question without a disposition line is asked on
+    the detailed path and derived or omitted on the quick path per the
+    phase's own text; the implementer of this file keeps every question
+    annotated.
+
+    **The counter.** Every asked question starts with "Question N of T".
+    T is fixed when the path is chosen, after Phase 0's platform
+    detection. Quick path: T = 10 (name, address, about, readers,
+    credibility, product yes/no, competitors, where posts go, pushing
+    consent, the commit question), +1 for WordPress (username), +1 when
+    the product answer is yes (its address, counted as it arises). A
+    conditional question (route prefix, site live, author name, product
+    identity fallback, image serving fallback) raises T by one when it
+    arises, said aloud: "One more than I said: 11 now." Detailed path T
+    per adapter and modules: see the table in Phase 6's "Counting the
+    detailed path" (filled from the question lists below); when a yes
+    adds a block, say the new total once ("Your product adds nine
+    questions; 12 of 50 now").
 
 ## Phase 0: Preflight and finding the blog
 
@@ -463,6 +521,13 @@ folder.
   keep what is there, change it, or start it over." Then proceed to Phase
   1 (each phase's own resumability check per Global rule 3 handles the
   skip-vs-update decision).
+
+### 0e. Choose the path
+
+On a fresh run, ask the two-path menu from Global rule 10 now, record the
+choice, state the counter total ("About 10 questions. Everything else I
+take from your site and repository and show you before saving." for the
+quick path), and proceed to Phase 1.
 
 ## Phase 1: Identity & niche
 
