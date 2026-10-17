@@ -552,21 +552,54 @@ Ask one at a time:
    as the default: `title` in `hugo.toml`, `site`/title in the Astro
    config, the WordPress site title from `/wp-json` (`name`), or the name
    given in Phase 0.
+   Quick path: ask.
 2. Blog URL (e.g. `https://trailnotes.example`). Offer `baseURL` /
    `site` from the same files when present. A `.example` or placeholder
    address: say in one sentence that it is a stand-in and where to change
    it later; keep going.
+   Quick path: ask.
+   **Two values from one answer (both paths).** The answer may carry a
+   path (`https://example.com/journal`). Keep both: the **site address**
+   exactly as entered or discovered, recorded in `setup-notes.md` as
+   `Site address: <value>` for Phase 5 (the WordPress probe and
+   `base_url` use it; its path is the deployment base for routes and image
+   URLs), and the **origin** (scheme and host only,
+   `https://example.com`), written as `blog.url`, because every reader
+   builds links as `{blog.url}{route_prefix}<slug>`. Never write a path
+   into `blog.url`.
 3. Language code (default `en`)
+   Quick path: derive. The `lang` attribute of the fetched home page, else
+   the site config's language key (`languageCode` in Hugo, `lang`/`i18n`
+   in Astro, `/wp-json` `language` for WordPress), else `en`. Say it in one
+   line: "Language: English, from your site."
 4. Niche/topic: what is this blog about, in one or two sentences?
+   Quick path: ask. Default from PRODUCT.md or README in the repository,
+   the site's home page, or an earlier setup on this Mac, when any exists,
+   offered as "Use the suggestion" / "I'll type my own" (rule 10); with
+   none, free text.
 5. Mission: why does this blog exist? What transformation does a reader
    get from following it?
+   Quick path: derive. One sentence from the niche and audience answers,
+   written with `_Derived at setup; change it any time._` as the first
+   line of the section.
 6. Point of view: what does this blog believe about its niche that's
    distinct or contrarian? (This is what keeps posts from reading as
    generic SEO filler.)
-7. Content pillars: 3-5 recurring topic buckets this blog returns to
+   Quick path: derive, as question 5 (one sentence, same marker).
+7. Content pillars: 3-5 recurring topic buckets this blog returns to.
+   Quick path: derive, **both paths**. Never asked: 3 to 5 buckets from
+   the niche (and the product, when known), with the marker from question
+   5, changed in the summary if the owner wants. The section stays in
+   `blog.md` because `site-conventions.md`'s category mapping, the brief
+   template, the post workflow's category step and both git adapters read
+   it; `plan-content` builds its own pillars from research and does not
+   read this section.
 8. Tag taxonomy: the fixed list of tags posts draw from (2-4 tags per post
    come from this list — both Astro frontmatter templates read it from
    `{profile_dir}/blog.md`)
+   Quick path: derive. The site's existing tags or categories (Phase 1.5's
+   fetched posts, the content collection's values, WordPress
+   `/wp-json/wp/v2/tags`), else six tags from the niche, marker as in 5.
 9. Primary CTA target + hook: what should every post's closing CTA point
    to (newsletter signup, product trial, app download, etc.), and what's
    the one-line hook for it (e.g. "Subscribe for weekly trail reports")?
@@ -574,22 +607,45 @@ Ask one at a time:
    page or a URL path the owner has not mentioned (a waitlist-only product
    has no `/signup`). Ask what exists; draft the hook from their answer and
    read it back.
+   Quick path: derive. Target: the product's address (Phase 3's product
+   answer, so write this section after Phase 3 on the quick path) when the
+   product module is on, else the blog's home page. Hook: one sentence
+   from the niche. The no-invented-path rule holds: never a trial, signup
+   or pricing path.
 10. Publish cadence: how often does this blog publish? (Informational,
     not consumed by any downstream check, but useful context for anyone
     reading this doc later.)
-11. Route prefix: the URL path prefix this blog's posts are served under
-    (default `/blog/`; `/` for a root-routed blog with no prefix). This
-    drives every internal link, canonical URL, and inbound-link ownership
-    grep the rest of the plugin emits, so get it right up front. Ask it in
-    owner words and never offer `/` as a thing to type (§How to talk to
-    the owner rule 4): "Posts on your site have an address like
-    `https://<domain>/blog/some-post`. What comes between the domain and
-    the post? Reply `default` for `blog`, `root` for nothing, or the word
-    your site uses." Offer evidence as the default when there is any: a
-    Hugo site with `content/posts/` serves `/posts/`; WordPress with the
-    "Post name" permalink setting serves posts right after the domain
-    (`root`); Phase 5 reads the real WordPress setting from the site and
-    corrects this if needed. Write the value with both slashes.
+    Quick path: omit, `weekly`.
+11. Route prefix: the URL path prefix this blog's posts are served under.
+    This drives every internal link, canonical URL, and inbound-link
+    ownership grep the rest of the plugin emits, so get it right up front.
+    Quick path: derive, **both paths**. Never asked while evidence exists.
+    The value is one complete root-relative path, normalised to `/.../`
+    (`/` for a root-routed blog). Evidence is one of two kinds, and the
+    two are never combined with each other:
+    - **A complete path, used as is.** A post link on the live site with
+      the post's own segment removed: `https://example.com/journal/post/`
+      gives `/journal/`; `https://example.com/some-post` gives `/`.
+    - **A site-relative route, with the deployment base prepended exactly
+      once.** The deployment base is the path of the site address from
+      question 2 (`/docs/` for `https://example.com/docs/`, nothing for a
+      bare host). Hugo: the `permalinks` entry for the posts section in
+      the Hugo config (`posts = "/articles/:slug/"` gives `articles/`),
+      else the section folder name (`content/posts/` gives `posts/`);
+      `/docs/` + `articles/` = `/docs/articles/`. Astro: the route of the
+      page that renders the collection under `src/pages`. WordPress: the
+      fixed part of the permalink structure read from the site
+      (`/%postname%/` gives nothing, `/blog/%postname%/` gives `blog/`)
+      under the installation path; Phase 5 reads the real setting and
+      composes with the path, never replaces it.
+    Use the complete path when the site answers and a post link is found;
+    else the site-relative route; else ask, counted, as a menu: "Posts on
+    your site have an address like `https://<domain>/blog/some-post`.
+    What comes between the domain and the post?" with options `blog`
+    (default), "Nothing, posts sit right after the domain", "Another
+    word" (then free text). Never derive from a folder name when the
+    config overrides it; never from the bare address alone. Write the
+    value with both slashes.
 12. Trailing slash: do (or will) this blog's post URLs end with a trailing
     slash (e.g. `/blog/my-post/`) or not (`/blog/my-post`)? **Read it
     before asking it.** Evidence beats a question for a non-technical
@@ -610,6 +666,8 @@ Ask one at a time:
       wizard asks) will be declined: ask, as a menu ("Yes, with a slash" /
       "No, without"), default yes. Webflow and most hosted CMS platforms
       serve pages without one; say so when the platform is known.
+      Quick path: omit, `true` (`false` when the platform is known to
+      serve pages without one), shown in the summary.
     - Existing blog with a real chance the research offer is accepted:
       don't ask; write the default as a provisional placeholder and let
       Phase 1.5(a) detect the convention from the fetched post URLs,
@@ -671,20 +729,30 @@ Ask one at a time:
 
 1. Primary audience: who reads this blog (role, context, what brought them
    here)?
+   Quick path: ask. Default from the same sources as identity question 4
+   (PRODUCT.md, README, the home page, an earlier setup), offered per rule
+   10; with none, free text.
 2. Secondary audience, if any (skip if there's only one clear audience)
+   Quick path: omit, none.
 3. Top pain points this audience has, in priority order (this order
    matters, `{profile_dir}/voice.md` and the writer persona use it to
    decide what to lead with)
+   Quick path: derive from the audience answer (and the fetched site when
+   Phase 1.5 ran), three to five lines, marker as identity question 5.
 4. Language to use: words/phrasing that resonate with this audience
+   Quick path: derive, as 3.
 5. Language to avoid: jargon, marketing-speak, or tone that turns this
    audience off
+   Quick path: derive, as 3.
 6. Niche jargon that needs translating for this audience (terms an
    insider would know but this blog's typical reader might not) — this
    extends `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`
    §Insider-jargon translation with this blog's own niche's terms
+   Quick path: derive, as 3; "none yet" when nothing is evident.
 7. Insider posture: does this audience already know the niche jargon (an
    expert/insider readership), or does every post need to translate it on
    first use? (Default: translate on first use.)
+   Quick path: omit, translate on first use.
 
 Write `{profile_dir}/audience.md`:
 
@@ -759,6 +827,18 @@ research, and even an existing one may decline.
 
 **Offer.** Ask: "Does <blog name> already have posts live at <answer 2 from
 Phase 1>, or is this a brand-new blog with nothing published yet?"
+
+**Quick path: neither question below is asked.** Probe the site address
+(`curl -sfI -m 10 "<site address>"`). It answers → `existing_blog: true`,
+say one line, "Reading your site to fill in the rest", and run (a) to (d)
+with no consent prompt: the pages are the owner's own public site, named
+by the owner one question ago. It does not answer → `existing_blog:
+false`, skip the phase in silence. Every confirmation in (f) (the audience
+diff's "keep, edit, or skip", the trailing-slash confirmation, Phase 2's
+"confirm, edit, or tell me what's off") is not asked on the quick path:
+the values are written and shown in the summary before the commit (Phase
+6), where the owner changes any of them. The decline sub-case's "firm up
+Q12 by asking" does not apply: Q12 is omitted as `true` on the quick path.
 
 **Record the answer durably, before branching on it.** Read the
 `{profile_dir}/blog.md` Phase 1 already wrote, insert `existing_blog:
@@ -910,8 +990,9 @@ Using ONLY (a)-(d)'s evidence (never (e), which hasn't run yet):
   phase's own note).
 
 Every pre-filled doc or diff produced here is presented for explicit
-confirmation, exactly like every other phase in this wizard (Global rule
-3) — this phase introduces no silent-accept exception.
+confirmation on the detailed path, exactly like every other phase in this
+wizard (Global rule 3). On the quick path the confirmation is the summary
+before the commit (Phase 6), not a question here.
 
 **Artifacts:** `blog-ops/reference/site-research.md` (evidence log, cites
 every fetched URL) and `blog-ops/reference/image-samples/` (downloaded
