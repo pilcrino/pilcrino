@@ -253,9 +253,10 @@ branch without a question each time. It never covers merging a PR or publishing.
 
 ### `console:` (optional)
 
-Present only for blogs operated by the Pilcrino app's console.
-Absence = interactive-only blog; zero behavior change. All fields optional
-with the defaults shown.
+Written by `blog-setup` for every blog, with `publish_policy: gated`. The
+app decides whether a blog is connected from `~/.pilcrino/console/blogs.json`,
+not from this block; its presence changes nothing for a terminal-only blog.
+All fields optional with the defaults shown.
 
 `port` is legacy: one console process now serves every connected blog on
 one shared port, configured once at `~/.pilcrino/console/config.json`

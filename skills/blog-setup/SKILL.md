@@ -49,7 +49,6 @@ rules; they override the wording of any example in this file.
    | Phase 4 | "Images" |
    | Phase 5 | "Where your posts go" |
    | Phase 6 | "Final checks" |
-   | Phase 7 | "The Pilcrino app (optional)" |
 
 2. **One question per message.** A message ends with exactly one question.
    Never a numbered list of questions, never "also, ..." with a second one.
@@ -2671,6 +2670,59 @@ This phase always runs in full on every invocation (no skip option — it's
 cheap and it's the whole point of the wizard). Owner's name for this part:
 "Final checks."
 
+### The summary before the commit (both paths)
+
+Before any check runs and before the commit, print what setup is about to
+save: one line per topic, in owner words, in this order: name and address,
+what the blog is about, who reads it, how it sounds (tone, credibility),
+who writes it, your product (the feature list in full, with its sources,
+when the product module is on), competitors, images (kinds, colours and
+fonts in words), where posts go (adapter, site live or not, the posts'
+address shape `https://<host><route prefix><slug>`), research sources,
+plan approval, pushing, categories (when site-conventions was drafted).
+Mark each value by its origin: "(from your site)", "(from your
+repository)", "(standard)", or nothing for an answer the owner typed.
+Then `AskUserQuestion`: "Save this" / "Change something".
+
+"Change something" is **correction mode**, distinct from the interview:
+- The owner names a topic or a single line, in free text ("the pillars",
+  "posts live under /articles/", "the tone is warmer than that").
+- For any derived or omitted value, take the owner's value directly,
+  including the ones no path asks about (content pillars, route prefix,
+  trailing slash, tags, mission, point of view, pain points, image
+  colours, categories). When the owner asks for the questions instead
+  ("ask me about the voice"), run that topic's detailed questions
+  pre-filled with the current values.
+- Rewrite the affected files whole (Global rule 4) and refresh what
+  depends on them: images changed → rewrite `theme.ts` and re-render the
+  test image (Phase 4 steps 6 and 7); pillars changed → rewrite the
+  per-cluster mapping in `site-conventions.md` when that file exists;
+  route prefix or trailing slash changed → rewrite `config.yaml`'s `blog:`
+  block (nothing else inside setup embeds it).
+- Print the summary again and ask again. Loop until "Save this".
+
+Only then: the content plan and approval settings below, the validator,
+the commit question, the commit.
+
+### Content plan and approval settings (always, both paths)
+
+Write these now, with no question and no mention of the app (§How to talk
+to the owner rule 8):
+
+1. `blog-ops/content-plan.md` from
+   `${CLAUDE_PLUGIN_ROOT}/templates/content-plan.md` **only if it does not
+   exist**; never overwrite or reorder an existing file, whatever it
+   holds. It is an empty table; `/pilcrino:plan-content` adds posts to it.
+   If the blog has an existing editorial-calendar file, do not copy its
+   rows in.
+2. The `console:` block from config-schema.md's defaults, merged into
+   `blog-ops/config.yaml` **only if absent**, through the whole-file
+   rewrite (Global rule 4), with `publish_policy: gated` for every
+   adapter. Say its one sentence: "Every post waits for your approval
+   before it goes live."
+Record both paths in Global rule 9's list. These two files are committed
+with the rest in the commit step below.
+
 ### Run the validator (invariants 1 to 16)
 
 Run the plugin's validator from the blog folder:
@@ -2685,8 +2737,10 @@ fresh Mac needs no YAML library of its own; never improvise a `pip` or
 docs, checks config-schema.md's invariants 1 to 16 and prints one
 plain-words line per check and a last line, `All N checks pass` or the
 failing checks, exiting 1 on failure. Never hand-check the invariants or
-write a parser of your own; never show the owner a stack trace. Show the
-owner the last line, and for each failing check its plain-words line.
+write a parser of your own; never show the owner a stack trace. To the
+owner, say "Checks passed" when the last line is `All N checks pass`
+(never the count, never "pass by vacuity"), and for each failing check its
+plain-words line.
 
 The table below documents what the script checks, for the model reading
 this file; the owner sees the script's lines, not this table.
@@ -2713,10 +2767,9 @@ this file; the owner sees the script's lines, not this table.
 For each failing check: identify which earlier phase owns the gap, jump
 back into that phase's interview (pre-filled with whatever's already
 known), fix it, rewrite the artifact, then re-run the validator. Continue
-until it prints `All N checks pass`. Invariants 10-11's `console` part is
-normally vacuous here since Phase 7 (which writes the `console:` block)
-runs after this phase; Phase 7 re-runs the validator once that block
-exists. This wizard has no interview step for `social.linkedin` (invariant
+until it prints `All N checks pass`. The `console:` block is already on
+file (written just above), so invariants 10 and 11 check it here, in this
+one run. This wizard has no interview step for `social.linkedin` (invariant
 13); the operator adds that block to `config.yaml` by hand per
 `config-schema.md` §Schema.
 
@@ -2773,8 +2826,7 @@ sentence.
    - "The reviewer's approval is enough" → `auto`. Read back: "Posts go
      from plan to draft without waiting for you; you still review the
      finished post."
-   Say once that the Pilcrino app, if used, has its own approval screens
-   and ignores this setting.
+   Quick path: omit, `ask`, shown in the summary.
 2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
    keeps its files on your repository's main branch: these setup files,
    competitor fact sheets, and the content plan. Besides the setup commit
@@ -2785,6 +2837,9 @@ sentence.
    - "Yes, push them without asking" → `true`.
    - "No, ask me each time" (default) → `false`.
    Read back the choice in one sentence.
+   Quick path: ask, counted as question 9 ("Pushing"), both paths. On the
+   quick path ask it before the summary (it is an answer, not a derived
+   value), right after "Where posts go".
 
 ```yaml
 review:
@@ -2807,6 +2862,7 @@ personas/standards defaults." To the owner: "Is there anything every post
 should always or never do (a phrase to avoid, a rule about your product,
 something about your platform)? Give it to me in your own words, or reply
 `none`."
+Quick path: omit, not asked, no file written.
 
 - **Yes** → collect the content (free-text, multi-line is fine — this is
   the one profile doc with no fixed template shape). Write
@@ -2931,6 +2987,8 @@ recorded, in this order:
    them to `<base branch>` on GitHub now? If your site rebuilds from
    GitHub, this push starts a build; no post is affected. Options: push
    now (recommended) / commit here only, push later / not yet."
+   This is the quick path's question 10, counted and prefixed like every
+   other ("Question 10 of 10").
    Right before committing (either answer that commits), re-check the
    branch:
    ```bash
@@ -2985,84 +3043,30 @@ recorded, in this order:
      can open a pull request.
    - **Not yet**: do not move the branch (the built commit is simply left
      unused); say the same, and that nothing is lost.
-   After a commit, empty the paths list (`: > "$P"`) and keep `$B` for
-   Phase 7; on "not yet" keep both, so the next run commits the same
-   files.
-   Run this before Phase 7 so the `console:` block, when added there, gets
-   its own small commit under the same consent (push it too when the owner
-   chose "push now" and `git.push_without_asking` or a one-line question
-   allows it).
+   After a commit, empty the paths list (`: > "$P"`) and keep `$B` for a
+   later correction commit (the What next menu's "Change a setup answer");
+   on "not yet" keep both, so the next run commits the same files.
 
-### Handoff
+### Counting the detailed path
 
-Once the validator passes and the files are committed (or the owner chose
-otherwise), do NOT print the completion message yet: first run Phase 7
-(offer the optional autopilot console). Phase 7 is where the terminal
-"Setup complete" message is printed, on BOTH its branches (accept or
-decline), so the optional console phase is always offered BEFORE the flow
-declares itself done. Proceed to Phase 7 now.
+Filled from the question lists above; Global rule 10 reads it. T on the
+detailed path, before any yes adds a block:
 
-## Phase 7 — Console & content plan (optional)
+| Adapter | Base T |
+|---|---|
+| astro-git-pr | <N> |
+| wordpress-rest | <N> |
+| markdown | <N> |
 
-Owner's name for this part: "The Pilcrino app (optional)." Offer, don't
-push: "Pilcrino can also run as an app: it writes posts in the background
-on a schedule and gives you a browser dashboard to approve them. Do you
-want this blog ready for it? You can add this any time later." Default:
-not now.
+Add: product on +9, competitors on +2 (names, timing), a second or later
+author +1 each, writing samples present -4 (the sample pass answers tone,
+lexicon, forbidden phrases and allowlist). Say the new total once when a
+yes changes it.
 
-If yes:
-1. Scaffold `blog-ops/content-plan.md` from `${CLAUDE_PLUGIN_ROOT}/templates/content-plan.md`
-   (skip if present). It is an empty table; posts are added with
-   `/pilcrino:plan-content` (standalone until the app connects this blog,
-   then the app imports the file once and owns the list). If the blog has an
-   existing editorial-calendar file, do not copy its rows into this file;
-   tell the owner to add those posts with `/pilcrino:plan-content`.
-2. Add the `console:` block from references/config-schema.md defaults to
-   `blog-ops/config.yaml` (skip if already present). **Write it via the
-   whole-file rewrite mechanism (Global rule 4), NOT an append.** Write
-   `publish_policy: gated` for every adapter and say its one sentence to
-   the owner: "The app will never publish a post on its own: every post
-   waits for your approval in the dashboard" (for `astro-git-pr` add: "you
-   can switch the app to merge approved Astro posts by itself later, from
-   its settings"). For `wordpress-rest` and `markdown` blogs `gated` is the
-   only valid value (invariant 10: WordPress go-live is manual, and every
-   markdown post waits for the owner's approval).
-3. Say where the app is: "The Pilcrino app is at https://pilcrino.com. Once
-   installed, connect this folder from its dashboard; it imports
-   `blog-ops/content-plan.md` into its post list on connect."
-4. Re-run the validator (`validate-config.mjs`, invariants 1 to 16, with
-   invariants 10 and 11's console part no longer vacuous since the
-   `console:` block now exists).
-5. Commit `blog-ops/content-plan.md` and the config change under the
-   consent given in Phase 6 (push too when the owner chose "push now"),
-   exactly as Phase 6 steps 2 and 3 do: the two lists by full path
-   (`git -C "<blog folder>" rev-parse --absolute-git-dir`), the commit
-   built in its own index from those two paths only (Global rule 9 listed
-   them again after Phase 6 emptied the list), `blog-ops/config.yaml`
-   shown and asked about when it held the owner's own unsaved change
-   before setup, `git show --stat` of the built commit shown before
-   anything moves, the same branch checks, then `git update-ref`, `git
-   reset -q --` for the two paths, `git push origin <base branch>`, and
-   the same two checks before saying it was pushed: after `git fetch
-   origin <base branch>`, `git merge-base --is-ancestor <commit>
-   origin/<base branch>` must succeed for this new commit, and
-   `origin/<base branch>` must hold `blog-ops/config.yaml`. When either
-   fails, say "The push to GitHub didn't go through", show git's output,
-   and do not report it as pushed.
-6. Then print the terminal completion message (below).
+### Completion (both paths)
 
-**Resume:** if `blog-ops/content-plan.md` and/or `config.yaml`'s `console:`
-block already exist, summarize what's on file and apply Global rule 3 (keep
-as-is / update / start over) instead of re-offering from scratch.
-
-**If no:** skip the console scaffolding entirely, no files written. This phase
-can be run again later — nothing else in the wizard depends on it. Then print
-the terminal completion message (below).
-
-### Completion (printed at the end of Phase 7, both branches)
-
-Whether the operator accepted or declined the console, close the wizard
-with a short recap in owner words and then the exact last line. When the
+Close the wizard with a short recap in owner words and then the What next
+menu. When the
 setup files were committed, first delete the two lists (Phase 0b's and Global rule 9's) in
 git's own folder: `rm -f "$(git -C "<blog folder>" rev-parse
 --absolute-git-dir)"/pilcrino-setup-{paths,before}`; when they were not,
@@ -3090,11 +3094,36 @@ at most eight lines, in this order:
    post: quit Claude Code, open a new Terminal window, and start Claude
    Code again in `<folder>`, so it can read your WordPress password"). Never
    a git task, never a file to edit by hand.
-6. If the app was set up: "The Pilcrino app is at https://pilcrino.com;
-   connect this folder from its dashboard."
 
-Then print exactly:
+Then ask, with `AskUserQuestion`, "What next?", at most four options, in
+this order:
+
+1. "Plan a batch of posts (research, about half an hour, unattended)" →
+   run `${CLAUDE_PLUGIN_ROOT}/skills/plan-content/SKILL.md` in this
+   session, the way Phase 3.5 hands off to the research skill.
+2. "Write a post now" → run
+   `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` with the
+   argument `new`.
+3. When `modules.competitors` is on: "Research a competitor" → run
+   `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` for the
+   competitor the owner names. When it is off, this slot is "Change a
+   setup answer" (below) and option 4 drops it.
+4. "Something else" → a second menu: "Change a setup answer" / "Nothing
+   now, show me the commands".
+
+"Change a setup answer" re-enters correction mode (the summary before the
+commit, above) on what is on file. After "Save this": run the validator
+again, then build and make a second commit of the changed paths exactly
+as the commit step does, under the consent the owner gave there (push too
+when they chose "push now"), with the same two checks before saying it was
+pushed. The recap's first line says "pushed" only when that second push
+passed them.
+
+"Nothing now, show me the commands" prints three lines, one per command,
+in plain words:
 
 ```
-Setup complete. Run `/pilcrino:blog-post-workflow new` to write your first post, or `/pilcrino:plan-content` to plan a batch of posts first (about 30 minutes, unattended).
+To plan a batch of posts:   /pilcrino:plan-content
+To write a post:            /pilcrino:blog-post-workflow new
+To change a setup answer:   /pilcrino:blog-setup
 ```
