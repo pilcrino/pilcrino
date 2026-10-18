@@ -606,21 +606,16 @@ Ask one at a time:
    distinct or contrarian? (This is what keeps posts from reading as
    generic SEO filler.)
    Quick path: derive, as question 5 (one sentence, same marker).
-7. Content pillars: 3-5 recurring topic buckets this blog returns to.
-   Quick path: derive, **both paths**. Never asked: 3 to 5 buckets from
-   the niche (and the product, when known), with the marker from question
-   5, changed in the summary if the owner wants. The section stays in
-   `blog.md` because `site-conventions.md`'s category mapping, the brief
-   template, the post workflow's category step and both git adapters read
-   it; `plan-content` builds its own pillars from research and does not
-   read this section.
-8. Tag taxonomy: the fixed list of tags posts draw from (2-4 tags per post
-   come from this list — both Astro frontmatter templates read it from
+7. Tag taxonomy: the fixed list of tags posts draw from (2-4 tags per post
+   come from this list; every frontmatter template reads it from
    `{profile_dir}/blog.md`)
-   Quick path: derive. The site's existing tags or categories (Phase 1.5's
-   fetched posts, the content collection's values, WordPress
-   `/wp-json/wp/v2/tags`), else six tags from the niche, marker as in 5.
-9. Primary CTA target + hook: what should every post's closing CTA point
+   Quick path: derive, **both paths**. Never asked and never invented:
+   the site's existing tags (Phase 1.5's fetched posts, the content
+   collection's values, WordPress `/wp-json/wp/v2/tags`), marker "(from
+   your site)". A site with no tags yet gets the single line `none yet`:
+   `plan-content` writes the list from the plan it makes, and a post
+   written before that proposes its own tags at intake.
+8. Primary CTA target + hook: what should every post's closing CTA point
    to (newsletter signup, product trial, app download, etc.), and what's
    the one-line hook for it (e.g. "Subscribe for weekly trail reports")?
    **No invented default here**: never suggest a free trial, a sign-up
@@ -632,11 +627,11 @@ Ask one at a time:
    product module is on, else the blog's home page. Hook: one sentence
    from the niche. The no-invented-path rule holds: never a trial, signup
    or pricing path.
-10. Publish cadence: how often does this blog publish? (Informational,
+9. Publish cadence: how often does this blog publish? (Informational,
     not consumed by any downstream check, but useful context for anyone
     reading this doc later.)
     Quick path: omit, `weekly`.
-11. Route prefix: the URL path prefix this blog's posts are served under.
+10. Route prefix: the URL path prefix this blog's posts are served under.
     This drives every internal link, canonical URL, and inbound-link
     ownership grep the rest of the plugin emits, so get it right up front.
     Quick path: derive, **both paths**. Never asked while evidence exists.
@@ -679,7 +674,7 @@ Ask one at a time:
     word" (then free text). Never derive from a folder name when the
     config overrides it; never from the bare address alone. Write the
     value with both slashes.
-12. Trailing slash: do (or will) this blog's post URLs end with a trailing
+11. Trailing slash: do (or will) this blog's post URLs end with a trailing
     slash (e.g. `/blog/my-post/`) or not (`/blog/my-post`)? **Read it
     before asking it.** Evidence beats a question for a non-technical
     owner:
@@ -729,17 +724,13 @@ Write `{profile_dir}/blog.md`:
 
 <answer 6>
 
-## Content pillars
-
-- <pillar 1>
-- <pillar 2>
-- ...
-
 ## Tag taxonomy
 
 - <tag 1>
 - <tag 2>
 - ...
+(or the single line `none yet` when the site has no tags; `plan-content`
+fills this section)
 
 ## Primary CTA
 
@@ -836,7 +827,7 @@ blog:
   name: "<answer 1>"
   url: <origin from answer 2: scheme and host only, never a path>
   language: <answer 3>
-  route_prefix: <the derived prefix from question 11, with both slashes>
+  route_prefix: <the derived prefix from question 10, with both slashes>
   trailing_slash: <answer 12, default true>
 ```
 
@@ -1621,7 +1612,7 @@ excludes this nested block explicitly (see that section).
 
 **Quick path, at the end of this phase:** now that the product answer is
 known, write the two sections that waited for it: `blog.md` §Primary CTA
-(Phase 1 question 9) and `voice.md` §Positioning (Phase 2 question 5),
+(Phase 1 question 8) and `voice.md` §Positioning (Phase 2 question 5),
 rewriting each file whole.
 
 ## Phase 3.5: Sign in to the Pilcrino browser
@@ -2825,8 +2816,7 @@ and custom instructions above are asked before this, on both paths; the
 quick path omits them as their lines say). Before any check runs and
 before the commit, print what setup is about to save: one line per topic,
 in owner words, in this order: name and address, language, what the blog
-is about, mission and point of view (one line), topics (the content
-pillars, listed), tags, every post ends by pointing to <CTA target> with
+is about, mission and point of view (one line), tags, every post ends by pointing to <CTA target> with
 <hook>, how often it publishes, who reads it (and their pain points, one
 line), how it sounds (tone, credibility), who writes it (name, bio in a
 few words), your product (the feature list in full, with its sources, and
@@ -2840,19 +2830,17 @@ repository)", "(standard)", or nothing for an answer the owner typed.
 Then `AskUserQuestion`: "Save this" / "Change something".
 
 "Change something" is **correction mode**, distinct from the interview:
-- The owner names a topic or a single line, in free text ("the pillars",
+- The owner names a topic or a single line, in free text ("the tags",
   "posts live under /articles/", "the tone is warmer than that").
 - For any derived or omitted value, take the owner's value directly,
-  including the ones no path asks about (content pillars, route prefix,
+  including the ones no path asks about (route prefix,
   trailing slash, tags, mission, point of view, pain points, image
   colours, categories). When the owner asks for the questions instead
   ("ask me about the voice"), run that topic's detailed questions
   pre-filled with the current values.
 - Rewrite the affected files whole (Global rule 4) and refresh what
   depends on them: images changed → rewrite `theme.ts` and re-render the
-  test image (Phase 4 steps 6 and 7); pillars changed → rewrite the
-  per-cluster mapping in `site-conventions.md` when that file exists;
-  route prefix or trailing slash changed → rewrite `config.yaml`'s `blog:`
+  test image (Phase 4 steps 6 and 7); route prefix or trailing slash changed → rewrite `config.yaml`'s `blog:`
   block and §Permalinks in `site-conventions.md` when that file exists;
   plan approval or pushing changed → rewrite the `review:` or `git:` block
   (a correction here is final: nothing after the summary writes those
@@ -3055,10 +3043,10 @@ recorded, in this order:
    site: a draft switch and optional tags>. Shall I commit them and push
    them to `<base branch>` on GitHub now? If your site rebuilds from
    GitHub, this push starts a build; no post is affected. Options: push
-   now (recommended) / commit here only, push later / not yet."
+   now (recommended) / not yet."
    This is counted and prefixed like every other question ("Question N
    of T"; on the quick path it is the last one, so N equals T).
-   Right before committing (either answer that commits), re-check the
+   Right before committing (on "push now"), re-check the
    branch:
    ```bash
    cd "<blog folder>" || exit 1
@@ -3108,8 +3096,6 @@ recorded, in this order:
      through", show git's output from the push and the check, name any
      missing file in plain words, and never report setup as pushed. The
      commit is still saved in this folder.
-   - **Commit only**: commit, say the first post will ask to push before it
-     can open a pull request.
    - **Not yet**: do not move the branch (the built commit is simply left
      unused); say the same, and that nothing is lost.
    After a commit, empty the paths list (`: > "$P"`) and keep `$B` for a
@@ -3125,9 +3111,9 @@ detailed path, before any yes adds a block:
 
 | Adapter | Base T | Made of |
 |---|---|---|
-| astro-git-pr | 55 | identity 9, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 4 |
-| wordpress-rest | 53 | as above with publishing 5 (folders, address, username) |
-| markdown | 54 | as above with publishing 6 (folders, platform, image serving) |
+| astro-git-pr | 54 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 4 |
+| wordpress-rest | 52 | as above with publishing 5 (folders, address, username) |
+| markdown | 53 | as above with publishing 6 (folders, platform, image serving) |
 
 The table is the existing-blog case. Recompute T from the branch
 actually taken, at the moment it is taken: a brand-new blog answers only
@@ -3138,8 +3124,8 @@ samples present -1 (the sample pass
 answers tone and lexicon and adds its own confirmation; credibility,
 anecdotes, positioning, forbidden phrases and the allowlist are still
 asked). Say the new total once when a yes changes it. The identity count
-excludes the questions derived on both paths (pillars, route prefix) and
-the trailing slash, which is read for every known platform.
+excludes the tags and the route prefix, derived on both paths, and the
+trailing slash, which is read for every known platform.
 
 ### Completion (both paths)
 
@@ -3153,7 +3139,7 @@ committed, keep them for the next run. The recap,
 at most eight lines, in this order:
 
 1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
-   (or "committed, not pushed yet" / "not committed yet"). Say "pushed"
+   (or "not committed yet"). Say "pushed"
    only when Phase 6's check found `blog-ops/config.yaml` and the profile
    docs on `origin/<base branch>`; a setup commit that left one of them out
    is "not committed yet", with the file named.
@@ -3196,7 +3182,7 @@ commands".
 commit, above) on what is on file. After "Save this": run the validator
 again, then build and make a second commit of the changed paths exactly
 as the commit step does, under the consent the owner gave there (push too
-when they chose "push now"; "commit only" commits; "not yet" leaves the
+when they chose "push now"; "not yet" leaves the
 change in the folder uncommitted, and say so), with the same two checks
 before saying it was pushed. Then print the recap and the What next menu
 again; the recap's first line says "pushed" only when that second push

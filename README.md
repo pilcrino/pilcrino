@@ -452,7 +452,7 @@ markdown and personalization data, and the publish adapter pushes to WP.
     ├── config.yaml            # machine-readable dispatch contract
     ├── content-plan.md        # optional post queue, written by plan-content
     ├── profile/
-    │   ├── blog.md             # niche, mission, point of view, content pillars
+    │   ├── blog.md             # niche, mission, point of view, tags
     │   ├── voice.md            # tone, personality, credibility, lexicon,
     │   │                       #   anecdote bank, additional forbidden phrases
     │   ├── authors.md          # 1..N author voices
@@ -732,8 +732,11 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
   mentions the app. The content plan file and the approval settings are
   always written. Setup ends with a What next menu: plan posts, write a
   post, research a competitor, change an answer.
-- Content pillars and the posts' address prefix are derived, never asked;
-  the prefix is built from a live post link or from the site's own routing
+- Setup no longer asks for content pillars or tags: `plan-content` owns
+  the pillars, tags are copied from the site (a site without tags gets
+  them from the plan), and a post picks its category from the site's own
+  list. Setup commits its files with one question, "push now" or "not
+  yet". The posts' address prefix is derived, never asked; it is built from a live post link or from the site's own routing
   under the deployment path, so a blog under `/docs/` gets `/docs/...`
   links and image addresses. A WordPress site installed under a path keeps
   that path in its API address and its links. "Site live" is derived only

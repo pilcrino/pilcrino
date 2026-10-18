@@ -104,8 +104,7 @@ arises ("One more than I said: 11 now").
    owner words. Adapter actions follow as today (WordPress password dialog,
    Astro format edit consent); they are not counted.
 9. Pushing Pilcrino's own files to main without asking. Menu, as today.
-10. The commit question from Phase 6 (commit and push now / commit only /
-    not now). Counted, because the owner answers it.
+10. The commit question from Phase 6 (push now / not yet). Counted, because the owner answers it.
 
 Conditional questions, each counted when it arises:
 
@@ -121,7 +120,7 @@ Conditional questions, each counted when it arises:
 | Language | `<html lang>`, the site config, or `en` |
 | Route prefix | always one complete root-relative path, normalised to `/.../`. Two kinds of evidence, never combined with each other: a **complete** path, taken as is: a post link on the live site with the post's own part removed (`https://example.com/journal/post/` gives `/journal/`); or a **site-relative** route, to which the site address's path (the deployment base) is prepended exactly once: Hugo's effective section route (`permalinks` in the config, else the section folder name) under `baseURL`'s path (`/docs/` + `articles/` gives `/docs/articles/`); Astro's collection route under the site address's path; WordPress's permalink fixed part under the installation path. No evidence: ask (menu: `blog` / nothing / another word), counted. The builder writes the composition as a two-step rule in the skill so the base is never added twice. |
 | Trailing slash | read as today; for platforms where today's rule says "ask", default yes, shown in the summary |
-| Mission, point of view, content pillars, tag taxonomy | derived from the niche and audience, marked "derived at setup" in the file. Pillars stay in `blog.md` because site-conventions, the brief template, the post workflow's category step and both git adapters read them. Tags: the site's existing tags or categories when any, otherwise six from the niche. |
+| Mission, point of view | derived from the niche and audience, marked "derived at setup" in the file. Content pillars are not written by setup at all (amended 2026-10-18): `plan-content` owns them and the post's category is picked from the site's own category list. Tags: copied from the site, never invented; a site without tags gets `none yet` and `plan-content` fills the list. |
 | Primary CTA | the product's address when the product module is on, the blog's home page otherwise; hook one sentence from the niche. No trial, signup or pricing path is ever assumed. |
 | Publish cadence | weekly |
 | Secondary audience | none |
@@ -183,12 +182,11 @@ Posts go: pull requests on GitHub, merging publishes."). Then one menu:
 "Save this" / "Change something". "Change something" is **correction
 mode**, distinct from the interview: the owner names a topic or a single
 line (free text), and setup takes the owner's value directly for any
-derived field, including the ones no path asks about (content pillars,
-route prefix, trailing slash, tags, mission), or runs that topic's
+derived field, including the ones no path asks about (route prefix,
+trailing slash, tags, mission), or runs that topic's
 detailed questions when the owner asks for them. It rewrites the affected
 files, refreshes what depends on them (the Remotion theme when images
-change, the category mapping in site-conventions when pillars change,
-internal-link rules when the prefix changes), and shows the summary again.
+change, internal-link rules when the prefix changes), and shows the summary again.
 Only then: validation ("Checks passed", never a count), the commit
 question, the commit as today.
 
@@ -208,8 +206,8 @@ changes:
   default first, in owner words. Free text keeps "reply `default` for ..."
   only when the default is too long for a label; then the menu is "Use the
   suggestion" / "I'll type my own".
-- Content pillars and route prefix are derived as on the quick path and
-  shown in the summary, not asked.
+- Tags and route prefix are derived as on the quick path and shown in
+  the summary, not asked.
 - Palette and fonts become one question: "Images will use your site's
   colours and fonts (found in its stylesheet) / the standard set. Keep
   that, or tell me your brand colours in words?" Codes and stacks appear
@@ -274,7 +272,7 @@ blog:
 2. Fresh quick setup on a blog with a live site and posts, product on with a
    real product address: byline, voice, palette and pricing page come from
    evidence; the summary shows them; a direct override of a derived-only
-   field (content pillars) through "Change something" sticks before the
+   field (tags) through "Change something" sticks before the
    commit, and a second one (route prefix) sticks after the commit and is
    recommitted.
 3. Fresh quick setup on a Hugo blog with no live site, `baseURL`

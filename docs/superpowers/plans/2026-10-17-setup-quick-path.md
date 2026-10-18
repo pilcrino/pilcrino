@@ -29,7 +29,7 @@
 2. A Hugo repo whose config overrides the section route and whose `baseURL` has a path: prefix `/docs/articles/`, image prefix `/docs/images`, base never doubled. Pinned in Task 2's and Task 6's checks and acceptance case 3.
 3. A copied repository with the original's Pages workflow and an address on the original's host: `site_live` must be asked, not derived true. Pinned in Task 6's check and acceptance 4b.
 4. A site whose posts carry several bylines or a guest name: the author name must be asked, never taken from a byline. Pinned in Task 3's check.
-5. A quick-path owner who changes a derived-only field (content pillars) in the summary: the value must be taken verbatim and the category mapping refreshed, before and after the commit. Pinned in Task 7's check and acceptance 2.
+5. A quick-path owner who changes a derived-only field (tags) in the summary: the value must be taken verbatim, before and after the commit. Pinned in Task 7's check and acceptance 2.
 
 ---
 

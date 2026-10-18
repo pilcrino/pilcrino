@@ -493,6 +493,11 @@ only the posts in the request's `posts`, and this run's ideas go in a separate
 `## Ideas from <date> run` list, so an idea the owner later dismisses never
 shows as a planned post. In order:
 
+0. **Tags for a blog without any.** When `{profile_dir}/blog.md` §Tag taxonomy
+   is `none yet` (or missing), rewrite only that section with six to ten tags
+   drawn from this run's pillars and posts, lowercase, one per line, and report
+   it ("I set the blog's tags from the plan: ..."). A section that already lists
+   tags is never touched.
 1. **Posts first.** Apply `references/money-pages.md` (filters in Pilcrino's
    pick, preferences in Your idea). Draft the batch: for each, slug, target
    query, type, page type, origin, competitors, score, angle (fields defined
@@ -704,6 +709,7 @@ note, not moved behind posts that need nothing.
 - [ ] `research/<date>-serp.md`, `<date>-voice.md`, `<date>-candidates.md` written
 - [ ] `competitors.md` rewritten: tiers, dated prices, takeaways, profiles to run
 - [ ] `strategy.md` rewritten, within its line target, cadence carried, query log appended
+- [ ] `blog.md` §Tag taxonomy filled when it said `none yet`, otherwise untouched
 - [ ] Posts added in score order, no duplicates: registered through `POST .../queue/batch`, standalone as table rows (plus Details blocks) in `content-plan.md`
 - [ ] Every idea has `pageType`, `origin` and `competitors` per `references/money-pages.md` rule 1 (the page's subject, never the options listed inside)
 - [ ] Every idea with a non-empty `competitors` list carries the `Mention:` line per the Step 8 rule
