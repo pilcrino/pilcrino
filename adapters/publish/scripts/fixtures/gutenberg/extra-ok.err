@@ -1,0 +1,5 @@
+warning: input markdown starts with a frontmatter block (---); stripping it here defensively — the caller is expected to have already done this (see adapters/publish/wordpress-rest.md)
+warning: --extra-blocks position 'before-heading:Missing heading' matched no heading; skipping this insertion
+warning: unknown --extra-blocks position 'sideways'; skipping this insertion
+warning: malformed --extra-blocks item (missing or non-string 'position' or 'markup'): {'position': 5, 'markup': 'bad'}; skipping
+warning: malformed --extra-blocks item (missing or non-string 'position' or 'markup'): {'markup': 'no position'}; skipping

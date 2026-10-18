@@ -1,0 +1,7 @@
+<!-- wp:paragraph -->
+<p>--- no closing fence here</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:paragraph -->
+<p>Just a paragraph.</p>
+<!-- /wp:paragraph -->

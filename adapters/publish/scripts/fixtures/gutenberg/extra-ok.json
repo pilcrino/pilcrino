@@ -1,0 +1,7 @@
+[{"position": "top", "markup": "<!-- wp:top -->TOP<!-- /wp:top -->"},
+ {"position": "after-intro", "markup": "<!-- wp:toc -->TOC<!-- /wp:toc -->"},
+ {"position": "before-heading:Deeper heading", "markup": "<!-- wp:x -->X<!-- /wp:x -->"},
+ {"position": "before-heading:Missing heading", "markup": "<!-- wp:y -->Y<!-- /wp:y -->"},
+ {"position": "sideways", "markup": "<!-- wp:z -->Z<!-- /wp:z -->"},
+ {"position": 5, "markup": "bad"},
+ {"markup": "no position"}]

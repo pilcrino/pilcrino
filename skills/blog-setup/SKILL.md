@@ -2027,7 +2027,9 @@ Verify the directories exist on disk:
 6. `username`: "What is your WordPress username, the one you sign in to
    wp-admin with? Pilcrino uploads drafts as this user." Never ask for the
    normal password.
-7. **The application password, stored in the Mac's keychain.** Say first,
+7. **The application password, stored in the Mac's keychain** (on Windows
+   and Linux: in a settings file or the user's environment, see the end of
+   this step; the keychain route exists only on macOS). Say first,
    in these words or close to them: "WordPress lets you create a separate
    password just for tools like Pilcrino, called an application password.
    In wp-admin go to Users, Profile (or Users, your name), scroll to
@@ -2038,8 +2040,9 @@ Verify the directories exist on disk:
    passwords for your user. Don't paste it here. When you have it copied,
    tell me: a small window will open on your Mac asking you to paste it,
    and it goes straight into your Mac's keychain, where Pilcrino reads it
-   from. I never see it and it is not written to any file."
-   On "ready", run exactly this, in one Bash call with a timeout of at
+   from. I never see it and it is not written to any file." (On Windows and
+   Linux the last two sentences become the ones in the route below.)
+   On "ready", on macOS, run exactly this, in one Bash call with a timeout of at
    least 300000 ms (the owner needs time to paste), where `<service>` is
    `pilcrino-wp-<blog slug>` (the blog's name lowercased, every run of
    characters other than letters and digits replaced by one hyphen,
@@ -2082,6 +2085,38 @@ Verify the directories exist on disk:
    wizard's own Bash calls do not see the new line either: the probe below
    runs in a shell that reads `~/.zshrc`.) Say also that the Pilcrino app,
    if used later, needs the same value in its own settings.
+
+   **Linux:** only the environment-variable route, with the same variable
+   name, written to `~/.bashrc` (or `~/.zshrc` when `$SHELL` ends in
+   `zsh`; back it up to `<file>.bak-pilcrino` first), opened for the owner
+   with `xdg-open <file>` ("the file opens in your text editor; on its last
+   line replace PASTE-PASSWORD-HERE with your password, save, then tell
+   me"), the same placeholder check, and the restart sentence with "a new
+   terminal window". The probe below runs through `bash -lic` (or `zsh
+   -lic`).
+   **Windows:** only the environment-variable route, kept in the user's
+   environment (what every new window gets), never in a file Pilcrino
+   writes. Say: "A small window will ask you to paste the password; it
+   goes into your Windows user settings, where Pilcrino reads it from. I
+   never see it." Then run, in one Bash call with a timeout of at least
+   300000 ms:
+   ```bash
+   powershell -NoProfile -Command '$s = Read-Host -AsSecureString "Paste the WordPress application password for <blog name>"; $p = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)); if ($p) { [Environment]::SetEnvironmentVariable("<name>", $p, "User"); "stored" } else { "not stored" }'
+   ```
+   (`Read-Host -AsSecureString` hides the typing; the value goes to
+   `SetEnvironmentVariable(..., "User")` inside that one PowerShell
+   process and is never on a command line Pilcrino builds.) On `stored`
+   write `app_password_env: <name>`. A user-level variable reaches only
+   new processes, so say: "Windows gives that setting to programs started
+   from now on. Before your first post, quit Claude Code, open a new
+   Windows Terminal window, and start Claude Code again in `<blog
+   folder>`." The probe below cannot run in this session on Windows:
+   check presence only, with `powershell -NoProfile -Command
+   '[Environment]::GetEnvironmentVariable("<name>", "User").Length -gt
+   0'` (prints `True`), record in `setup-notes.md` that the WordPress
+   auth probe is owed, and run it (the plain form, not `zsh -lic`) as the
+   first thing when setup resumes in the new window (Global rule 8). The
+   probe-once rule counts that as the run.
 8. `default_status` — state, don't ask: this is always `draft` in v1; the
    adapter never publishes past draft, the human clicks Publish in WP
    admin. To the owner: "Pilcrino uploads each post as a WordPress draft;
@@ -2112,10 +2147,11 @@ WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh"
 curl -sf -u "$WP_USER:$WP_APP_PASSWORD" "$WP_BASE/wp-json/wp/v2/users/me" >/dev/null \
   && echo "auth OK" || echo "auth FAILED"
 ```
-For the environment-variable route the value lives in `~/.zshrc`, which
-this shell has not read, and which zsh reads only in an interactive shell
-(`zsh -lc` is not one). Run the same probe through `zsh -lic`, so the new
-export is read; the password still only passes from `wp-secret.sh` to
+For the environment-variable route on macOS the value lives in `~/.zshrc`,
+which this shell has not read, and which zsh reads only in an interactive
+shell (`zsh -lc` is not one). Run the same probe through `zsh -lic` (Linux:
+`bash -lic`, or `zsh -lic` when the file was `~/.zshrc`; Windows: not in
+this session, see step 7), so the new export is read; the password still only passes from `wp-secret.sh` to
 `curl` inside that shell and is never printed:
 ```bash
 cd "<blog folder>" || exit 1

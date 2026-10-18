@@ -562,7 +562,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
 ```
 Split:
 ```
-Bash: python3 -c "import json;d=json.load(open('{drafts_dir}/<slug>/research/_raw/_reddit_threads.json'));[json.dump(v,open('{drafts_dir}/<slug>/research/_raw/reddit-'+k+'.json','w')) for k,v in d['out'].items()];print('missed',d['missed'])"; rm -f {drafts_dir}/<slug>/research/_raw/_reddit_threads.json
+Bash: node -e "const fs=require('node:fs');const d=JSON.parse(fs.readFileSync('{drafts_dir}/<slug>/research/_raw/_reddit_threads.json','utf8'));for(const [k,v] of Object.entries(d.out))fs.writeFileSync('{drafts_dir}/<slug>/research/_raw/reddit-'+k+'.json',JSON.stringify(v));console.log('missed',JSON.stringify(d.missed))" && rm -f {drafts_dir}/<slug>/research/_raw/_reddit_threads.json  # Node, not python3 (absent on Windows); the capture is removed only after every thread file is written
 ```
 Every `nn` in `missed` gets the Step 4.7.3 failure JSON via `Write`. If the Threads `capture` itself errors (no combined file written), every selected thread gets that failure JSON and the split is skipped. Then Step 4.7.5's aggregate check.
 

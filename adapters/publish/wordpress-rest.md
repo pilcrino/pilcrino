@@ -11,7 +11,7 @@ Read by: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` at Stage 4b.
 | `publish.wordpress.base_url` | e.g. `https://yourblog.com` |
 | `publish.wordpress.username` | WordPress username for the application password |
 | `publish.wordpress.app_password_env` | env var NAME holding the WordPress application password, never the secret itself. Exactly one of this and `app_password_keychain` is set (config-schema.md invariant 15) |
-| `publish.wordpress.app_password_keychain` | the macOS keychain SERVICE NAME of the item holding the application password (account = `username`), the alternative to `app_password_env`. Both are read only by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which this doc binds as `WP_APP_PASSWORD` at the top of every Bash block that calls `curl` (see below) |
+| `publish.wordpress.app_password_keychain` | macOS only: the keychain SERVICE NAME of the item holding the application password (account = `username`), the alternative to `app_password_env`. Both are read only by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which this doc binds as `WP_APP_PASSWORD` at the top of every Bash block that calls `curl` (see below) |
 | `publish.wordpress.permalink_structure` | OPTIONAL, informational: the site's permalink setting as setup read it (e.g. `/%postname%/`, `/%year%/%monthnum%/%day%/%postname%/`). Nothing here builds a URL from it; a post's URL is the REST response's `link` |
 | `publish.wordpress.frontmatter_keys` | OPTIONAL; the frontmatter keys the writer emits and the reviewer checks (config-schema.md §Fitting the site's frontmatter). `title`, `excerpt` and `date` are always present; `tags` and `authors` may be absent, in which case §Staging step 5 sends no `tags` and leaves `author` at its default |
 | `publish.wordpress.default_status` | always `draft` in v1 — this adapter never sets a WordPress post beyond `draft`; the human publishes in WP admin |
@@ -19,7 +19,7 @@ Read by: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` at Stage 4b.
 | `publish.wordpress.apply_inbound_links_live` | `true`/`false`, default `false` — when true AND this post's WordPress status is `publish` (see `## On Gate 2 approval`), the planned inbound-link rows are applied to LIVE target posts via REST instead of left as a hand-apply action item |
 | `{route_prefix}` | `blog.route_prefix` (default `/blog/`), this blog's post URL prefix, for the repository's markdown links (§Staging step 6). Never used to build this post's WordPress address: that is the REST response's `link` (`wp_link` in `pr-monitor.json`, re-fetched before live inbound links are written), because a site with date permalinks or a changed slug serves the post elsewhere |
 
-Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password. The password is resolved by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads `blog-ops/config.yaml` and prints the value from whichever source it names: the environment variable `publish.wordpress.app_password_env` names, or the macOS keychain item whose service is `publish.wordpress.app_password_keychain` and whose account is `publish.wordpress.username` (`security find-generic-password -s <service> -a <user> -w`). This adapter's own commands never inline the literal secret in a command line, never echo it and never write it to any file or log; it exists only in the `WP_APP_PASSWORD` variable of the shell that uses it. Where the secret rests depends on the source the owner chose: the keychain route keeps it in the macOS keychain only; the environment-variable route stores it in a local file (the owner's shell profile, or under the console the per-blog environment file below).
+This adapter needs `curl`, `jq` and Node on the machine (setup's preflight checks `jq` for WordPress blogs). Every `curl` command below authenticates with HTTP Basic auth using the WordPress username + the application password. The password is resolved by `${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh`, which reads `blog-ops/config.yaml` and prints the value from whichever source it names: the environment variable `publish.wordpress.app_password_env` names, or the macOS keychain item whose service is `publish.wordpress.app_password_keychain` and whose account is `publish.wordpress.username` (`security find-generic-password -s <service> -a <user> -w`). This adapter's own commands never inline the literal secret in a command line, never echo it and never write it to any file or log; it exists only in the `WP_APP_PASSWORD` variable of the shell that uses it. Where the secret rests depends on the source the owner chose: the keychain route keeps it in the macOS keychain only; the environment-variable route stores it in a local file (the owner's shell profile, or under the console the per-blog environment file below).
 
 **Bind it at the top of EVERY Bash block that runs a `curl` below.** Claude Code's Bash tool starts a fresh shell per call, so a variable set in one block does not survive to the next; a block that skips the line sends `-u "$WP_USER:"` and gets a 401 indistinguishable from a revoked password. The three lines every such block starts with (the blocks below show the password line and assume the other two):
 
@@ -114,12 +114,12 @@ The ordering below is fixed: the WordPress draft is created HERE, at staging, be
    ````
    ```bash
    if [ -s /tmp/extra-blocks.json ]; then
-     python3 "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/md-to-gutenberg.py" \
+     node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/md-to-gutenberg.mjs" \
        "{content_dir}/<slug>.md" \
        --extra-blocks /tmp/extra-blocks.json \
        > "{drafts_dir}/<slug>/<slug>.html"
    else
-     python3 "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/md-to-gutenberg.py" \
+     node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/md-to-gutenberg.mjs" \
        "{content_dir}/<slug>.md" \
        > "{drafts_dir}/<slug>/<slug>.html"
    fi
@@ -294,10 +294,11 @@ For each row in the outline's "Inbound internal links" section (existing-post sl
 4. **POST the update:**
    ```bash
    WP_APP_PASSWORD="$("${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/wp-secret.sh")" || exit 1  # fresh shell per block: resolve the password here (§Config inputs)
-   curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
+   jq -n --arg c "<new content.raw, with the anchor inserted>" '{content:$c}' \
+   | curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
      -H 'Content-Type: application/json' \
      "$WP_BASE/wp-json/wp/v2/posts/<id>" \
-     -d @<(jq -n --arg c "<new content.raw, with the anchor inserted>" '{content:$c}')
+     -d @-   # the body comes in on stdin: a bash process substitution is not a file Windows curl can open
    ```
    Build the body via `jq -n --arg` (or `--rawfile` from a temp file when the content is large) as elsewhere in this document — never a hand-quoted inline string; real post content contains quotes and newlines that break that.
 5. **Record the result.** Update the checklist Notes write-ahead entry from step 3 to its final form: `live inbound link applied: <existing-slug> (wp id <id>) -> this post, anchor "<anchor>" in <section/context>; before: "<~80 chars around the insertion point, pre-edit>"; after: "<same span, post-edit>"`. This before/after pair is the audit trail a human can spot-check without re-fetching the live post.
@@ -343,10 +344,11 @@ curl -sf -u "$WP_USER:$WP_APP_PASSWORD" \
 # 2) insert the anchor by hand into the returned content.raw at "<section/context>":
 #    <a href="<the link from step 0>">"<anchor>"</a>
 # 3) POST the edited content back (build the body with jq, never a hand-quoted string):
-curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
+jq -n --arg c "<edited content.raw>" '{content:$c}' \
+| curl -sf -u "$WP_USER:$WP_APP_PASSWORD" -X POST \
   -H 'Content-Type: application/json' \
   "$WP_BASE/wp-json/wp/v2/posts/<id>" \
-  -d @<(jq -n --arg c "<edited content.raw>" '{content:$c}')
+  -d @-
 ```
 If the outline planned none, the template's default "None." stands.
 

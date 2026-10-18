@@ -97,7 +97,7 @@ publish:
     username: blogbot
     app_password_env: BASELINE_WP_APP_PASSWORD      # env var NAME, never the secret
     # app_password_keychain: pilcrino-wp-baseline   # ALTERNATIVE to app_password_env: a
-                                                     #   macOS keychain service name; the
+                                                     #   macOS only: keychain service name; the
                                                      #   account is `username`. Exactly one
                                                      #   of the two is set (invariant 15);
                                                      #   adapters/publish/scripts/wp-secret.sh
@@ -171,7 +171,7 @@ social:                       # OPTIONAL; social posting targets
 
 No secret is ever written in this file: `app_password_env` is the *name* of an
 environment variable and `app_password_keychain` the *service name* of a macOS
-keychain item; `adapters/publish/scripts/wp-secret.sh` turns either into the
+keychain item (macOS only; Windows and Linux use the variable route); `adapters/publish/scripts/wp-secret.sh` turns either into the
 value at the moment a command needs it. The workflow resolves `{drafts_dir}`,
 `{content_dir}`, `{assets_dir}`, etc. from this file in a config preamble; no
 other file hardcodes a path.

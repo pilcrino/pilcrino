@@ -1,0 +1,2 @@
+warning: input markdown starts with a frontmatter block (---); stripping it here defensively — the caller is expected to have already done this (see adapters/publish/wordpress-rest.md)
+error: --extra-blocks JSON must be a list of {position, markup} objects
