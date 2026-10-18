@@ -395,7 +395,8 @@ test('ensureInstalled treats the wrapper\'s lock-lost exit as another installer 
   const r = ensureInstalled(d, {
     platform: 'linux', env: {}, settleMs: 0,
     sleep: () => { mkdirSync(join(d, 'node_modules'), { recursive: true }); writeFileSync(join(d, 'node_modules', '.pilcrino-installed'), '0.40.0') },
-    spawnSync: () => { calls++; rmSync(join(d, '.install.lock'), { force: true }); writeFileSync(join(d, '.install.lock'), '1'); return { status: 75 } },
+    // The successor is a live process on every platform (pid 1 does not exist on Windows).
+    spawnSync: () => { calls++; rmSync(join(d, '.install.lock'), { force: true }); writeFileSync(join(d, '.install.lock'), String(process.ppid)); return { status: 75 } },
   })
   assert.equal(calls, 1)
   assert.equal(r.installed, false)
@@ -410,8 +411,8 @@ test('installAsync kills an npm it could not register on the lock and treats it 
       platform: 'linux', env: {}, settleMs: 0,
       sleep: async () => { if (polls++ > 0) { mkdirSync(join(d, 'node_modules'), { recursive: true }); writeFileSync(join(d, 'node_modules', '.pilcrino-installed'), '0.40.0') } },
       spawn: () => {
-        // Another installer took the lock just before the pid could be recorded.
-        writeFileSync(join(d, '.install.lock'), '1')
+        // Another installer (a live process on every platform) took the lock just before the pid could be recorded.
+        writeFileSync(join(d, '.install.lock'), String(process.ppid))
         const c = new EventEmitter()
         c.pid = 999
         c.kill = () => { killed = true }

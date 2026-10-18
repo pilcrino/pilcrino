@@ -125,7 +125,14 @@ test('the synchronous installer killed hard mid-install leaves a lock that a sec
     const b = await second.exited
     assert.equal(b.code, 0, second.stderr())
     const [r1, r2] = runs(sb.log)
-    assert.ok(r2.start >= r1.end, `second npm started ${r1.end - r2.start} ms before the first ended`)
+    assert.ok(r2, `no second npm run in:\n${readFileSync(sb.log, 'utf8')}`)
+    if (process.platform === 'win32') {
+      // Node on Windows puts a non-detached child into a job object that dies with its parent,
+      // so the first npm never finishes; the second reclaims the dead lock and installs.
+      assert.equal(r1.end, undefined, `the first npm outlived its killed parent:\n${readFileSync(sb.log, 'utf8')}`)
+    } else {
+      assert.ok(r2.start >= r1.end, `second npm started ${r1.end - r2.start} ms before the first ended`)
+    }
     assert.equal(existsSync(join(sb.root, '.install.lock')), false)
   } finally {
     rmSync(sb.dir, { recursive: true, force: true })
