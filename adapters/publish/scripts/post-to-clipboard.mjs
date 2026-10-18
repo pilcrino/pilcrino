@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Puts a markdown post on the macOS clipboard as rich text, for paste platforms
+// Puts a markdown post on the clipboard as rich text (macOS, Windows, Linux), for paste platforms
 // (Webflow, a page builder, any CMS with a rich-text editor), and prints the
 // frontmatter fields the owner types into the CMS by hand.
 //
@@ -11,7 +11,9 @@
 // rich-text editor may drop or flatten on paste (`contains: 1 table, 2 code blocks`).
 // The `contains:` line is a warning for the banner, not a CMS field.
 // With --no-clipboard the clipboard is left alone and stdout carries the field
-// lines, one empty line, then the HTML (for tests and non-macOS machines).
+// lines, one empty line, then the HTML (for tests). The same output is printed
+// when Linux has neither wl-copy nor xclip, with a stderr line naming the
+// package to install, so the post is never lost.
 // Diagnostics go to stderr. Exit 1 on any failure, 2 on a usage error.
 import { spawnSync } from 'node:child_process'
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -170,19 +172,84 @@ async function loadMarked() {
   return import(pathToFileURL(entry).href)
 }
 
-function copyHtml(html) {
+/**
+ * Windows' CF_HTML clipboard format: a header whose offsets are byte
+ * positions (UTF-8) into the whole text, with the fragment markers around the
+ * HTML. The header is padded to fixed widths so the offsets can be computed
+ * before the text is assembled.
+ */
+export function cfHtml(html) {
+  const pad = (n) => String(n).padStart(10, '0')
+  const headerFor = (a, b, c, d) => `Version:0.9\r\nStartHTML:${pad(a)}\r\nEndHTML:${pad(b)}\r\nStartFragment:${pad(c)}\r\nEndFragment:${pad(d)}\r\n`
+  const open = '<html><body><!--StartFragment-->'
+  const close = '<!--EndFragment--></body></html>'
+  const headerLen = Buffer.byteLength(headerFor(0, 0, 0, 0))
+  const startHtml = headerLen
+  const startFragment = startHtml + Buffer.byteLength(open)
+  const endFragment = startFragment + Buffer.byteLength(html)
+  const endHtml = endFragment + Buffer.byteLength(close)
+  return headerFor(startHtml, endHtml, startFragment, endFragment) + open + html + close
+}
+
+const clipboardToolMissing = (which) => Object.assign(new Error(which), { code: 'clipboard_tool_missing' })
+
+/** The Linux clipboard tool for this session: wl-copy under Wayland, else xclip. */
+export function linuxClipboardTool(env = process.env) {
+  return env.WAYLAND_DISPLAY ? 'wl-copy' : 'xclip'
+}
+
+function copyDarwin(html, spawn) {
   const dir = mkdtempSync(join(tmpdir(), 'pilcrino-clip-'))
   try {
     const file = join(dir, 'post.html')
     // The charset tag keeps non-ASCII text intact in the pasting app.
     writeFileSync(file, `<meta charset="utf-8">${html}`)
-    const set = spawnSync('osascript', ['-e', `set the clipboard to (read (POSIX file "${file}") as «class HTML»)`], { encoding: 'utf8' })
+    const set = spawn('osascript', ['-e', `set the clipboard to (read (POSIX file "${file}") as «class HTML»)`], { encoding: 'utf8' })
     if (set.error || set.status !== 0) throw new Error(`osascript could not set the clipboard: ${(set.error?.message ?? set.stderr ?? '').trim()}`)
-    const info = spawnSync('osascript', ['-e', 'clipboard info'], { encoding: 'utf8' })
+    const info = spawn('osascript', ['-e', 'clipboard info'], { encoding: 'utf8' })
     if (info.status !== 0 || !/«class HTML»|class HTML/.test(info.stdout ?? '')) throw new Error('the clipboard holds no HTML after copying')
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+}
+
+function copyWin32(html, spawn) {
+  const dir = mkdtempSync(join(tmpdir(), 'pilcrino-clip-'))
+  try {
+    const file = join(dir, 'post.cfhtml')
+    writeFileSync(file, cfHtml(`<meta charset="utf-8">${html}`))
+    // Windows PowerShell (.NET Framework) in STA mode: Clipboard.SetText with
+    // the Html format stores the text as given, so the CF_HTML header above
+    // is the one Windows sees. The file is read as UTF-8 explicitly.
+    const script = `Add-Type -AssemblyName System.Windows.Forms; $t = [IO.File]::ReadAllText('${file.replace(/'/g, "''")}', [Text.Encoding]::UTF8); [Windows.Forms.Clipboard]::SetText($t, [Windows.Forms.TextDataFormat]::Html); if (-not [Windows.Forms.Clipboard]::ContainsText([Windows.Forms.TextDataFormat]::Html)) { exit 3 }`
+    const set = spawn('powershell', ['-NoProfile', '-NonInteractive', '-STA', '-Command', script], { encoding: 'utf8', windowsHide: true, timeout: 20000 })
+    if (set.error?.code === 'ENOENT') throw clipboardToolMissing('powershell was not found on PATH')
+    if (set.error || set.status !== 0) throw new Error(`powershell could not set the clipboard: ${(set.error?.message ?? set.stderr ?? `exit ${set.status}`).trim()}`)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+function copyLinux(html, spawn, env) {
+  const tool = linuxClipboardTool(env)
+  const args = tool === 'wl-copy' ? ['--type', 'text/html'] : ['-selection', 'clipboard', '-t', 'text/html']
+  // Both tools fork a process that keeps serving the selection and holds its
+  // output descriptors open, so stdout and stderr are ignored, or this call
+  // would wait on them long after the copy succeeded.
+  const set = spawn(tool, args, { input: `<meta charset="utf-8">${html}`, stdio: ['pipe', 'ignore', 'ignore'], timeout: 10000 })
+  if (set.error?.code === 'ENOENT') {
+    throw clipboardToolMissing(tool === 'wl-copy'
+      ? 'wl-copy is not installed; install the wl-clipboard package (on Debian and Ubuntu: sudo apt-get install -y wl-clipboard)'
+      : 'xclip is not installed; install it (on Debian and Ubuntu: sudo apt-get install -y xclip)')
+  }
+  if (set.error || set.status !== 0) throw new Error(`${tool} could not set the clipboard: ${set.error?.message ?? `exit ${set.status ?? set.signal}`}`)
+}
+
+/** Puts the HTML on the clipboard as rich text, the way this platform does it. */
+export function copyHtml(html, { platform = process.platform, spawn = spawnSync, env = process.env } = {}) {
+  if (platform === 'darwin') return copyDarwin(html, spawn)
+  if (platform === 'win32') return copyWin32(html, spawn)
+  return copyLinux(html, spawn, env)
 }
 
 async function main(argv) {
@@ -196,8 +263,15 @@ async function main(argv) {
     const html = renderBody(marked, body)
     const lines = [fieldLines(bannerFields(data, args.coverKey)), containsLine(countBlocks(marked, body))].filter(Boolean).join('\n')
     if (args.clipboard) {
-      if (process.platform !== 'darwin') throw new Error('the clipboard copy needs macOS; rerun with --no-clipboard to print the HTML')
-      copyHtml(html)
+      try {
+        copyHtml(html)
+      } catch (err) {
+        if (err.code !== 'clipboard_tool_missing') throw err
+        // No clipboard tool: the HTML goes to stdout instead, so nothing is lost.
+        process.stderr.write(`post-to-clipboard: ${err.message}; the HTML follows the fields on stdout instead\n`)
+        process.stdout.write(`${lines ? `${lines}\n` : ''}\n${html}`)
+        return 0
+      }
       if (lines) process.stdout.write(`${lines}\n`)
     } else {
       process.stdout.write(`${lines ? `${lines}\n` : ''}\n${html}`)

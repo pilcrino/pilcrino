@@ -190,15 +190,68 @@ test('cli: usage error exits 2', () => {
   assert.equal(run([]).code, 2)
 })
 
-const clipboardReason = process.platform !== 'darwin' ? 'needs macOS'
-  : process.env.PILCRINO_CLIPBOARD_TESTS !== '1' ? 'set PILCRINO_CLIPBOARD_TESTS=1 to touch the real clipboard' : null
-test('cli: real clipboard holds the HTML, stdout only the fields', clipboardReason ? { skip: clipboardReason } : {}, () => {
+test('cfHtml: byte offsets are right with multibyte text', async () => {
+  const { cfHtml } = await import('./post-to-clipboard.mjs')
+  const html = '<p>Facturación: café — 30 €</p>'
+  const out = cfHtml(html)
+  const buf = Buffer.from(out, 'utf8')
+  const at = (k) => Number(new RegExp(`${k}:(\\d+)`).exec(out)[1])
+  assert.equal(buf.subarray(at('StartFragment'), at('EndFragment')).toString('utf8'), html)
+  assert.equal(buf.subarray(at('StartHTML'), at('EndHTML')).toString('utf8'), `<html><body><!--StartFragment-->${html}<!--EndFragment--></body></html>`)
+  assert.equal(at('EndHTML'), buf.length)
+})
+
+test('copyHtml on linux: wl-copy under Wayland, xclip otherwise, stdin input, ignored output, bounded', async () => {
+  const { copyHtml } = await import('./post-to-clipboard.mjs')
+  const calls = []
+  const spawn = (bin, args, opts) => { calls.push({ bin, args, opts }); return { status: 0 } }
+  copyHtml('<p>x</p>', { platform: 'linux', spawn, env: { WAYLAND_DISPLAY: 'wayland-0' } })
+  copyHtml('<p>x</p>', { platform: 'linux', spawn, env: {} })
+  assert.deepEqual(calls.map((c) => [c.bin, ...c.args]), [['wl-copy', '--type', 'text/html'], ['xclip', '-selection', 'clipboard', '-t', 'text/html']])
+  for (const c of calls) {
+    assert.match(c.opts.input, /<p>x<\/p>/)
+    assert.deepEqual(c.opts.stdio, ['pipe', 'ignore', 'ignore'])
+    assert.ok(c.opts.timeout > 0)
+  }
+  const missing = () => ({ error: Object.assign(new Error('ENOENT'), { code: 'ENOENT' }) })
+  assert.throws(() => copyHtml('<p>x</p>', { platform: 'linux', spawn: missing, env: {} }), (e) => e.code === 'clipboard_tool_missing' && /xclip/.test(e.message))
+})
+
+test('copyHtml on win32: Windows PowerShell in STA mode sets the Html text format from a CF_HTML file', async () => {
+  const { copyHtml } = await import('./post-to-clipboard.mjs')
+  const calls = []
+  const spawn = (bin, args, opts) => { calls.push({ bin, args, opts }); return { status: 0 } }
+  copyHtml('<p>x</p>', { platform: 'win32', spawn })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].bin, 'powershell')
+  assert.ok(calls[0].args.includes('-STA'))
+  assert.match(calls[0].args.at(-1), /TextDataFormat\]::Html/)
+})
+
+const clipboardTool = process.platform === 'darwin' ? 'osascript' : process.platform === 'win32' ? 'powershell' : (process.env.WAYLAND_DISPLAY ? 'wl-copy' : 'xclip')
+const toolPresent = spawnSync(process.platform === 'win32' ? 'where' : 'which', [clipboardTool], { encoding: 'utf8' }).status === 0
+const clipboardReason = process.env.PILCRINO_CLIPBOARD_TESTS !== '1' ? 'set PILCRINO_CLIPBOARD_TESTS=1 to touch the real clipboard'
+  : !toolPresent ? `${clipboardTool} is not installed` : null
+test('cli: real clipboard holds the HTML, stdout only the fields, and the CLI returns promptly', clipboardReason ? { skip: clipboardReason } : {}, () => {
+  const t0 = Date.now()
   const r = run([post(FULL + '\nPara with **bold**.\n')])
   assert.equal(r.code, 0, r.stderr)
+  assert.ok(Date.now() - t0 < 15000, 'the CLI exits once the copy is done')
   assert.equal(r.stdout.split('\n')[0], 'title: Billing by the hour: a field guide')
   assert.doesNotMatch(r.stdout, /</)
-  const html = spawnSync('osascript', ['-e', 'the clipboard as «class HTML»'], { encoding: 'utf8' }).stdout
-  // osascript prints raw data as «data HTML<hex>».
-  const hex = /«data HTML([0-9A-F]+)»/i.exec(html)?.[1] ?? ''
-  assert.match(Buffer.from(hex, 'hex').toString('utf8'), /<strong>bold<\/strong>/)
+  let html = ''
+  if (process.platform === 'darwin') {
+    const out = spawnSync('osascript', ['-e', 'the clipboard as «class HTML»'], { encoding: 'utf8' }).stdout
+    // osascript prints raw data as «data HTML<hex>».
+    const hex = /«data HTML([0-9A-F]+)»/i.exec(out)?.[1] ?? ''
+    html = Buffer.from(hex, 'hex').toString('utf8')
+  } else if (process.platform === 'win32') {
+    html = spawnSync('powershell', ['-NoProfile', '-STA', '-Command', 'Get-Clipboard -TextFormatType Html'], { encoding: 'utf8' }).stdout
+    assert.match(html, /StartFragment:/)
+  } else {
+    html = clipboardTool === 'wl-copy'
+      ? spawnSync('wl-paste', ['--type', 'text/html'], { encoding: 'utf8', timeout: 5000 }).stdout
+      : spawnSync('xclip', ['-selection', 'clipboard', '-o', '-t', 'text/html'], { encoding: 'utf8', timeout: 5000 }).stdout
+  }
+  assert.match(html, /<strong>bold<\/strong>/)
 })
