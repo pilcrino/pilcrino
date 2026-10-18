@@ -10,7 +10,11 @@ Read by: all subsequent agents (researcher, editor in later stages, writer).
 
 ## Category
 
-<the category this post ships under, resolved against `{profile_dir}/site-conventions.md` §Categories when that file exists — the per-cluster mapping table there (cross-referenced against `{profile_dir}/blog.md` §Content pillars) proposes a match, the human confirms or overrides with an existing taxonomy name or an explicit "create new: `<name>`". Free-text (whatever the human states, or "none") when `site-conventions.md` doesn't exist yet for this blog. Carried unchanged through `plan.md` and `outline.md`; resolved/created as a WordPress term and set on the post at `adapters/publish/wordpress-rest.md` §Staging so the post never ships as "Uncategorized" when a category was planned here.>
+<the category this post ships under, resolved against `{profile_dir}/site-conventions.md` §Categories when that file exists — the taxonomy list there proposes a match (the entry closest to the plan row's pillar, or to the topic when there is no plan row), the human confirms or overrides with an existing taxonomy name or an explicit "create new: `<name>`". Free-text (whatever the human states, or "none") when `site-conventions.md` doesn't exist yet for this blog. Carried unchanged through `plan.md` and `outline.md`; resolved/created as a WordPress term and set on the post at `adapters/publish/wordpress-rest.md` §Staging so the post never ships as "Uncategorized" when a category was planned here.>
+
+## Tags
+
+<2-4 tags from `{profile_dir}/blog.md` §Tag taxonomy, chosen at intake. When that section says `none yet`, the tags proposed at intake and confirmed by the human; the frontmatter template's `tags` field takes these.>
 
 ## Intent
 

@@ -18,7 +18,7 @@ date: <YYYY-MM-DD>
 excerpt: "<meta description, ≤160 chars>"
 tags:
   - <tag-1>
-  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+  # 2-4 tags total, exactly the ones brief.md §Tags lists
 authors:
   - <Author>
 # OR for a co-signed post (author_voice = we in brief.md/outline.md/plan.md):
@@ -71,7 +71,7 @@ The `mainEntity` array carries one entry per `## FAQ` question in the body, same
 - **`title`**: quoted, 50-60 chars. Starlight renders this verbatim as the page's H1 — never duplicate an H1 in the body.
 - **`date`**: `YYYY-MM-DD`, the day the post ships, not the day drafting started. Write the drafting date and leave it: the CONSOLE overwrites this with today's date on the post's branch immediately before it merges the PR (`console/src/publish-date.ts`, `ensurePublishDateStamped`), because for `astro-git-pr` the merge commit IS the published date. Keep the `YYYY-MM-DD` shape: the console rewrites only a value it can parse as one, and leaves anything else alone rather than risk writing a shape the content schema never expected.
 - **`excerpt`**: the meta description, ≤160 chars. Mirrored verbatim into the `head[]` meta-description entry below — one string, two places.
-- **`tags`**: 2-4 entries from this blog's tag taxonomy.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet).
 - **`authors`**: see §Authors map (case sensitivity) below — this is the field most likely to be filled wrong.
 - **`cover.image` / `cover.alt`**: see §Cover path computation below. `alt` comes straight from the featured entry in `images.md`.
 - **`head[]`**: exactly two entries — the meta-description tag and the FAQPage JSON-LD script. Starlight reads `head[]` and injects each entry into the page `<head>` verbatim; this is the ONLY place a JSON-LD schema is emitted for this template (no separate `<script>` in the body).

@@ -1,6 +1,6 @@
 ---
 name: blog-setup
-description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then interviews the owner one question at a time (identity and niche, voice and authors, modules, images, publishing, final checks) plus a one-time sign-in to the Pilcrino browser, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). An optional research pass, offered when the blog already has live content, pre-fills audience, voice and image style from the live site with consent. Reads the site to fit it (Astro content schema and draft flag, Hugo theme cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain through a hidden prompt, scaffolds the Remotion image project when remotion is enabled, and probes the publish adapter's auth at most once per run. Ends by running scripts/validate-config.mjs (config-schema.md invariants 1 to 16), committing and pushing the setup files with consent, and handing off to `/pilcrino:blog-post-workflow new`. An optional last step prepares the blog for the Pilcrino app. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
+description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). Reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain, scaffolds the Remotion image project, probes the publish adapter's auth once, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
 ---
 
@@ -31,9 +31,12 @@ rules; they override the wording of any example in this file.
    anything printed to them: phase numbers ("Phase 3.5", "Phase 0"),
    "artifacts", "adapter" or "publish adapter", "assets_dir", "content_dir",
    "archetypes", "base branch", "staging-preview", "frontmatter", "schema",
-   "invariant", "config block", "env var", "bootstrap", "resume run", raw
-   config lines or keys (`apply_inbound_links_live: false`), and hex colour
-   codes unless the owner asks for them. Say what a value means instead of
+   "invariant", "config block", "env var", "bootstrap", "resume run", "PR"
+   and "repo" (say "pull request" and "repository"), a probe path such as
+   `/wp-json/`, raw config lines or keys (`apply_inbound_links_live:
+   false`), and hex colour codes unless the owner asks for them. No em
+   dash or en dash anywhere in owner text: a comma, a colon or a full stop
+   instead. Say what a value means instead of
    quoting it: "images are uploaded to WordPress when the post is staged",
    not "`assets_dir: blog-ops/assets`". The phase headings below are for the
    model; each phase names itself to the owner by what it does:
@@ -49,16 +52,21 @@ rules; they override the wording of any example in this file.
    | Phase 4 | "Images" |
    | Phase 5 | "Where your posts go" |
    | Phase 6 | "Final checks" |
-   | Phase 7 | "The Pilcrino app (optional)" |
 
 2. **One question per message.** A message ends with exactly one question.
    Never a numbered list of questions, never "also, ..." with a second one.
+   Transition narration between two questions is at most two sentences
+   (a "Saved" line and the next part's name, or one stated derived
+   value). This limit does not apply to the summary before the commit,
+   the closing recap, a rule read back under rule 6, or the one-sentence
+   reason a consent question needs; everything else that is longer
+   belongs in the summary.
    When a question has a fixed set of answers, ask it with `AskUserQuestion`
    as a menu; when it needs free text, ask it in prose.
-3. **Defaults are a word, never a key press.** An empty Enter does nothing
+3. **Defaults are clicked, never a key press.** An empty Enter does nothing
    in Claude Code, so never write "press Enter for X" or "hit return".
-   Write: "reply `default` for X" (the word `default`, spelled out) or
-   offer the default as the first menu option. Accept `default`, `keep`,
+   Offer the default as the first menu option (rule 10 below says how).
+   Where a question stays free text, accept `default`, `keep`,
    `use the default`, `ok` and the like as the default.
 4. **Never offer `/` or any slash-prefixed text as an answer.** Typing `/`
    opens Claude Code's command menu and restarts the skill. A URL path such
@@ -77,6 +85,30 @@ rules; they override the wording of any example in this file.
    to GitHub), repeat it in one sentence before moving on.
 7. **Say what you did, not how.** "Saved your answers" rather than file
    paths and keys, except for the final summary, which names the folder.
+8. **Nothing internal, ever.** On top of rule 1, never print to the owner:
+   a hex code, a font stack, a count of checks or invariants ("Checks
+   passed", never "14 pass" or "pass by vacuity"), a file name other than
+   the final folder, or the word "app". The Pilcrino app is never
+   mentioned during setup, on either path, at any step. Nor the thinking
+   behind a step: why a question comes now, how a suggestion was arrived
+   at ("I'll name the repository after your blog's title"), or that a
+   command failed and was retried; a retry that worked is not mentioned,
+   and only a failure that changes what the owner gets is said, in one
+   line of owner words.
+9. **Known answers are stated, not asked.** When evidence settles a value
+   (the repository, the live site, an earlier answer), say it in one line
+   with its source and move on: "Language: English, from your site."
+10. **Defaults are clicked.** Every question that has a default is an
+    `AskUserQuestion` menu with the default first, labelled with the value
+    in owner words ("Keep `Trail Notes`" / "Another name"). A question
+    stays free text only when it has no default or the default is a
+    paragraph too long for a label; then the menu is "Use the suggestion"
+    / "I'll type my own", and the suggestion is printed above it. Never
+    write "reply `default` for X" to the owner.
+11. **Every derived value is shown before it is saved.** A value setup
+    took from evidence or from a convention appears in the summary before
+    the commit (Phase 6), one line per topic in owner words, where the
+    owner can change it. Nothing derived is saved unseen.
 
 ## What gets produced
 
@@ -126,10 +158,10 @@ resolves to."
 1. **One question at a time.** Never dump a numbered list of questions and
    ask the user to answer all of them in one message. Ask, wait for the
    reply, ask the next one. Offer a sensible default in most questions
-   ("reply `default` for `<default>`", or the default as the first menu
-   option, per §How to talk to the owner rule 3) so the interview moves fast
-   for a user who's happy with conventions. Where an older line in this
-   file still says "press enter", read it as "reply `default`".
+   as the first menu option (§How to talk to the owner rule 10) so the
+   interview moves fast for a user who's happy with conventions. Where an
+   older line in this file still says "press enter" or "reply `default`",
+   read it as "the default is the first menu option".
 2. **Write artifacts immediately**, at the end of each phase, not batched
    at the very end of the whole wizard. A crash or an intentional stop
    after Phase 3 leaves Phases 1-3's files on disk, ready for a resumed run
@@ -213,6 +245,66 @@ resolves to."
    section of the file: a later note (Global rule 8's resume line, Phase
    3.5's sign-in line) goes above it, never under it. The post workflow's
    Step 0 reads this section to know which site files belong to setup.
+10. **Two paths and the counter.** On a fresh run, right after Phase 0d,
+    ask once with `AskUserQuestion`:
+    - "Quick setup (recommended)": about ten questions, everything else
+      taken from your site and repository and shown to you before it is
+      saved.
+    - "Detailed setup": every question, about fifty, one at a time, each
+      with a default to click.
+
+    Record the choice in `{profile_dir}/setup-notes.md` as `Path: quick`
+    or `Path: detailed`. A resume run (0d found files) skips this menu and
+    reads `Path:` back. `Path: quick`: stay on the quick path; a phase
+    whose files already exist is kept without a keep/update/start-over
+    menu (its values appear in the summary, where the owner can change
+    them), and the counter counts only the questions still to ask.
+    `Path: detailed` or no line: today's per-phase menus; "update" runs
+    that phase's detailed questions pre-filled with what is on file.
+
+    **Reuse from another blog (Phase 0c)** menus in the phases below are
+    detailed-path only. On the quick path, when 0c found another blog
+    with the same niche, its files are the first evidence source for this
+    blog's derived values, said in one line ("Readers: as on <other
+    blog>") and shown in the summary.
+
+    **Dispositions.** Every question in the phases below carries a line
+    `Quick path: <ask|derive|omit|action>. <rule>` right under it. On the
+    quick path: `ask` is asked and counted; `derive` is written from the
+    evidence the line names and shown in the summary; `omit` writes the
+    default the line names and shows it in the summary; `action` is a
+    consent or sign-in done as today, never counted. "Both paths" on a
+    line means that disposition applies to the detailed path too (a
+    "derive, both paths" value is changed in the summary, never asked; an
+    "ask, both paths" question is asked on both). A question without a
+    disposition line is asked on the detailed path and derived or omitted
+    on the quick path per the phase's own text; the implementer of this
+    file keeps every question annotated. The summary's "Save this /
+    Change something" menu, correction mode and the What next menu are
+    outside the count.
+
+    **The counter.** Every asked question starts with "Question N of T".
+    N is the running number of questions asked so far on this run, never
+    a fixed position: a conditional question that arises takes the next N.
+    T is set when the path is chosen, after Phase 0's platform detection.
+    Quick path: T = 10 for the ten always-asked questions, in order: name,
+    address, about, readers, credibility, product yes/no, competitors,
+    where posts go, pushing consent, the commit question; +1 for
+    WordPress (username). A conditional question (the product's address,
+    route prefix, site live, author name, product identity fallback,
+    image serving fallback, the Astro template choice when the schema
+    matches neither supported shape) raises T by one when it arises, said
+    aloud: "One more than I said: 11 now." The site-edit consents (Astro
+    post format fields, draft switch, Hugo or WordPress edits) are
+    actions, never counted, on both paths. A
+    question that falls away (evidence settled it, a block the owner
+    turned off) lowers T, said aloud the same way ("Two fewer: 51 now.").
+    The total never changes silently, on either path. Detailed
+    path T
+    per adapter and modules: see the table in Phase 6's "Counting the
+    detailed path" (filled from the question lists below); when a yes
+    adds a block, say the new total once ("Your product adds nine
+    questions; 12 of 50 now").
 
 ## Phase 0: Preflight and finding the blog
 
@@ -356,8 +448,8 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
    account cannot see it; say "Your GitHub account <login> cannot see that
    repository. Ask whoever set it up to add <login> as a collaborator with
    write access, then tell me." Permission below write: same message. Then
-   clone it: "I'll download it to `~/<name>` (reply `default`) or give me
-   another folder." The default folder is named after the repository or
+   clone it, as a menu: "Download it to `~/<name>`" (default) / "Another
+   folder". The default folder is named after the repository or
    the blog, never `my-blog`. Run `gh repo clone <owner/name> <folder>`.
    State what it holds in one sentence from its files ("a Hugo site with
    the Ananke theme, no posts yet"; "an Astro site"; "empty").
@@ -369,9 +461,14 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
    one for this blog, maybe one someone made for you?" Yes: continue as
    answer 2. No: "Shall I create a private GitHub repository called
    `<blog-slug>` under your account <login> and download it to
-   `~/<blog-slug>`? Reply `default`, or give another name." Derive the
-   name from the blog's name (ask for the name first if it is not known
-   yet; it is reused as Phase 1's first answer). On consent run `gh repo
+   `~/<blog-slug>`?" as a menu: "Yes, call it `<blog-slug>`" (default) / "Another name". Derive the
+   name from the blog's name. When the name is not known yet, ask it
+   here as a plain question with a default from the folder or repository
+   when one exists, without a "Question N of T" prefix (the path is not
+   chosen yet); it is Phase 1's first answer, which Phase 1 then states
+   in one line ("Name: `<name>`, from earlier") and counts as question 1
+   without asking again. Propose the repository name, never the
+   reasoning behind it. On consent run `gh repo
    create <name> --private --clone` from the home folder, which creates the
    repository and the local folder in one step. Never create a local-only
    repository (`git init` without a remote): no pull request could ever be
@@ -379,9 +476,10 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
 
 Whichever answer: from here on every command runs from the blog folder
 (`cd <blog folder> && ...` at the top of each Bash call, or `git -C`).
-There is no restart. Say: "I'll continue in `<folder>` for the rest of
-setup. Next time, start Claude Code there: in Terminal, `cd <folder>` then
-`claude`."
+There is no restart. When the blog folder is not the folder Claude Code
+was started in, say: "I'll continue in `<folder>` for the rest of setup.
+Next time, start Claude Code there: in Terminal, `cd <folder>` then
+`claude`." When it is the current folder, say nothing about folders.
 
 **Put the folder on its main branch, before setup writes anything.** Setup
 commits its files to the repository's main branch (the base branch every
@@ -435,13 +533,16 @@ cat ~/.pilcrino/console/blogs.json 2>/dev/null
 ```
 
 Drop the current blog folder from the list. If anything remains, read each
-one's `blog-ops/profile/blog.md` (name, niche) and say: "You already set up
-Pilcrino for <blog name> in `<folder>`. Where an answer carries over (who
-reads it, how it sounds, who writes it, your product, competitors, image
-style) I'll show you that blog's answer and you can keep or change it.
-What must be new: this blog's address, where posts go, and whether it has
-posts already." Remember the list; each phase's resume check below offers
-the reuse. When the two blogs turn out to cover the same niche, say once:
+one's `blog-ops/profile/blog.md` (name, niche) and remember the list; say
+nothing about it yet. After the path is chosen (0e), on the **detailed
+path only**, say: "You already set up Pilcrino for <blog name> in
+`<folder>`. Where an answer carries over (who reads it, how it sounds, who
+writes it, your product, competitors, image style) I'll show you that
+blog's answer and you can keep or change it. What must be new: this
+blog's address, where posts go, and whether it has posts already." Each
+phase's resume check below then offers the reuse. On the quick path the
+other blog is evidence only (Global rule 10), with no promise of reuse.
+When the two blogs turn out to cover the same niche, say once:
 "Two blogs chasing the same searches compete with each other in Google;
 fine if one replaces the other, worth a thought if both stay live."
 
@@ -453,16 +554,27 @@ Nothing found: say nothing about it.
 folder.
 
 - Neither exists → fresh run: write the start time (Global rule 8) and
-  proceed to Phase 1.
+  proceed to 0e.
 - Either exists → this is a resume/update run. Read what's there, work out
   which phases already have their files (config.yaml keys present; which
-  profile docs exist), append the resume time (Global rule 8), and tell
+  profile docs exist), append the resume time (Global rule 8), read
+  `Path:` from `setup-notes.md` (Global rule 10). `Path: quick`: say "I
+  found your earlier answers; I'll continue from <the first part without
+  files>" and proceed to Phase 1 on the quick path, keeping finished
+  phases without asking. Otherwise tell
   the owner in their words: "I found an earlier setup for this blog here.
   I'll go through each part (what the blog is about, how it sounds, your
   sources and product, images, where posts go) and for each one you can
   keep what is there, change it, or start it over." Then proceed to Phase
   1 (each phase's own resumability check per Global rule 3 handles the
   skip-vs-update decision).
+
+### 0e. Choose the path
+
+On a fresh run, ask the two-path menu from Global rule 10 now, record the
+choice, state the counter total ("About 10 questions. Everything else I
+take from your site and repository and show you before saving." for the
+quick path), and proceed to Phase 1.
 
 ## Phase 1: Identity & niche
 
@@ -487,45 +599,114 @@ Ask one at a time:
    as the default: `title` in `hugo.toml`, `site`/title in the Astro
    config, the WordPress site title from `/wp-json` (`name`), or the name
    given in Phase 0.
+   Quick path: ask.
 2. Blog URL (e.g. `https://trailnotes.example`). Offer `baseURL` /
    `site` from the same files when present. A `.example` or placeholder
    address: say in one sentence that it is a stand-in and where to change
    it later; keep going.
+   Quick path: ask.
+   **Two values from one answer (both paths).** The answer may carry a
+   path (`https://example.com/journal`). Keep both: the **site address**
+   exactly as entered or discovered, recorded in `setup-notes.md` as
+   `Site address: <value>` for Phase 5 (the WordPress probe and
+   `base_url` use it; its path is the deployment base for routes and image
+   URLs), and the **origin** (scheme and host only,
+   `https://example.com`), written as `blog.url`, because every reader
+   builds links as `{blog.url}{route_prefix}<slug>`. Never write a path
+   into `blog.url`. Every `/wp-json` read in this file means `<site
+   address>/wp-json/...` with the address's trailing `/` dropped first;
+   a WordPress installed under a path does not answer at the origin.
 3. Language code (default `en`)
+   Quick path: derive. The `lang` attribute of the fetched home page, else
+   the site config's language key (`languageCode` in Hugo, `lang`/`i18n`
+   in Astro, `/wp-json` `language` for WordPress), else `en`. Say it in one
+   line: "Language: English, from your site."
 4. Niche/topic: what is this blog about, in one or two sentences?
+   Quick path: ask. Default from PRODUCT.md or README in the repository,
+   the site's home page, or an earlier setup on this Mac, when any exists,
+   offered as "Use the suggestion" / "I'll type my own" (rule 10); with
+   none, free text.
 5. Mission: why does this blog exist? What transformation does a reader
    get from following it?
+   Quick path: derive. One sentence from the niche and audience answers,
+   written with `_Derived at setup; change it any time._` as the first
+   line of the section.
 6. Point of view: what does this blog believe about its niche that's
    distinct or contrarian? (This is what keeps posts from reading as
    generic SEO filler.)
-7. Content pillars: 3-5 recurring topic buckets this blog returns to
-8. Tag taxonomy: the fixed list of tags posts draw from (2-4 tags per post
-   come from this list — both Astro frontmatter templates read it from
+   Quick path: derive, as question 5 (one sentence, same marker).
+7. Tag taxonomy: the fixed list of tags posts draw from (2-4 tags per post
+   come from this list; every frontmatter template reads it from
    `{profile_dir}/blog.md`)
-9. Primary CTA target + hook: what should every post's closing CTA point
+   Quick path: derive, **both paths**. Never asked and never invented:
+   the site's existing tags, looked for in this order and taken from the
+   first source that has any: the repository's own posts (the union of
+   the `tags` values in the content folder's frontmatter, most frequent
+   first, marker "(from your repository)"), then Phase 1.5's fetched
+   posts, then WordPress `/wp-json/wp/v2/tags` (marker "(from your
+   site)"). A site with no tags yet gets the single line `none yet`:
+   `plan-content` writes the list from the plan it makes, and a post
+   written before that proposes its own tags at intake.
+8. Primary CTA target + hook: what should every post's closing CTA point
    to (newsletter signup, product trial, app download, etc.), and what's
    the one-line hook for it (e.g. "Subscribe for weekly trail reports")?
    **No invented default here**: never suggest a free trial, a sign-up
    page or a URL path the owner has not mentioned (a waitlist-only product
    has no `/signup`). Ask what exists; draft the hook from their answer and
    read it back.
-10. Publish cadence: how often does this blog publish? (Informational,
+   Quick path: derive. Target: the product's address (Phase 3's product
+   answer, so write this section after Phase 3 on the quick path) when the
+   product module is on, else the blog's home page. Hook: one sentence
+   from the niche. The no-invented-path rule holds: never a trial, signup
+   or pricing path.
+9. Publish cadence: how often does this blog publish? (Informational,
     not consumed by any downstream check, but useful context for anyone
     reading this doc later.)
-11. Route prefix: the URL path prefix this blog's posts are served under
-    (default `/blog/`; `/` for a root-routed blog with no prefix). This
-    drives every internal link, canonical URL, and inbound-link ownership
-    grep the rest of the plugin emits, so get it right up front. Ask it in
-    owner words and never offer `/` as a thing to type (§How to talk to
-    the owner rule 4): "Posts on your site have an address like
-    `https://<domain>/blog/some-post`. What comes between the domain and
-    the post? Reply `default` for `blog`, `root` for nothing, or the word
-    your site uses." Offer evidence as the default when there is any: a
-    Hugo site with `content/posts/` serves `/posts/`; WordPress with the
-    "Post name" permalink setting serves posts right after the domain
-    (`root`); Phase 5 reads the real WordPress setting from the site and
-    corrects this if needed. Write the value with both slashes.
-12. Trailing slash: do (or will) this blog's post URLs end with a trailing
+    Quick path: omit, `weekly`.
+10. Route prefix: the URL path prefix this blog's posts are served under.
+    This drives every internal link, canonical URL, and inbound-link
+    ownership grep the rest of the plugin emits, so get it right up front.
+    Quick path: derive, **both paths**. Never asked while evidence exists.
+    The value is one complete root-relative path, normalised to `/.../`
+    (`/` for a root-routed blog). Evidence is one of two kinds, and the
+    two are never combined with each other:
+    - **A complete path, used as is.** The common leading path of two or
+      more post links on the live site (Phase 1.5 discovers them). A
+      digit-only segment is a date, and dropped, only when the links
+      differ in it (`/journal/2026/05/post/` and `/journal/2026/06/other/`
+      give `/journal/` because `05` and `06` differ, and `2026` sits
+      between a varying segment and the slug); a digit-only segment that
+      is part of the deployment base (the site config's base path or the
+      site address's path, `https://example.com/2026/`) is kept. A
+      digit-only segment common to every link and not in the deployment
+      base is ambiguous (all posts from one month): not evidence, fall
+      through. One link only: use it only when it has no digit-only
+      segment outside the deployment base. `https://example.com/some-post`
+      gives `/`.
+    - **A site-relative route, with the deployment base prepended exactly
+      once.** The deployment base is the path in the site's own config
+      (Hugo `baseURL`, Astro `base`, Next.js `basePath`), else the path of
+      the site address from question 2 (`/docs/` for
+      `https://example.com/docs/`, nothing for a bare host). Hugo: the
+      `permalinks` entry for the posts section in the Hugo config, its
+      fixed part before the first `:` token (`posts = "/articles/:slug/"`
+      gives `articles/`; `"/:year/:slug/"` gives nothing),
+      else the section folder name (`content/posts/` gives `posts/`);
+      `/docs/` + `articles/` = `/docs/articles/`. Astro: the route of the
+      page that renders the collection under `src/pages`. WordPress: the
+      fixed part of the permalink structure read from the site
+      (`/%postname%/` gives nothing, `/blog/%postname%/` gives `blog/`)
+      under the installation path; Phase 5 reads the real setting and
+      composes with the path, never replaces it.
+    Use the complete path when the site answers and a post link is found;
+    else the site-relative route; else ask, counted, as a menu: "Posts on
+    your site have an address like `https://<domain>/blog/some-post`.
+    What comes between the domain and the post?" with options `blog`
+    (default), "Nothing, posts sit right after the domain", "Another
+    word" (then free text). Never derive from a folder name when the
+    config overrides it; never from the bare address alone. Write the
+    value with both slashes.
+11. Trailing slash: do (or will) this blog's post URLs end with a trailing
     slash (e.g. `/blog/my-post/`) or not (`/blog/my-post`)? **Read it
     before asking it.** Evidence beats a question for a non-technical
     owner:
@@ -545,6 +726,8 @@ Ask one at a time:
       wizard asks) will be declined: ask, as a menu ("Yes, with a slash" /
       "No, without"), default yes. Webflow and most hosted CMS platforms
       serve pages without one; say so when the platform is known.
+      Quick path: omit, `true` (`false` when the platform is known to
+      serve pages without one), shown in the summary.
     - Existing blog with a real chance the research offer is accepted:
       don't ask; write the default as a provisional placeholder and let
       Phase 1.5(a) detect the convention from the fetched post URLs,
@@ -573,26 +756,22 @@ Write `{profile_dir}/blog.md`:
 
 <answer 6>
 
-## Content pillars
-
-- <pillar 1>
-- <pillar 2>
-- ...
-
 ## Tag taxonomy
 
 - <tag 1>
 - <tag 2>
 - ...
+(or the single line `none yet` when the site has no tags; `plan-content`
+fills this section)
 
 ## Primary CTA
 
-**Target:** <link or destination from answer 9>
-**Hook:** <one-line hook from answer 9>
+**Target:** <link or destination from answer 8>
+**Hook:** <one-line hook from answer 8>
 
 ## Publish cadence
 
-<answer 10>
+<answer 9>
 ```
 
 ### Interview: audience
@@ -606,20 +785,33 @@ Ask one at a time:
 
 1. Primary audience: who reads this blog (role, context, what brought them
    here)?
+   Quick path: ask. Default from the same sources as identity question 4
+   (PRODUCT.md, README, the home page, an earlier setup), else one sentence
+   inferred from the "about" answer, offered per rule 10 as "Use the
+   suggestion" / "I'll type my own" with the suggestion printed above the
+   menu (never as editor ghost text alone); free text only when there is
+   nothing to infer from.
 2. Secondary audience, if any (skip if there's only one clear audience)
+   Quick path: omit, none.
 3. Top pain points this audience has, in priority order (this order
    matters, `{profile_dir}/voice.md` and the writer persona use it to
    decide what to lead with)
+   Quick path: derive from the audience answer (and the fetched site when
+   Phase 1.5 ran), three to five lines, marker as identity question 5.
 4. Language to use: words/phrasing that resonate with this audience
+   Quick path: derive, as 3.
 5. Language to avoid: jargon, marketing-speak, or tone that turns this
    audience off
+   Quick path: derive, as 3.
 6. Niche jargon that needs translating for this audience (terms an
    insider would know but this blog's typical reader might not) — this
    extends `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`
    §Insider-jargon translation with this blog's own niche's terms
+   Quick path: derive, as 3; "none yet" when nothing is evident.
 7. Insider posture: does this audience already know the niche jargon (an
    expert/insider readership), or does every post need to translate it on
    first use? (Default: translate on first use.)
+   Quick path: omit, translate on first use.
 
 Write `{profile_dir}/audience.md`:
 
@@ -668,14 +860,14 @@ Read the existing `blog-ops/config.yaml` if present (resume case), merge in:
 ```yaml
 blog:
   name: "<answer 1>"
-  url: <answer 2>
+  url: <origin from answer 2: scheme and host only, never a path>
   language: <answer 3>
-  route_prefix: <answer 11, default /blog/>
-  trailing_slash: <answer 12, default true>
+  route_prefix: <the derived prefix from question 10, with both slashes>
+  trailing_slash: <answer 11, default true>
 ```
 
 Write the full file (Global rule 4). If this is a fresh run, the file now
-contains only the `blog:` block; later phases add the rest. When Q12's gate
+contains only the `blog:` block; later phases add the rest. When Q11's gate
 above deferred `trailing_slash` (existing blog, research offer still
 pending), the value written here is the provisional default — Phase 1.5(a),
 if it runs, re-merges and rewrites this same `blog:` block once the real
@@ -695,6 +887,18 @@ research, and even an existing one may decline.
 **Offer.** Ask: "Does <blog name> already have posts live at <answer 2 from
 Phase 1>, or is this a brand-new blog with nothing published yet?"
 
+**Quick path: neither question below is asked.** Probe the site address
+(`curl -sfI -m 10 "<site address>"`). It answers → `existing_blog: true`,
+say one line, "Reading your site to fill in the rest", and run (a) to (d)
+with no consent prompt: the pages are the owner's own public site, named
+by the owner one question ago. It does not answer → `existing_blog:
+false`, skip the phase in silence. Every confirmation in (f) (the audience
+diff's "keep, edit, or skip", the trailing-slash confirmation, Phase 2's
+"confirm, edit, or tell me what's off") is not asked on the quick path:
+the values are written and shown in the summary before the commit (Phase
+6), where the owner changes any of them. The decline sub-case's "firm up
+Q11 by asking" does not apply: Q11 is omitted as `true` on the quick path.
+
 **Record the answer durably, before branching on it.** Read the
 `{profile_dir}/blog.md` Phase 1 already wrote, insert `existing_blog:
 <true|false>` as its own line directly under the `# <Blog name>` heading,
@@ -713,12 +917,12 @@ decline research.
   can research the live site now — fetch a few pages, sample images, and
   (later, once your publish adapter is set up) detect its conventions — to
   pre-fill your audience, voice, and image-style docs from real evidence
-  instead of a blank interview. Want me to run that before Phase 2?" Decline
+  instead of a blank interview. Want me to run that before the next part?" Decline
   → skip to Phase 2, same as a brand-new blog (no `blog-ops/reference/` is
   created, and `{profile_dir}/site-conventions.md` stays unwritten — per
   config-schema.md it's recommended, not required, for a non-WordPress
   adapter or a blog that declined this offer). Before moving on, firm up
-  Phase 1 Q12's provisional `blog.trailing_slash` now — ask the user
+  Phase 1 Q11's provisional `blog.trailing_slash` now — ask the user
   directly (research detection will never run for this blog); update
   `config.yaml` with the confirmed value.
 
@@ -730,7 +934,8 @@ rule 3 (keep as-is / update — re-fetch everything, useful after a redesign —
 
 ### (a) Discover and fetch
 
-Ask for the blog's homepage URL if it differs from `<answer 2>`. Discover
+Ask for the blog's homepage URL if it differs from `<answer 2>` (quick
+path: the site address, no question). Discover
 5-10 recent post URLs by trying, in order, until one yields results (don't
 require all three): the site's feed (`<url>/feed/`, `<url>/rss.xml`,
 `<url>/atom.xml`), its sitemap (`<url>/sitemap.xml` or
@@ -745,7 +950,7 @@ immediately, don't batch until the end of the phase).
 **Also detect `trailing_slash` from these same URLs.** Look at whichever of
 the discovered post URLs are real permalinks (not feed/sitemap/REST API
 endpoints) and note whether they end in `/` (e.g. `/blog/my-post/`) or not
-(`/blog/my-post`). This is real evidence Phase 1's Q12 couldn't have had —
+(`/blog/my-post`). This is real evidence Phase 1's Q11 couldn't have had —
 fold it into the SAME single pre-fill confirmation as (b)-(d)'s evidence in
 (f) below, never a separate ask. Phase 5's adapter site inspection later
 cross-checks this against the live site's actual permalink format and flags
@@ -824,7 +1029,7 @@ Using ONLY (a)-(d)'s evidence (never (e), which hasn't run yet):
   never silently overwrite the answers already on file from Phase 1's own
   interview.
 - **`trailing_slash` (Phase 1, `blog:` block, already written above).**
-  (a)'s URL-based detection is the real evidence Q12's gate (§Phase 1) may
+  (a)'s URL-based detection is the real evidence Q11's gate (§Phase 1) may
   have deferred. Present the detected value alongside (b)-(d)'s evidence in
   this SAME confirmation pass: "Based on the fetched post URLs, this blog's
   posts <do/don't> end in a trailing slash — update `blog.trailing_slash`
@@ -845,8 +1050,9 @@ Using ONLY (a)-(d)'s evidence (never (e), which hasn't run yet):
   phase's own note).
 
 Every pre-filled doc or diff produced here is presented for explicit
-confirmation, exactly like every other phase in this wizard (Global rule
-3) — this phase introduces no silent-accept exception.
+confirmation on the detailed path, exactly like every other phase in this
+wizard (Global rule 3). On the quick path the confirmation is the summary
+before the commit (Phase 6), not a question here.
 
 **Artifacts:** `blog-ops/reference/site-research.md` (evidence log, cites
 every fetched URL) and `blog-ops/reference/image-samples/` (downloaded
@@ -897,15 +1103,31 @@ below for anything the samples didn't reveal (credibility message,
 anecdote bank, additional forbidden phrases, additional allowlist domains
 — these are rarely visible from 2-3 posts alone).
 
+**Quick path.** The samples question is not asked. When Phase 1.5 fetched
+posts, derive the voice from them and skip the "Confirm, edit, or tell me
+what's off" prompt: the derived traits go to the summary (Phase 6). With
+no posts, derive what the home page shows; with nothing at all, write
+tone "direct, clear, practical" and the per-question defaults below. Only
+the credibility question (2) is asked.
+
 ### Interview: voice
 
 Ask one at a time (skip any already answered by the writing-sample pass):
 
 1. Tone in 3-5 adjectives (e.g. "direct, funny, no-nonsense")
+   Quick path: derive from the samples or the home page; else "direct,
+   clear, practical".
 2. Credibility message: the one-line authority statement that opens every
    post's expertise-statement sentence (e.g. "After testing 50 pairs of
    trail shoes over 200 miles, here's what held up.")
+   Quick path: ask, **both paths**, always, right after the audience
+   question (its number is whatever the running count says). Exact wording: "What makes you
+   the one to write this? One sentence, for example: after ten years
+   running support teams, I..." Free text, no default: it cannot be
+   derived without inventing an authority claim, and every post's
+   expertise statement comes from it.
 3. Lexicon: words or phrases this blog uses often, signature phrasing
+   Quick path: derive from the samples; else "none yet".
 4. Personal-anecdote bank: 3-5 short personal stories or experiences an
    author can draw on across posts. Say "I'll only use what you tell me; I
    won't invent stories." **A story is never a product claim.** Record each
@@ -914,6 +1136,7 @@ Ask one at a time (skip any already answered by the writing-sample pass):
    mean their product syncs reliably), do not turn it into a feature or a
    lead point; the product interview in Phase 3 asks about features
    directly, and only the owner's answers there count.
+   Quick path: omit, "none yet" (never invented).
 5. Positioning: what value proposition should posts lead with, and in
    what priority order (most relevant if `modules.product` will be on,
    but useful for any blog with an opinion to push). Suggest only points
@@ -921,13 +1144,17 @@ Ask one at a time (skip any already answered by the writing-sample pass):
    never ones derived from a story in answer 4; when the product module
    will be on, say that the detailed product questions come later and
    keep this to the order of emphasis.
+   Quick path: derive from Phase 3's product answer (write this section
+   after Phase 3); "none yet" without a product.
 6. Additional forbidden phrases: any phrases, beyond the generic AI-tell
    list in `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, this
    blog specifically wants banned
+   Quick path: omit, none.
 7. Additional allowlist domains: any extra reputable domains (beyond
    `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` §Authoritative-site
    allowlist) this blog wants permitted to cite even when they show up in
    the target keyword's top-10 SERP
+   Quick path: omit, none.
 
 Write `{profile_dir}/voice.md` — the section names below are exact; other
 components grep for them by these literal headings:
@@ -980,6 +1207,7 @@ for these literal section names.
 
 1. How many authors/voices write for this blog? (1 = single voice; more
    than 1 = multiple named voices, plus optionally a co-signed "we" voice)
+   Quick path: omit, one.
 2. For each author: name, a short slug (lowercase, e.g. `alex`), a 1-2
    sentence bio, area of expertise, voice notes (how this author's tone
    differs from the blog's general voice — sentence-length habits,
@@ -990,15 +1218,23 @@ for these literal section names.
    identity** (`git config user.name`, the `gh` login's display name) as an
    example or default: it is often not the owner. With no name yet, ask
    plainly ("What name goes on your posts?") with no example.
+   Quick path: the name is derived only when every post Phase 1.5 fetched
+   carries the same single byline; with several names, a guest name, or
+   no fetched posts, ask "What name goes on your posts?", counted. Slug
+   from the name. Bio and expertise only from that person's about page on
+   the site or the credibility answer; otherwise "none yet". Voice notes,
+   byline format, sign-off: the blog's defaults. The git-identity ban
+   holds.
 3. If more than 1 author: ask when to use "we" (co-signed) vs. a specific
    author's voice — write this into a Selection rubric.
+   Quick path: omit (one author).
 
 Write `{profile_dir}/authors.md`:
 
 ```markdown
 # Authors
 
-## <slug 1> — <Display Name>
+## <slug 1>: <Display Name>
 
 **Bio:** <bio>
 **Expertise:** <expertise>
@@ -1006,7 +1242,7 @@ Write `{profile_dir}/authors.md`:
 **Byline:** <how this author's name appears in frontmatter/body>
 **Sign-off:** <sign-off pattern, or "none, byline only" for single-voice posts>
 
-## <slug 2> — <Display Name>
+## <slug 2>: <Display Name>
 
 ...
 ```
@@ -1042,7 +1278,7 @@ The `## Selection rubric` heading is exact — it's what the editor persona
 and `templates/brief.md` point to as "select per `{profile_dir}/authors.md`
 §Selection rubric." Only write it (and Co-signed voice, and the
 slug-to-site-key map) when there's more than one author; a single-author
-blog's `authors.md` is just the one `## <slug> — <Display Name>` block, no
+blog's `authors.md` is just the one `## <slug>: <Display Name>` block, no
 rubric needed (matches personas/editor.md: "single-author blogs: skip this
 step, `author_voice` is fixed").
 
@@ -1081,14 +1317,27 @@ shouldn't need this doc open to answer):
 1. "Should this blog's research stage search Reddit for the target
    keyword? You'd sign in to Reddit once, in Pilcrino's own browser
    window, a few questions from now." (`modules.reddit_research`)
+   Quick path: omit, on.
 2. "Should this blog's research stage also search X (Twitter)? It is
    noisier than Reddit and needs an X account you sign in with once."
    (`modules.x_research`)
+   Quick path: omit, off.
 3. "Does this blog promote its own product?" (`modules.product`). If yes,
    run the product interview below.
+   Quick path: ask, as a menu, exact wording "Do posts promote a product
+   of yours?" (Yes / No). Yes asks one more counted question, the
+   product's address, and runs "Product from first-party evidence" below
+   instead of the product interview.
 4. "Will posts reference or compare named competitors?"
    (`modules.competitors`). If yes, ask (4a) and seed the competitor
    methodology below.
+   Quick path: ask, as one counted question, with `AskUserQuestion`:
+   "Will posts name competitors to compare you with?" with the options
+   "No competitors" (first) / "Yes, I'll name them". "Yes" takes the names
+   as free text in the same question's turn (not counted again), with
+   the exact wording "Name the competitors posts may compare you with."
+   `modules.competitors` is true iff at least one name was given; the
+   timing menu is omitted ("the first time a post names it").
 4a. If (4) is yes: "Where should competitor profiles live: the default
     location inside this blog's own workspace (`blog-ops/profile/competitors`),
     or an existing directory this blog already shares with other
@@ -1096,9 +1345,11 @@ shouldn't need this doc open to answer):
     unset, `{competitors_dir}` resolves to the default). Existing
     directory → ask for its repo-relative path and write
     `competitors.profile_dir: <path>` to `config.yaml`.
+    Quick path: omit, the default location.
 5. "Enable the repurpose skill (turns a published post into an X thread,
    an X short take, a LinkedIn post, and a newsletter)?"
    (`modules.repurpose`)
+   Quick path: omit, on.
 
 Merge into `config.yaml`:
 
@@ -1116,7 +1367,38 @@ competitors:
                              #   the whole `competitors:` block otherwise
 ```
 
-### If `modules.product` is on: product interview
+### Product from first-party evidence (quick path)
+
+On the quick path the nine product questions below are not asked. One
+counted question, the product's address ("What is <product>'s website
+address?"; the name comes from that page), then read the product's own
+site (its home page and the features, pricing and about pages the home
+page links to) plus PRODUCT.md and README in the repository, and fill
+`product.md` from that **cited first-party evidence**: every feature,
+differentiator and claim line ends with its source in brackets, `(from
+<url or file>)`. This is a deliberate relaxation, for this path only, of
+"Features and differentiators come from the owner only" below: the
+evidence is the owner's own product pages, and the owner reads the whole
+feature list back in the summary before the commit (Phase 6) instead of
+here. Section by section when the evidence is silent:
+
+- Identity (1, 2): from the home page. When even that fails to say what
+  the product does, ask one counted fallback: "In one sentence, what does
+  <product> do?"
+- Features, differentiators, unique-in-category (3, 4, 5): only what the
+  pages say; an empty section reads "none found at setup".
+- First-party data (6): "none yet".
+- Positioning (7): the first menu option, "Teach first; name <product>
+  once, in a side note near the end", written as its read-back sentence
+  and said to the owner in one sentence as every standing rule is.
+- Existing posts (8): the posts Phase 1.5 fetched that mention the
+  product; "none yet" otherwise.
+- Pricing page (9): the pricing link found on the product site. When none
+  is found: "No pricing page found at setup. Posts never state a price;
+  they point to <Primary CTA target from blog.md> instead." Never "No
+  public pricing page yet": setup has not been told there is none.
+
+### If `modules.product` is on: product interview (detailed path)
 
 1. Product name
 2. What the product does, in 1-3 sentences
@@ -1230,12 +1512,19 @@ website addresses if you know them. Reply `none` if you'd rather decide
 post by post." For each name, note the name and, when given, the site; a
 missing site is found by the research skill later, not guessed now. Read
 the list back.
+Quick path: this is modules question 4 (the "No competitors" / "Yes,
+I'll name them" menu and its names), already asked and counted; do not ask
+again. The explanation paragraph above is said in one sentence after the
+names ("Pilcrino researches a fact sheet on each of them, in its own
+browser, before a post names them.").
 
 **Then offer to profile them, as a menu with two timings:**
 - "Research them now, right after the browser sign-in step (about 2.5
   minutes each, <N> competitors, roughly <N × 2.5> minutes)."
 - "Research each one the first time a post names it; Pilcrino offers it
   then."
+Quick path: omit, "the first time a post names it"; the menu is not
+shown.
 Record the choice. On "now", Phase 3.5 ends by running
 `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` in this
 session once per competitor, in the order given, after the sign-in check
@@ -1358,6 +1647,11 @@ nested block are a template FOR future profiles, not unfilled content of
 `methodology.md` itself. Phase 6's "no leftover placeholders" check
 excludes this nested block explicitly (see that section).
 
+**Quick path, at the end of this phase:** now that the product answer is
+known, write the two sections that waited for it: `blog.md` §Primary CTA
+(Phase 1 question 8) and `voice.md` §Positioning (Phase 2 question 5),
+rewriting each file whole.
+
 ## Phase 3.5: Sign in to the Pilcrino browser
 
 Pilcrino researches in its own Chrome window, the Pilcrino browser. Google and Reddit block a browser that has never signed in, so this one-time step opens the window and checks each site when you say you are done. Owner's name for this part: "Signing in to Pilcrino's browser."
@@ -1409,6 +1703,8 @@ pictures", "screenshots you take"; never "strategy", "adapter", "slot",
    <installed / not installed on this Mac>), screenshots you take yourself
    when a post needs one." Ask it as a multi-select menu. → `images.enabled`
    (`remotion`, `ai-prompt`, `screenshot`), must be non-empty (invariant 1).
+   Quick path: omit. `remotion` on, `ai-prompt` on iff `command -v codex`
+   finds it, `screenshot` on.
 2. "Which of those should be the default for a post's featured image?" —
    if only one strategy was enabled, skip this question and set
    `images.featured_default` to it. If more than one, offer "let the
@@ -1418,8 +1714,10 @@ pictures", "screenshots you take"; never "strategy", "adapter", "slot",
    **Validate immediately** (Global rule, enforced at entry): if the
    user's answer is not a member of `images.enabled` from question 1,
    reject it and re-ask; don't defer this check to Phase 6.
+   Quick path: omit, the planner picks (key omitted).
 3. If `remotion` ∈ enabled: "Where should the Remotion project live in
    this repo?" (default `tools/remotion`) → `images.remotion.project_dir`.
+   Quick path: omit, `tools/remotion`.
 
 Merge into `config.yaml`:
 
@@ -1436,39 +1734,43 @@ images:
 **Check for Phase 1.5 evidence first.** If `blog-ops/reference/site-research.md`
 exists, use its extracted palette hexes (§(b)) and image characterization
 (§(d)) as the DEFAULTS offered below instead of the scaffold's generic
-defaults — still ask every question, still let the user override any
-subset; the evidence just changes the starting point, it never gets
-silently accepted.
+defaults. Detailed path: still ask question 1's menu with the evidence
+as the first option. Quick path: derive; the summary is where the owner
+sees and overrides it.
 
-1. Palette: 8 hex colors — `background`, `surface`, `border`, `text`,
-   `muted`, `primary`, `accent`, `warn`. Offer the scaffold's defaults
+1. Palette and fonts, one question. The file takes 8 hex colours
+   (`background`, `surface`, `border`, `text`, `muted`, `primary`,
+   `accent`, `warn`) and two font stacks (sans, mono). Sources, in order:
+   the hexes and font names Phase 1.5 extracted from the live site's CSS;
+   the stylesheet in the repository; else the scaffold's defaults
    (`#FAFAFA`, `#FFFFFF`, `#E5E7EB`, `#1F2937`, `#6B7280`, `#2563EB`,
-   `#0E9F8E`, `#E11D48`) as the starting point — or, if Phase 1.5 extracted
-   hexes from the live site's CSS, or the site's stylesheet in the repo
-   declares colours, offer those instead; let the user override any subset
-   either way. Ask it in colour words, not codes: "Images use a light
-   off-white background, dark grey text, a blue main colour and a teal
-   highlight (that is the standard set / that is what your site's
-   stylesheet uses). Keep these, or tell me your brand colours?" Show the
-   codes only when asked or when the owner gives their own.
-2. Fonts: sans-serif stack and monospace stack. Defaults:
-   `Inter, ui-sans-serif, sans-serif` and `ui-monospace, monospace`, or
-   the site's own fonts when the repo or Phase 1.5 names them. Say now,
-   once, that a webfont the site loads from its own files is usually not
-   installed on this Mac, so the test image will show a standard system
-   font in its place; that is expected and the posts' own pages are not
-   affected.
+   `#0E9F8E`, `#E11D48`; `Inter, ui-sans-serif, sans-serif`;
+   `ui-monospace, monospace`). Ask it as one menu, in words: "Images will
+   use your site's colours and fonts, found in its stylesheet" (or "the
+   standard set: off-white background, dark grey text, blue main colour,
+   teal highlight" when nothing was found) / "Tell me my brand colours in
+   words". The codes and stacks go in the file and are never printed
+   unless the owner gives their own. No caveats about theme slots,
+   headless Chrome or webfonts here; the test render says its one line
+   below.
+   Quick path: derive, same sources, no question.
+2. (Folded into 1.)
 3. Mood words: 3-5 adjectives describing the visual mood (e.g. "clean,
    confident, technical") — pre-fill from Phase 1.5's image-set
    characterization if it ran.
+   Quick path: omit, Phase 1.5's characterization or "clean, confident,
+   practical".
 4. Watermark text (default: the blog's domain, e.g. `trailnotes.example`)
    and opacity (default `0.55`)
+   Quick path: omit, the defaults.
 5. Annotation conventions for screenshot markup: accent color (default:
    reuse the `accent` palette token), stroke width (default `3px`),
    corner radius (default `6px`)
+   Quick path: omit, the defaults.
 6. Aspect-ratio default for `ai-prompt` images (default `3:2`,
    matching the Remotion canvas so a mixed featured/in-post set stays
    visually consistent)
+   Quick path: omit, `3:2`.
 7. Featured-image variation archetypes (to the owner: "cover image
    layouts"): offer the default list below (mirrors the built-in list in
    `${CLAUDE_PLUGIN_ROOT}/skills/suggest-images/SKILL.md` §Featured-slot
@@ -1483,6 +1785,7 @@ silently accepted.
    `pattern-break` (a pattern with one odd element), `scene-vignette` (a
    small scene), `negative-space` (mostly empty, one element). Keep at
    least 4 (fewer starves the rotation). Default answer: keep all seven.
+   Quick path: omit, all seven.
 
 Write `{profile_dir}/image-style.md`:
 
@@ -1595,18 +1898,15 @@ title band never vary; only the composition does.
    ```bash
    cd "<REMOTION_DIR>" && npx remotion still SampleDiagram --output=out/preview-sample-v1.png
    ```
-7. `Read` the rendered PNG yourself, then **open it for the owner before
-   asking anything**: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
-   (macOS opens it in Preview). Then ask, giving the path too: "I've opened
-   the test image on your screen (it is also at
-   `<REMOTION_DIR>/out/preview-sample-v1.png`). It uses your colours and
-   watermark. <If a webfont is not installed: 'The text is in a standard
-   system font because <font> is not installed on this Mac; that is
-   expected and does not affect your posts.'> Does it look right, or should
-   a colour change?" Never recommend "looks right" on the owner's behalf.
-   If not right, go back to the image-style.md interview, adjust, rewrite
-   `theme.ts`, re-render and open it again. The test render is not
-   committed (`out/` is ignored, step 5).
+7. `Read` the rendered PNG yourself to confirm it rendered, then open it
+   for the owner: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
+   (macOS opens it in Preview). Report one line and ask nothing (both
+   paths): "Test image rendered; I've opened it on your screen." and
+   nothing else: a webfont that fell back to a system font on this Mac
+   is not mentioned (rule 8). Never a list of problems to decide on, never a
+   question: the owner changes colours in the summary before the commit
+   (Phase 6), which rewrites `theme.ts` and re-renders. The test render is
+   not committed (`out/` is ignored, step 5).
 
 ### If `ai-prompt` is enabled: check codex + offer a test generation
 
@@ -1617,7 +1917,8 @@ title band never vary; only the composition does.
    `failed` and its `Prompt:` block stays a pasteable manual fallback; it
    never breaks the pipeline). Warn, don't block the wizard, and don't add
    a config invariant for it.
-3. If found: offer "Want me to fire one test generation to confirm codex
+3. If found, detailed path only (quick path: omit, no test generation):
+   offer "Want me to fire one test generation to confirm codex
    imagegen works?" If yes, run `${CLAUDE_PLUGIN_ROOT}/skills/generate-image-codex/SKILL.md`
    with a minimal throwaway prompt (e.g. "a simple flat-vector test image,
    a single blue circle on a white background, no text") and an explicit
@@ -1681,6 +1982,33 @@ Netlify, Vercel, Cloudflare Pages and GitHub Pages do that)?"
 - "I don't know" → `publish.site_live: false`; say: "I'll treat it as not
   live for now. Once it is, run this setup again and change the answer."
 
+**A placeholder address settles it (both paths).** When Phase 1's address
+answer is a stand-in (`example.com`, a `.example` domain, `localhost`, or
+the template's own default left in place), the site is not online: write
+`publish.site_live: false`, say "Not online yet: the address is still the
+stand-in." and do not ask. Otherwise:
+
+Quick path: derive when deployment evidence ties the entered site to this
+repository's base branch, else ask the menu above, counted. The value
+means "online and rebuilds from this repository's base branch", so the
+evidence must name both the base branch and the site's host:
+- GitHub Pages: `gh api repos/<owner>/<repo>/pages` answers, `source.branch`
+  equals the base branch, and either `html_url` equals the site address
+  (compared without scheme and trailing slash, host and path both: a
+  project site `owner.github.io/blog` must match path and all, since every
+  project site of one owner shares the host) or, when the site address has
+  no path, `cname` equals its host.
+- Netlify, Vercel, Cloudflare Pages: on the base branch's latest commit
+  (`git rev-parse origin/<base branch>`), `gh api
+  repos/<owner>/<repo>/commits/<sha>/status` or `.../check-runs` shows a
+  successful deployment from that host whose `target_url` or environment
+  URL is on the site address's host.
+A `netlify.toml`, `vercel.json` or workflow file in the repository, a host
+named in the site's response headers, or page text matching the blog are
+not evidence on their own: a copied repository has all three. When `gh`
+cannot read the repository, ask. WordPress and hosted CMS: online iff the
+site address answers; there is no rebuild part.
+
 For a WordPress or a hosted CMS (Webflow, Ghost(Pro)) blog the rebuild part
 does not apply: ask only "Is the site online now?" and write the answer.
 Say what the value changes, in one sentence that fits how posts reach this
@@ -1727,8 +2055,18 @@ problem).
      paste into <Platform> before you approve it; the repository keeps a
      copy."
    → `publish.adapter`.
+   Quick path: ask, the detected option first, counted ("Where posts
+   go"). The adapter steps that need the owner afterwards
+   (the WordPress password dialog, the Astro format edit consent) are
+   actions, done as today and not counted; the WordPress username is a
+   counted question.
 
 ### If `astro-git-pr`
+
+The edit consents in steps 5, 5a, 5b and 6 (adding fields, the draft
+switch) are actions, never counted, on both paths. Step 5's template
+menu, asked only when the schema matches neither shape, is a counted
+conditional question.
 
 2. "Is this repo the Astro site itself, or does the site live in a
    subdirectory (a monorepo)?" Read it, don't ask: `astro.config.*` at the
@@ -1752,15 +2090,19 @@ problem).
    - `trailingSlash: 'ignore'` → the config does not settle it; keep the
      value on file.
    If the derived value differs from `blog.trailing_slash` in
-   `config.yaml`, show both values and the Astro config line, and write the
-   derived one once the user confirms (rewrite the whole file, Global rule
-   4). If they already agree, record nothing new and move on.
+   `config.yaml`, the config wins: write the derived one (rewrite the
+   whole file, Global rule 4) and say it in words, never the config line
+   ("Your posts' addresses end without a slash, as your site is set up").
+   Detailed path: say it and move on; quick path: it is one summary line.
+   If they already agree, record nothing new and move on.
 3. `content_dir` (default `src/content/blog`; read where the blog
    collection's entries live, `src/content/<name>/`, and offer that). To
    the owner: "Posts go in the folder `<path>`, where your existing posts
-   are. Reply `default` or give another folder."
+   are." Menu: "Keep that folder" / "Another folder".
+   Quick path: derive, the collection's folder; state it in one line.
 4. `assets_dir` (default `src/assets/blog`). To the owner: "Images go in
    `<path>`."
+   Quick path: omit, the default; state it in the same line as 3.
 5. Frontmatter template: read the content collection schema before asking
    anything. Find it in `src/content.config.ts` or `src/content/config.ts`
    (the `defineCollection({ schema: z.object({...}) })` for the blog
@@ -1773,7 +2115,8 @@ problem).
      site) → `adapters/publish/frontmatter/astro-starlight.md` (supports a
      `head[]` JSON-LD FAQ schema injection).
    - Neither shape: ask once, as a menu ("Starlight" / "plain content
-     collections"), with what you read as context.
+     collections"), with what you read as context. Quick path: ask,
+     counted (a conditional question).
    → `publish.astro.frontmatter_template`.
 5a. **Accepted keys → `publish.astro.frontmatter_keys`.** From the same
    schema, write the list of keys the chosen template defines that the
@@ -1796,7 +2139,9 @@ problem).
    (or fails the build), so this is settled before anything is written.
    Say: "Your site's post format has no place for a cover image, so every
    post's cover would be thrown away. I can add one optional field for it
-   to the site's post format in the setup commit. Add it?" Add → edit the
+   to the site's post format in the setup commit. Add it?" A consent
+   action, never counted, on both paths (no "Question N of T" prefix).
+   Add → edit the
    schema file, adding only that field, matching the file's style, and show
    the lines you added:
    - `astro-content.md`: `heroImage: image().optional()`. The `image()`
@@ -1823,7 +2168,8 @@ problem).
    place for <tags / the author's name / either>, so the site would drop
    them. I can add <it / them> as optional fields to the site's post
    format in the setup commit, or leave them out of posts. Which do you
-   prefer?" Add → edit the schema file, adding only the missing fields,
+   prefer?" A consent action, never counted, on both paths (no "Question
+   N of T" prefix). Add → edit the schema file, adding only the missing fields,
    with the selected template's names and types, inside the collection's
    `z.object({...})` and matching the file's style; never add a field the
    schema already has, and show the lines you added:
@@ -1879,12 +2225,15 @@ problem).
    authors map in `astro.config.mjs` or `src/content/authors/`; offer what
    you found, default no. If yes → repo-relative path →
    `publish.astro.authors_map_check`. If no, omit the key.
+   Quick path: derive, present iff `src/content/authors/` or an authors
+   map in the Astro config exists; else omit the key.
 8. "When a pull request is opened on your repository, does something post
    a comment with a preview link (Netlify, Vercel and Cloudflare do this
    when connected)? If so, paste the first line of one such comment."
    Default no. The HTML comment marker it upserts (e.g.
    `<!-- blog-preview -->`) → `publish.astro.preview_comment_marker`; if
    none, omit the key.
+   Quick path: omit the key, no question.
 
 Verify the directories exist on disk:
 ```bash
@@ -1897,7 +2246,8 @@ Verify the directories exist on disk:
   Phase 5 until they confirm it's ready; don't fabricate directories into a
   non-Astro repo.
 - If missing but this IS an Astro project (just these specific
-  directories aren't created yet), offer to `mkdir -p` them.
+  directories aren't created yet), offer to `mkdir -p` them (an action,
+  not counted).
 
 ### If `wordpress-rest`
 
@@ -1911,19 +2261,26 @@ Verify the directories exist on disk:
    images to WordPress's media library when it stages the post. Use the
    standard folders (`content/blog` and `blog-ops/assets`), or choose
    others?" Default: standard.
+   Quick path: omit, standard.
 4. `frontmatter_template` — state, don't ask: fixed at
    `adapters/publish/frontmatter/wordpress.md` for this adapter (unlike
    Astro, there's no Starlight-vs-content-collections choice to interview
    for). Write no `frontmatter_keys` (absent means every key of the
    template; WordPress takes them all).
-5. `base_url`: default the blog URL from Phase 1. Check it answers:
+5. `base_url`: default the **site address** from Phase 1 question 2
+   (`setup-notes.md` `Site address:`), never `blog.url`: a WordPress
+   installed under a path (`https://example.com/journal`) answers only at
+   `https://example.com/journal/wp-json/`. Check it answers:
    `curl -sf "<base_url>/wp-json/" | head -c 200` must return JSON with the
    site's `name`; if not, say "That address does not answer as a WordPress
    site (the `/wp-json/` page is missing or blocked). Check the address, or
    ask your host whether the REST API is turned off." and ask again.
+   Quick path: derive (the site address), the probe runs as written; a
+   failed probe asks for the address again, counted once.
 6. `username`: "What is your WordPress username, the one you sign in to
    wp-admin with? Pilcrino uploads drafts as this user." Never ask for the
    normal password.
+   Quick path: ask, counted (it cannot be derived).
 7. **The application password, stored in the Mac's keychain.** Say first,
    in these words or close to them: "WordPress lets you create a separate
    password just for tools like Pilcrino, called an application password.
@@ -1977,8 +2334,7 @@ Verify the directories exist on disk:
    again in `<blog folder>`; otherwise the post can't log in to WordPress.
    I'll check the password now in a way that reads the file." (The
    wizard's own Bash calls do not see the new line either: the probe below
-   runs in a shell that reads `~/.zshrc`.) Say also that the Pilcrino app,
-   if used later, needs the same value in its own settings.
+   runs in a shell that reads `~/.zshrc`.)
 8. `default_status` — state, don't ask: this is always `draft` in v1; the
    adapter never publishes past draft, the human clicks Publish in WP
    admin. To the owner: "Pilcrino uploads each post as a WordPress draft;
@@ -2034,14 +2390,20 @@ OK`, `curl -sf -u "$WP_USER:$WP_APP_PASSWORD"
 password at the top of that Bash block again, per the adapter's rule).
 Write `publish.wordpress.permalink_structure: <value>` (from the settings
 call; or inferred from the post link when the settings call was not
-possible: `/<slug>/` → `/%postname%/`, `/YYYY/MM/DD/<slug>/` →
+possible, **after stripping the installation path** (the site address's
+path) from the link's path, so `https://example.com/journal/hello/` on a
+site at `https://example.com/journal` is `/hello/`: `/<slug>/` →
+`/%postname%/`, `/YYYY/MM/DD/<slug>/` →
 `/%year%/%monthnum%/%day%/%postname%/`, `/blog/<slug>/` →
 `/blog/%postname%/`; no published post and no settings → omit the key).
 Then correct Phase 1's guesses from it, with one sentence to the owner:
-`blog.route_prefix` is the fixed path before `%postname%` (`/` for
-`/%postname%/`, `/blog/` for `/blog/%postname%/`, `/` for a date-based
-structure, whose dates vary per post) and `blog.trailing_slash` is whether
-the structure ends in `/`. A date-based structure (any `%year%`,
+`blog.route_prefix` is the installation path (the path of the site
+address, `/journal/` for `https://example.com/journal`, nothing for a bare
+host) followed by the fixed path before `%postname%` (nothing for
+`/%postname%/`, `blog/` for `/blog/%postname%/`, nothing for a date-based
+structure, whose dates vary per post), so `https://example.com/journal`
+with `/%postname%/` gives `/journal/`, never `/`; and `blog.trailing_slash`
+is whether the structure ends in `/`. A date-based structure (any `%year%`,
 `%monthnum%` or `%day%`): say "Your site puts the date in every post's
 address (`/2026/02/17/hello-world/`). That works, but addresses without
 dates rank and share better and never go stale. I recommend changing it
@@ -2107,11 +2469,14 @@ above.
    `content/posts` or `content/blog`, whichever exists): the folder in this
    repo where each post lands as `<slug>.md`. To the owner: "Posts go in
    the folder `<path>`."
+   Quick path: derive, the existing posts folder, else the default.
 3. `assets_dir` (default `posts/images`; Hugo `static/images`, Next.js
    `public/images`): each post's images land in `<assets_dir>/<slug>/`.
+   Quick path: derive, from item 5's folder-to-URL pair.
 4. "Which platform reads these files?" Detect it from the repo as in the
    adapter choice above and confirm in one line rather than asking a menu
    of seven; ask the menu only when nothing in the repo says.
+   Quick path: derive; ask only when nothing in the repo says, counted.
    → `publish.markdown.platform`, one of:
    - `astro`: `title`, `description`, `pubDate`, `tags`, `author`, `heroImage` (an Astro content collection)
    - `hugo`: `title`, `description`, `date`, `tags`, `author`, `cover`
@@ -2138,9 +2503,10 @@ above.
    which Pilcrino does not fill in this version; the cover image is saved
    with the post, and the theme shows it once you add it to the post by
    hand" and keep the default key. No theme found in the repo (an empty
-   Hugo site): ask the owner to paste the first lines (the part between
-   the `---` or `+++` markers) of one existing post, or keep the default
-   and say the first post's page is the check.
+   Hugo site): detailed path, ask the owner to paste the first lines (the
+   part between the `---` or `+++` markers) of one existing post, or keep
+   the default and say the first post's page is the check; quick path,
+   keep the default and say that, no question.
    Then `publish.markdown.frontmatter_keys`: the template's keys minus the
    draft key (`draft` for Hugo, `published` for Jekyll: the list never
    holds it, `draft_key` decides it; config-schema.md invariant 16), with
@@ -2179,8 +2545,28 @@ above.
    way as Hugo's: the template's keys minus the draft key).
 5. Repo platforms only (`astro`, `hugo`, `nextjs`, `eleventy`; skip for
    `jekyll`, `ghost`, `generic`): "How does your site serve a post's
-   images?" → `publish.markdown.image_url_prefix`. Offer two answers, the
-   platform's usual layout first as the default:
+   images?" → `publish.markdown.image_url_prefix`.
+   **Derive a folder-to-URL pair from the configuration first, both
+   paths.** The adapter uses the prefix verbatim for the cover and every
+   body image and adds no base path itself, so the deployment base (the
+   path in the site's own config: Hugo `baseURL`, Astro `base`, Next.js
+   `basePath`; else the path of the site address from Phase 1 question 2)
+   is prepended to the URL exactly once:
+   - `hugo`: folder `static/images` (or the `static` dir the config
+     names), URL `<base>/images`; `https://example.com/docs/` gives
+     `/docs/images`.
+   - `nextjs`: folder `public/images`, URL `<basePath>/images`.
+   - `eleventy`: only a folder the config actually passes to
+     `addPassthroughCopy`, at the URL it maps to (`{ "media": "assets" }`
+     gives folder `media`, URL `<base>/assets`); set `assets_dir` to that
+     folder. No passthrough in the config: the pair is not established.
+   - `astro`: relative paths, no prefix.
+   When the pair is established: detailed path, offer it as the first
+   menu option with "relative, my site copies the folder next to the
+   post" second; quick path, write it and state it in one line. When it
+   is not established (Eleventy without a passthrough, a Hugo config with
+   an unusual static layout): ask the menu below on both paths, counted
+   on the quick path. The two answers, the platform's usual layout first:
    - the usual layout for the platform:
      - `hugo`: files under `static/images/<slug>/`, served at `/images`
      - `nextjs`: files under `public/images/<slug>/`, served at `/images`
@@ -2223,18 +2609,14 @@ site is online and builds from GitHub." Paste platforms (`jekyll`, `ghost`,
 `generic`): "Before you approve each post, you paste it into <Platform>:
 Pilcrino hands you the post text ready to paste and opens the folder with
 its images, and lists the fields (title, description, date, tags, cover)
-one by one. Merging then files the post in this repository." Mention
-"or download the post's zip from the Pilcrino app" ONLY when this blog is
-registered with the app (`~/.pilcrino/console/blogs.json` lists this
-folder, or Phase 7 has already added a `console:` block); otherwise the
-app has not been introduced and the sentence confuses.
+one by one. Merging then files the post in this repository." 
 
 Verify the directories exist on disk:
 ```bash
 [ -d "<content_dir>" ] && [ -d "<assets_dir>" ] && echo "both exist" || echo "missing"
 ```
-If missing, offer to `mkdir -p` them; this adapter needs no site project in
-the repo.
+If missing, offer to `mkdir -p` them (an action, not counted); this
+adapter needs no site project in the repo.
 
 ### git: block (every adapter)
 
@@ -2320,19 +2702,21 @@ Either branch writes `{profile_dir}/site-conventions.md` (shape:
 `${CLAUDE_PLUGIN_ROOT}/templates/site-conventions.md`) and presents it to
 the user for confirmation before treating it as final, per that adapter
 section's own last step — never silently accepted, same as every other
-pre-filled doc in this wizard.
+pre-filled doc in this wizard. Quick path: the confirmation is the
+summary before the commit (Phase 6), one line ("Categories: <list>, from
+your site"), not a question here.
 
 **Cross-check `blog.trailing_slash`.** Both adapters' inspection procedures
 read the site's actual permalink format and compare it against
-`blog.trailing_slash` (set by Phase 1's Q12 directly, when its gate was
+`blog.trailing_slash` (set by Phase 1's Q11 directly, when its gate was
 open, or already corrected once by Phase 1.5(a)'s own pre-fill confirmation
 otherwise — either way, usually already correct by this point, but this
 cross-check is the final safety net regardless of which path set it). If
-they disagree, flag it loudly to the user instead of silently picking
-one — per each adapter's own note — then, once the user confirms which one
-is actually right, correct `blog.trailing_slash` in `config.yaml`
-(re-merge and rewrite the whole file, Global rule 4) to match the real
-site.
+they disagree, the live site is right: correct `blog.trailing_slash` in
+`config.yaml` (re-merge and rewrite the whole file, Global rule 4) to
+match it and say so in one plain sentence ("Your posts' addresses end
+with a slash on your site; I've matched that."). Detailed path: say it
+and move on; quick path: it is one summary line. Never a question.
 
 If `blog-ops/reference/site-research.md` does NOT exist (a brand-new blog,
 or the user declined Phase 1.5's offer), skip this section entirely —
@@ -2379,6 +2763,143 @@ This phase always runs in full on every invocation (no skip option — it's
 cheap and it's the whole point of the wizard). Owner's name for this part:
 "Final checks."
 
+### Two standing decisions (every blog)
+
+Ask these two, one per message, as menus, and merge the answers into
+`config.yaml` (whole-file rewrite, Global rule 4). Read each back in one
+sentence.
+
+1. **Plan approval → `review.plan_approval`.** "Before each post is
+   written, Pilcrino makes a plan (the title, the angle, the sections, which
+   competitors and product mentions it includes) and its own reviewer checks
+   it. Do you want to read and approve that plan yourself before the
+   writing starts, or let the reviewer's approval be enough?"
+   - "I approve each plan myself" (default) → `ask`. Read back: "You'll
+     see a short summary of each plan and say ok or ask for changes."
+   - "The reviewer's approval is enough" → `auto`. Read back: "Posts go
+     from plan to draft without waiting for you; you still review the
+     finished post."
+   Quick path: omit, `ask` when `review.plan_approval` is absent; when
+   the key is already on file (a resumed run, an earlier correction),
+   keep its value. Shown in the summary; a correction there is kept.
+2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
+   keeps its files on your repository's main branch: these setup files,
+   competitor fact sheets, and the content plan. Besides the setup commit
+   we're about to make, may it push those files to main later without
+   asking each time? This never includes a post: a post is always a pull
+   request that you merge, on GitHub or by telling Pilcrino "merge it"
+   after you approve it."
+   - "Yes, push them without asking" → `true`.
+   - "No, ask me each time" (default) → `false`.
+   Read back the choice in one sentence.
+   Quick path: ask, counted ("Pushing"), both paths; it comes right after
+   the adapter questions, before the summary.
+
+```yaml
+review:
+  plan_approval: <ask | auto>
+
+git:
+  branch_prefix: <as before>
+  base_branch: <as before>
+  push_without_asking: <true | false>
+```
+
+### Custom instructions (optional)
+
+Ask, as this phase's last question, regardless of invariant results:
+"Want to seed a `custom-instructions.md` for this blog? Standing
+instructions every stage of `blog-post-workflow` honors from here on —
+tone tweaks, hard bans, platform quirks — ranked below your own live
+instructions in any given conversation, but above this plugin's
+personas/standards defaults." To the owner: "Is there anything every post
+should always or never do (a phrase to avoid, a rule about your product,
+something about your platform)? Give it to me in your own words, or reply
+`none`."
+Quick path: omit, not asked, no file written.
+
+- **Yes** → collect the content (free-text, multi-line is fine — this is
+  the one profile doc with no fixed template shape). Write
+  `{profile_dir}/custom-instructions.md` with exactly what the user gave
+  you, verbatim, under a `# Custom instructions` heading if they didn't
+  already provide their own structure. No placeholder tokens to fill in
+  (Global rule 6 doesn't apply here — there's no template to leave gaps
+  in).
+- **No, or left blank** → skip. This doc is always optional per
+  config-schema.md's registered-doc list — no file is written, and no
+  invariant above depends on its presence.
+
+**Resume:** if `{profile_dir}/custom-instructions.md` already exists, read
+it, show a short summary, and apply Global rule 3 (keep as-is / update /
+start over) instead of asking from scratch.
+
+### Content plan and approval settings (always, both paths)
+
+Write these now, with no question and no mention of the app (§How to talk
+to the owner rule 8):
+
+1. `blog-ops/content-plan.md` from
+   `${CLAUDE_PLUGIN_ROOT}/templates/content-plan.md` **only if it does not
+   exist**; never overwrite or reorder an existing file, whatever it
+   holds. It is an empty table; `/pilcrino:plan-content` adds posts to it.
+   If the blog has an existing editorial-calendar file, do not copy its
+   rows in.
+2. The `console:` block from config-schema.md's defaults, merged into
+   `blog-ops/config.yaml` **only if absent**, through the whole-file
+   rewrite (Global rule 4), with `publish_policy: gated` for every
+   adapter. Say its one sentence: "Every post waits for your approval
+   before it goes live."
+Record both paths in Global rule 9's list. These two files are committed
+with the rest in the commit step below, and the summary that follows
+describes them in one line built from what is actually on file: the plan's
+row count ("Content plan: empty, ready for posts" or "Content plan: <N>
+posts, kept as they were") and the saved policy ("every post waits for
+your approval" for `gated`; for an existing `auto` block, "approved posts
+are merged without a further step", which the owner can change there).
+
+### The summary before the commit (both paths)
+
+Every decision and default is on file by now (the two standing decisions
+and custom instructions above are asked before this, on both paths; the
+quick path omits them as their lines say). Before any check runs and
+before the commit, print what setup is about to save, as a bulleted list
+in the message itself, directly above the menu. The list is the summary:
+never a sentence saying the summary is compiled, ready or on file in its
+place, and never a summary written to a file instead of the screen. One
+line per topic, in owner words, in this order: name and address, language, what the blog
+is about, mission and point of view (one line), tags, every post ends by pointing to <CTA target> with
+<hook>, how often it publishes, who reads it (and their pain points, one
+line), how it sounds (tone, credibility), who writes it (name, bio in a
+few words), your product (the feature list in full, with its sources, and
+the positioning rule, when the product module is on), competitors, images
+(kinds, colours and fonts in words), where posts go (adapter, site live or
+not, the posts' address shape `https://<host><route prefix><slug>` and
+whether it ends with a slash), research sources, plan approval, pushing,
+categories (when site-conventions was drafted).
+Mark each value by its origin: "(from your site)", "(from your
+repository)", "(standard)", or nothing for an answer the owner typed.
+Then `AskUserQuestion`: "Save this" / "Change something".
+
+"Change something" is **correction mode**, distinct from the interview:
+- The owner names a topic or a single line, in free text ("the tags",
+  "posts live under /articles/", "the tone is warmer than that").
+- For any derived or omitted value, take the owner's value directly,
+  including the ones no path asks about (route prefix,
+  trailing slash, tags, mission, point of view, pain points, image
+  colours, categories). When the owner asks for the questions instead
+  ("ask me about the voice"), run that topic's detailed questions
+  pre-filled with the current values.
+- Rewrite the affected files whole (Global rule 4) and refresh what
+  depends on them: images changed → rewrite `theme.ts` and re-render the
+  test image (Phase 4 steps 6 and 7); route prefix or trailing slash changed → rewrite `config.yaml`'s `blog:`
+  block and §Permalinks in `site-conventions.md` when that file exists;
+  plan approval or pushing changed → rewrite the `review:` or `git:` block
+  (a correction here is final: nothing after the summary writes those
+  keys again).
+- Print the summary again and ask again. Loop until "Save this".
+
+Only then: the validator, the commit question, the commit.
+
 ### Run the validator (invariants 1 to 16)
 
 Run the plugin's validator from the blog folder:
@@ -2393,8 +2914,10 @@ fresh Mac needs no YAML library of its own; never improvise a `pip` or
 docs, checks config-schema.md's invariants 1 to 16 and prints one
 plain-words line per check and a last line, `All N checks pass` or the
 failing checks, exiting 1 on failure. Never hand-check the invariants or
-write a parser of your own; never show the owner a stack trace. Show the
-owner the last line, and for each failing check its plain-words line.
+write a parser of your own; never show the owner a stack trace. To the
+owner, say "Checks passed" when the last line is `All N checks pass`
+(never the count, never "pass by vacuity"), and for each failing check its
+plain-words line.
 
 The table below documents what the script checks, for the model reading
 this file; the owner sees the script's lines, not this table.
@@ -2421,10 +2944,9 @@ this file; the owner sees the script's lines, not this table.
 For each failing check: identify which earlier phase owns the gap, jump
 back into that phase's interview (pre-filled with whatever's already
 known), fix it, rewrite the artifact, then re-run the validator. Continue
-until it prints `All N checks pass`. Invariants 10-11's `console` part is
-normally vacuous here since Phase 7 (which writes the `console:` block)
-runs after this phase; Phase 7 re-runs the validator once that block
-exists. This wizard has no interview step for `social.linkedin` (invariant
+until it prints `All N checks pass`. The `console:` block is already on
+file (written just above), so invariants 10 and 11 check it here, in this
+one run. This wizard has no interview step for `social.linkedin` (invariant
 13); the operator adds that block to `config.yaml` by hand per
 `config-schema.md` §Schema.
 
@@ -2464,72 +2986,6 @@ exists. This wizard has no interview step for `social.linkedin` (invariant
   work, or answering "yes, research it" if Phase 1.5 was declined — but
   don't block handoff on it; this is advisory, not one of the ✅/❌ rows
   above.
-
-### Two standing decisions (every blog)
-
-Ask these two, one per message, as menus, and merge the answers into
-`config.yaml` (whole-file rewrite, Global rule 4). Read each back in one
-sentence.
-
-1. **Plan approval → `review.plan_approval`.** "Before each post is
-   written, Pilcrino makes a plan (the title, the angle, the sections, which
-   competitors and product mentions it includes) and its own reviewer checks
-   it. Do you want to read and approve that plan yourself before the
-   writing starts, or let the reviewer's approval be enough?"
-   - "I approve each plan myself" (default) → `ask`. Read back: "You'll
-     see a short summary of each plan and say ok or ask for changes."
-   - "The reviewer's approval is enough" → `auto`. Read back: "Posts go
-     from plan to draft without waiting for you; you still review the
-     finished post."
-   Say once that the Pilcrino app, if used, has its own approval screens
-   and ignores this setting.
-2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
-   keeps its files on your repository's main branch: these setup files,
-   competitor fact sheets, and the content plan. Besides the setup commit
-   we're about to make, may it push those files to main later without
-   asking each time? This never includes a post: a post is always a pull
-   request that you merge, on GitHub or by telling Pilcrino "merge it"
-   after you approve it."
-   - "Yes, push them without asking" → `true`.
-   - "No, ask me each time" (default) → `false`.
-   Read back the choice in one sentence.
-
-```yaml
-review:
-  plan_approval: <ask | auto>
-
-git:
-  branch_prefix: <as before>
-  base_branch: <as before>
-  push_without_asking: <true | false>
-```
-
-### Custom instructions (optional)
-
-Ask, as this phase's last question, regardless of invariant results:
-"Want to seed a `custom-instructions.md` for this blog? Standing
-instructions every stage of `blog-post-workflow` honors from here on —
-tone tweaks, hard bans, platform quirks — ranked below your own live
-instructions in any given conversation, but above this plugin's
-personas/standards defaults." To the owner: "Is there anything every post
-should always or never do (a phrase to avoid, a rule about your product,
-something about your platform)? Give it to me in your own words, or reply
-`none`."
-
-- **Yes** → collect the content (free-text, multi-line is fine — this is
-  the one profile doc with no fixed template shape). Write
-  `{profile_dir}/custom-instructions.md` with exactly what the user gave
-  you, verbatim, under a `# Custom instructions` heading if they didn't
-  already provide their own structure. No placeholder tokens to fill in
-  (Global rule 6 doesn't apply here — there's no template to leave gaps
-  in).
-- **No, or left blank** → skip. This doc is always optional per
-  config-schema.md's registered-doc list — no file is written, and no
-  invariant above depends on its presence.
-
-**Resume:** if `{profile_dir}/custom-instructions.md` already exists, read
-it, show a short summary, and apply Global rule 3 (keep as-is / update /
-start over) instead of asking from scratch.
 
 ### Commit and push the setup files (with consent)
 
@@ -2638,8 +3094,10 @@ recorded, in this order:
    site: a draft switch and optional tags>. Shall I commit them and push
    them to `<base branch>` on GitHub now? If your site rebuilds from
    GitHub, this push starts a build; no post is affected. Options: push
-   now (recommended) / commit here only, push later / not yet."
-   Right before committing (either answer that commits), re-check the
+   now (recommended) / not yet."
+   This is counted and prefixed like every other question ("Question N
+   of T"; on the quick path it is the last one, so N equals T).
+   Right before committing (on "push now"), re-check the
    branch:
    ```bash
    cd "<blog folder>" || exit 1
@@ -2689,96 +3147,54 @@ recorded, in this order:
      through", show git's output from the push and the check, name any
      missing file in plain words, and never report setup as pushed. The
      commit is still saved in this folder.
-   - **Commit only**: commit, say the first post will ask to push before it
-     can open a pull request.
    - **Not yet**: do not move the branch (the built commit is simply left
      unused); say the same, and that nothing is lost.
-   After a commit, empty the paths list (`: > "$P"`) and keep `$B` for
-   Phase 7; on "not yet" keep both, so the next run commits the same
-   files.
-   Run this before Phase 7 so the `console:` block, when added there, gets
-   its own small commit under the same consent (push it too when the owner
-   chose "push now" and `git.push_without_asking` or a one-line question
-   allows it).
+   After a commit, empty the paths list (`: > "$P"`) and keep `$B` for a
+   later correction commit (the What next menu's "Change a setup answer":
+   its changed paths are recorded in `$P` again by Global rule 9 and
+   excluded against the same `$B`); on "not yet" keep both, so the next
+   run commits the same files.
 
-### Handoff
+### Counting the detailed path
 
-Once the validator passes and the files are committed (or the owner chose
-otherwise), do NOT print the completion message yet: first run Phase 7
-(offer the optional autopilot console). Phase 7 is where the terminal
-"Setup complete" message is printed, on BOTH its branches (accept or
-decline), so the optional console phase is always offered BEFORE the flow
-declares itself done. Proceed to Phase 7 now.
+Filled from the question lists above; Global rule 10 reads it. T on the
+detailed path, before any yes adds a block:
 
-## Phase 7 — Console & content plan (optional)
+| Adapter | Base T | Made of |
+|---|---|---|
+| astro-git-pr | 54 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 4 |
+| wordpress-rest | 52 | as above with publishing 5 (folders, address, username) |
+| markdown | 53 | as above with publishing 6 (folders, platform, image serving) |
 
-Owner's name for this part: "The Pilcrino app (optional)." Offer, don't
-push: "Pilcrino can also run as an app: it writes posts in the background
-on a schedule and gives you a browser dashboard to approve them. Do you
-want this blog ready for it? You can add this any time later." Default:
-not now.
+The table is the existing-blog case. Recompute T from the branch
+actually taken, at the moment it is taken: a brand-new blog answers only
+the first live-site question (research 1, so -3); a second author adds
+its details and the co-signed-voice question (+2), each later author +1;
+product on +9; competitors on +3 (names, timing, folder); writing
+samples present -1 (the sample pass
+answers tone and lexicon and adds its own confirmation; credibility,
+anecdotes, positioning, forbidden phrases and the allowlist are still
+asked). Say the new total once when a yes changes it. The identity count
+excludes the tags and the route prefix, derived on both paths, and the
+trailing slash, which is read for every known platform.
 
-If yes:
-1. Scaffold `blog-ops/content-plan.md` from `${CLAUDE_PLUGIN_ROOT}/templates/content-plan.md`
-   (skip if present). It is an empty table; posts are added with
-   `/pilcrino:plan-content` (standalone until the app connects this blog,
-   then the app imports the file once and owns the list). If the blog has an
-   existing editorial-calendar file, do not copy its rows into this file;
-   tell the owner to add those posts with `/pilcrino:plan-content`.
-2. Add the `console:` block from references/config-schema.md defaults to
-   `blog-ops/config.yaml` (skip if already present). **Write it via the
-   whole-file rewrite mechanism (Global rule 4), NOT an append.** Write
-   `publish_policy: gated` for every adapter and say its one sentence to
-   the owner: "The app will never publish a post on its own: every post
-   waits for your approval in the dashboard" (for `astro-git-pr` add: "you
-   can switch the app to merge approved Astro posts by itself later, from
-   its settings"). For `wordpress-rest` and `markdown` blogs `gated` is the
-   only valid value (invariant 10: WordPress go-live is manual, and every
-   markdown post waits for the owner's approval).
-3. Say where the app is: "The Pilcrino app is at https://pilcrino.com. Once
-   installed, connect this folder from its dashboard; it imports
-   `blog-ops/content-plan.md` into its post list on connect."
-4. Re-run the validator (`validate-config.mjs`, invariants 1 to 16, with
-   invariants 10 and 11's console part no longer vacuous since the
-   `console:` block now exists).
-5. Commit `blog-ops/content-plan.md` and the config change under the
-   consent given in Phase 6 (push too when the owner chose "push now"),
-   exactly as Phase 6 steps 2 and 3 do: the two lists by full path
-   (`git -C "<blog folder>" rev-parse --absolute-git-dir`), the commit
-   built in its own index from those two paths only (Global rule 9 listed
-   them again after Phase 6 emptied the list), `blog-ops/config.yaml`
-   shown and asked about when it held the owner's own unsaved change
-   before setup, `git show --stat` of the built commit shown before
-   anything moves, the same branch checks, then `git update-ref`, `git
-   reset -q --` for the two paths, `git push origin <base branch>`, and
-   the same two checks before saying it was pushed: after `git fetch
-   origin <base branch>`, `git merge-base --is-ancestor <commit>
-   origin/<base branch>` must succeed for this new commit, and
-   `origin/<base branch>` must hold `blog-ops/config.yaml`. When either
-   fails, say "The push to GitHub didn't go through", show git's output,
-   and do not report it as pushed.
-6. Then print the terminal completion message (below).
+### Completion (both paths)
 
-**Resume:** if `blog-ops/content-plan.md` and/or `config.yaml`'s `console:`
-block already exist, summarize what's on file and apply Global rule 3 (keep
-as-is / update / start over) instead of re-offering from scratch.
-
-**If no:** skip the console scaffolding entirely, no files written. This phase
-can be run again later — nothing else in the wizard depends on it. Then print
-the terminal completion message (below).
-
-### Completion (printed at the end of Phase 7, both branches)
-
-Whether the operator accepted or declined the console, close the wizard
-with a short recap in owner words and then the exact last line. When the
-setup files were committed, first delete the two lists (Phase 0b's and Global rule 9's) in
-git's own folder: `rm -f "$(git -C "<blog folder>" rev-parse
---absolute-git-dir)"/pilcrino-setup-{paths,before}`; when they were not,
-keep them for the next run. The recap,
-at most eight lines, in this order:
+Close the wizard with a short recap in owner words and then the What next
+menu. The two lists in git's own folder (Phase 0b's and Global rule 9's)
+are deleted only when the owner leaves the What next menu with anything
+other than "Change a setup answer", and only when the setup files were
+committed: `rm -f "$(git -C "<blog folder>" rev-parse
+--absolute-git-dir)"/pilcrino-setup-{paths,before}`; when they were not
+committed, keep them for the next run. The recap is a bulleted list,
+one bullet per line below, in this order, at most eight in all, and
+nothing else: never a paragraph, no sentence about files being safe,
+about what a push is for, or about re-running setup, beyond what line 1
+says.
 
 1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
-   (or "committed, not pushed yet" / "not committed yet"). Say "pushed"
+   (or "`<folder>`, not committed yet; run `/pilcrino:blog-setup` again
+   when you want it on GitHub"). Say "pushed"
    only when Phase 6's check found `blog-ops/config.yaml` and the profile
    docs on `origin/<base branch>`; a setup commit that left one of them out
    is "not committed yet", with the file named.
@@ -2798,11 +3214,40 @@ at most eight lines, in this order:
    post: quit Claude Code, open a new Terminal window, and start Claude
    Code again in `<folder>`, so it can read your WordPress password"). Never
    a git task, never a file to edit by hand.
-6. If the app was set up: "The Pilcrino app is at https://pilcrino.com;
-   connect this folder from its dashboard."
 
-Then print exactly:
+Then ask, with `AskUserQuestion`, "What next?", at most four options, in
+this order:
+
+1. "Plan a batch of posts (research, about half an hour, unattended)" →
+   run `${CLAUDE_PLUGIN_ROOT}/skills/plan-content/SKILL.md` in this
+   session, the way Phase 3.5 hands off to the research skill.
+2. "Write a post now" → run
+   `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` with the
+   argument `new`.
+3. When `modules.competitors` is on: "Research a competitor" → run
+   `${CLAUDE_PLUGIN_ROOT}/skills/research-competitor/SKILL.md` for the
+   competitor the owner names.
+4. "Something else" → a second menu: "Change a setup answer" / "Nothing
+   now, show me the commands".
+When `modules.competitors` is off there is no submenu: option 3 is
+"Change a setup answer" and option 4 is "Nothing now, show me the
+commands".
+
+"Change a setup answer" re-enters correction mode (the summary before the
+commit, above) on what is on file. After "Save this": run the validator
+again, then build and make a second commit of the changed paths exactly
+as the commit step does, under the consent the owner gave there (push too
+when they chose "push now"; "not yet" leaves the
+change in the folder uncommitted, and say so), with the same two checks
+before saying it was pushed. Then print the recap and the What next menu
+again; the recap's first line says "pushed" only when that second push
+passed them.
+
+"Nothing now, show me the commands" prints three lines, one per command,
+in plain words:
 
 ```
-Setup complete. Run `/pilcrino:blog-post-workflow new` to write your first post, or `/pilcrino:plan-content` to plan a batch of posts first (about 30 minutes, unattended).
+To plan a batch of posts:   /pilcrino:plan-content
+To write a post:            /pilcrino:blog-post-workflow new
+To change a setup answer:   /pilcrino:blog-setup
 ```
