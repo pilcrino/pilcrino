@@ -267,7 +267,9 @@ test('cli: exits 2 on a usage error', () => {
 })
 
 test('cli: exits 1 on a write error', () => {
-  const r = spawnSync(process.execPath, [SCRIPT, '--dir', DIR, '--base', 'main', '--out', '/dev/null/snap'], { cwd: work, encoding: 'utf8' })
+  // A path under a regular file cannot be created on any platform (/dev/null/... only fails on Unix).
+  writeFileSync(join(work, 'not-a-dir'), '')
+  const r = spawnSync(process.execPath, [SCRIPT, '--dir', DIR, '--base', 'main', '--out', join(work, 'not-a-dir', 'snap')], { cwd: work, encoding: 'utf8' })
   assert.equal(r.status, 1)
   assert.notEqual(r.stderr, '')
 })
