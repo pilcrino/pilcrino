@@ -9,19 +9,30 @@
 // left behind), the lock still names a live process, so no other installer
 // reclaims it and runs a second npm over the same tree. The record is written
 // whole through a temporary file and a rename: a lock is never empty, not even
-// for an instant.
+// for an instant. When the lock is gone or already belongs to another
+// installer (the parent died before this wrapper ran and a successor took
+// over), npm is NOT started: exit 75 tells the caller the lock was lost.
 import { spawnSync } from 'node:child_process'
-import { readFileSync, renameSync, writeFileSync } from 'node:fs'
+import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+
+export const LOCK_LOST = 75
 
 const [lock, owner, file, ...args] = process.argv.slice(2)
+let registered = false
+const tmp = `${lock}.${process.pid}.npm`
 try {
-  const current = readFileSync(lock, 'utf8').split('\n')[0].trim()
-  if (current === owner) {
-    const tmp = `${lock}.${process.pid}.npm`
+  if (readFileSync(lock, 'utf8').split('\n')[0].trim() === owner) {
     writeFileSync(tmp, `${owner}\n${process.pid}`)
     renameSync(tmp, lock)
+    registered = readFileSync(lock, 'utf8') === `${owner}\n${process.pid}`
   }
-} catch {}
+} catch {
+  rmSync(tmp, { force: true })
+}
+if (!registered) {
+  process.stderr.write(`pilcrino-browser: the install lock ${lock} is no longer held by ${owner}; npm not started\n`)
+  process.exit(LOCK_LOST)
+}
 const r = spawnSync(file, args, { stdio: 'inherit' })
 if (r.error) {
   process.stderr.write(`${r.error.message}\n`)

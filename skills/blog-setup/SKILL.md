@@ -2112,11 +2112,16 @@ Verify the directories exist on disk:
    else { Set-Content -Path "$PSScriptRoot\result.txt" -Value "not stored" }
    PS
    sed -i "s/BLOG_NAME/<blog name>/; s/VAR_NAME/<name>/" "$D/ask.ps1"
-   powershell -NoProfile -Command "Start-Process powershell -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','$(cygpath -w "$D/ask.ps1")'"
+   cat > "$D/launch.ps1" <<'PS'
+   $ask = Join-Path $PSScriptRoot 'ask.ps1'
+   Start-Process powershell -Wait -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $ask + '"'))
+   PS
+   powershell -NoProfile -ExecutionPolicy Bypass -File "$(cygpath -w "$D/launch.ps1")"
    cat "$D/result.txt" 2>/dev/null || echo "not stored"; rm -rf "$D"
    ```
-   (The prompt script is a file, so neither bash nor the outer PowerShell
-   expands anything in it; `Read-Host -AsSecureString` hides the typing;
+   (Both scripts are files, so neither bash nor the outer PowerShell
+   expands anything in them, and the launcher quotes the prompt script's
+   path itself, which matters under a user name with a space; `Read-Host -AsSecureString` hides the typing;
    the value goes to `SetEnvironmentVariable(..., "User")` inside that
    window's own PowerShell process and is never on a command line Pilcrino
    builds; only the word `stored` or `not stored` comes back through the

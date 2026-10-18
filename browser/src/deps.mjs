@@ -67,11 +67,19 @@ function lockIsMine(lock) {
  * for an instant, and an empty lock reads as stale).
  */
 function recordNpmPid(lock, pid) {
-  if (pid && lockIsMine(lock)) {
-    const tmp = `${lock}.${process.pid}.npm`
-    try { writeFileSync(tmp, `${process.pid}\n${pid}`); renameSync(tmp, lock) } catch { rmSync(tmp, { force: true }) }
+  if (!pid || !lockIsMine(lock)) return false
+  const tmp = `${lock}.${process.pid}.npm`
+  try {
+    writeFileSync(tmp, `${process.pid}\n${pid}`)
+    renameSync(tmp, lock)
+    return readLock(lock)?.text === `${process.pid}\n${pid}`
+  } catch {
+    rmSync(tmp, { force: true })
+    return false
   }
 }
+
+const LOCK_LOST_STATUS = 75
 
 /** Removes the lock only when it holds this process's PID. */
 function releaseLock(lock) {
@@ -202,6 +210,8 @@ export function ensureInstalled(root, deps = {}) {
       // caller killed hard mid-install still leaves a lock that reads as held while npm writes.
       const r = spawnSync(process.execPath, [NPM_RUN, lock, String(process.pid), file, ...args], { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
       if (r.error?.code === 'ENOENT' || r.status === 127) throw npmMissing(root)
+      // The wrapper found the lock gone or taken before npm started: another installer owns the tree now.
+      if (r.status === LOCK_LOST_STATUS) { lostLock(lock); continue }
       if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
       if (!lockIsMine(lock)) { lostLock(lock); continue }
@@ -251,11 +261,19 @@ export async function installAsync(root, deps = {}) {
         let file, args
         try { [file, args] = npmCommand(root, deps) } catch (err) { reject(err); return }
         const child = spawn(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
-        recordNpmPid(lock, child.pid)
+        // A child without a pid never started (its 'error' follows); a started one must be on the lock.
+        if (child.pid !== undefined && !recordNpmPid(lock, child.pid)) {
+          // The lock is no longer ours (or could not be updated): this npm must not write. Stop it now.
+          try { child.kill('SIGKILL') } catch {}
+          child.on?.('error', () => {})
+          resolve(LOCK_LOST_STATUS)
+          return
+        }
         deps.onSpawn?.(child)
         child.on('error', (err) => reject(err.code === 'ENOENT' ? npmMissing(root) : err))
         child.on('close', (status, signal) => resolve(status ?? signal))
       })
+      if (code === LOCK_LOST_STATUS) { lostLock(lock); continue }
       if (code !== 0) throw new Error(`npm install failed in ${root} (exit ${code})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
       if (!lockIsMine(lock)) { lostLock(lock); continue }
