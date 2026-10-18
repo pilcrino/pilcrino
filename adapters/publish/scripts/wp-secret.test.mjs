@@ -1,4 +1,7 @@
 import { test } from 'node:test'
+
+// The script runs under Git Bash on Windows; this suite spawns bash with a Unix PATH and stubs, so it runs on macOS and Linux only.
+const unixOnly = process.platform === 'win32' ? 'runs the bash script with Unix stubs; skipped on Windows' : false
 import assert from 'node:assert/strict'
 import { mkdtempSync, mkdirSync, writeFileSync, chmodSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
@@ -65,7 +68,7 @@ publish:
     username: blogbot
 `
 
-test('env var set: prints its value, nothing on stderr', () => {
+test('env var set: prints its value, nothing on stderr', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n', {
     env: { FIELDSTACK_WP_APP_PASSWORD: 'env-secret aaaa bbbb' },
   })
@@ -74,7 +77,7 @@ test('env var set: prints its value, nothing on stderr', () => {
   assert.equal(r.stderr, '')
 })
 
-test('env var unset: nothing on stdout, one line naming the variable, exit 1', () => {
+test('env var unset: nothing on stdout, one line naming the variable, exit 1', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n')
   assert.equal(r.status, 1)
   assert.equal(r.stdout, '')
@@ -82,20 +85,20 @@ test('env var unset: nothing on stdout, one line naming the variable, exit 1', (
   assert.equal(r.stderr.trim().split('\n').length, 1)
 })
 
-test('keychain key present: reads the item for the configured username via security', () => {
+test('keychain key present: reads the item for the configured username via security', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_keychain: pilcrino-wp-fieldstack\n')
   assert.equal(r.status, 0)
   assert.equal(r.stdout, 'kc-secret xxxx yyyy\n')
   assert.equal(r.stderr, '')
 })
 
-test('keychain key quoted and commented: still resolves', () => {
+test('keychain key quoted and commented: still resolves', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_keychain: "pilcrino-wp-fieldstack"  # where setup stored it\n')
   assert.equal(r.status, 0)
   assert.equal(r.stdout, 'kc-secret xxxx yyyy\n')
 })
 
-test('keychain item missing: nothing on stdout, the reason names service and account, exit 1', () => {
+test('keychain item missing: nothing on stdout, the reason names service and account, exit 1', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_keychain: pilcrino-wp-other\n')
   assert.equal(r.status, 1)
   assert.equal(r.stdout, '')
@@ -103,14 +106,14 @@ test('keychain item missing: nothing on stdout, the reason names service and acc
   assert.doesNotMatch(r.stderr, /kc-secret/)
 })
 
-test('neither key set: exit 1 with the invariant named', () => {
+test('neither key set: exit 1 with the invariant named', { skip: unixOnly }, () => {
   const r = run(base, { env: { FIELDSTACK_WP_APP_PASSWORD: 'should-not-leak' } })
   assert.equal(r.status, 1)
   assert.equal(r.stdout, '')
   assert.match(r.stderr, /neither publish\.wordpress\.app_password_env nor app_password_keychain is set .*invariant 15/)
 })
 
-test('CRLF line endings: the env var is still found', () => {
+test('CRLF line endings: the env var is still found', { skip: unixOnly }, () => {
   const crlf = (base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n').replace(/\n/g, '\r\n')
   const r = run(crlf, { env: { FIELDSTACK_WP_APP_PASSWORD: 'crlf-secret' } })
   assert.equal(r.status, 0)
@@ -118,7 +121,7 @@ test('CRLF line endings: the env var is still found', () => {
   assert.equal(r.stderr, '')
 })
 
-test('both keys set: exit 1, nothing printed even though both would resolve', () => {
+test('both keys set: exit 1, nothing printed even though both would resolve', { skip: unixOnly }, () => {
   const r = run(base + '    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n    app_password_keychain: pilcrino-wp-fieldstack\n', {
     env: { FIELDSTACK_WP_APP_PASSWORD: 'env-secret' },
   })
@@ -127,7 +130,7 @@ test('both keys set: exit 1, nothing printed even though both would resolve', ()
   assert.match(r.stderr, /both .* are set/)
 })
 
-test('keys outside publish.wordpress are ignored, before and after the block', () => {
+test('keys outside publish.wordpress are ignored, before and after the block', { skip: unixOnly }, () => {
   const cfg = `publish:
   adapter: wordpress-rest
   astro:
@@ -143,7 +146,7 @@ git:
   assert.equal(r.stdout, 'right\n')
 })
 
-test('missing config path: exit 1', () => {
+test('missing config path: exit 1', { skip: unixOnly }, () => {
   const r = spawnSync('bash', [script, '/nonexistent/config.yaml'], { encoding: 'utf8', env: { PATH: '/usr/bin:/bin' } })
   assert.equal(r.status, 1)
   assert.equal(r.stdout, '')

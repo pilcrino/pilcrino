@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync, chmodSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -18,17 +18,21 @@ test('first start without node_modules answers initialize at once and hands over
   mkdirSync(root)
   for (const f of ['bin.mjs', 'package.json', 'package-lock.json']) cpSync(join(browser, f), join(root, f))
   cpSync(join(browser, 'src'), join(root, 'src'), { recursive: true })
-  // A fake npm first on PATH: slow, then links the real packages in one by one, so the
-  // stamp the installer writes lands in the temp folder and not in the real node_modules.
-  const fakeBin = join(dir, 'bin')
-  mkdirSync(fakeBin)
-  writeFileSync(join(fakeBin, 'npm'), `#!/bin/sh\nsleep 1.5\nmkdir -p node_modules\nln -s "${realModules}"/* node_modules/\n`)
-  chmodSync(join(fakeBin, 'npm'), 0o755)
+  // A fake npm (PILCRINO_NPM_CLI, run under this node on every platform): slow,
+  // then links the real packages in one by one, so the stamp the installer
+  // writes lands in the temp folder and not in the real node_modules.
+  const fakeNpm = join(dir, 'fake-npm-cli.js')
+  writeFileSync(fakeNpm, `const fs = require('node:fs'); const path = require('node:path')
+setTimeout(() => {
+  fs.mkdirSync('node_modules', { recursive: true })
+  for (const e of fs.readdirSync(${JSON.stringify(realModules)})) fs.symlinkSync(path.join(${JSON.stringify(realModules)}, e), path.join('node_modules', e), 'junction')
+}, 1500)
+`)
 
   const t0 = Date.now()
   const child = spawn(process.execPath, [join(root, 'bin.mjs')], {
     cwd: root,
-    env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}` },
+    env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stderr = ''

@@ -1,10 +1,11 @@
-// Real processes contending for browser/.install.lock, with a fake npm on PATH
+// Real processes contending for browser/.install.lock, with a fake npm (a
+// script named by PILCRINO_NPM_CLI, run under this node on every platform)
 // that logs when each run starts and ends. No packages are needed: the shim
 // and `node bin.mjs install` only use node: modules until the install is done.
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
-import { chmodSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -15,8 +16,7 @@ const version = JSON.parse(readFileSync(join(browser, 'package.json'), 'utf8')).
 // FAKE_NPM_MS: how long a run takes. FAKE_NPM_TERM_DELAY_MS: on SIGTERM, keep
 // running this long before exiting (npm finishing a write). Each run appends
 // "start <pid> <t>" and "end <pid> <t>" to FAKE_NPM_LOG.
-const FAKE_NPM = `#!${process.execPath}
-const fs = require('node:fs')
+const FAKE_NPM = `const fs = require('node:fs')
 const log = process.env.FAKE_NPM_LOG
 const now = () => performance.timeOrigin + performance.now()
 fs.appendFileSync(log, 'start ' + process.pid + ' ' + now() + '\\n')
@@ -40,13 +40,11 @@ function sandbox() {
   mkdirSync(root)
   for (const f of ['bin.mjs', 'package.json']) cpSync(join(browser, f), join(root, f))
   cpSync(join(browser, 'src'), join(root, 'src'), { recursive: true })
-  const fakeBin = join(dir, 'bin')
-  mkdirSync(fakeBin)
-  writeFileSync(join(fakeBin, 'npm'), FAKE_NPM)
-  chmodSync(join(fakeBin, 'npm'), 0o755)
+  const fakeNpm = join(dir, 'fake-npm-cli.js')
+  writeFileSync(fakeNpm, FAKE_NPM)
   const log = join(dir, 'npm.log')
   writeFileSync(log, '')
-  return { dir, root, log, env: { ...process.env, PATH: `${fakeBin}:${process.env.PATH}`, FAKE_NPM_LOG: log } }
+  return { dir, root, log, env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm, FAKE_NPM_LOG: log } }
 }
 
 function runs(log) {
@@ -80,7 +78,8 @@ const until = async (pred, ms = 10_000) => {
   }
 }
 
-test('a signal mid-install keeps the lock until npm has exited', { timeout: 30_000 }, async () => {
+// On Windows a kill is TerminateProcess: the fake npm cannot delay its exit, so the lock-holding part of this test has no meaning there.
+test('a signal mid-install keeps the lock until npm has exited', { timeout: 30_000, skip: process.platform === 'win32' && 'SIGTERM is a hard kill on Windows' }, async () => {
   const sb = sandbox()
   try {
     // The shim (no command) starts npm at once; this npm runs long and takes 1 s to stop on SIGTERM.
