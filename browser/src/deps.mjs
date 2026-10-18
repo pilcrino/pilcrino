@@ -1,5 +1,5 @@
 import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from 'node:child_process'
-import { existsSync, linkSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { appendFileSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { dirname, join, win32 } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -62,22 +62,24 @@ function lockIsMine(lock) {
 
 /**
  * Adds npm's PID to our own lock, so a stale-lock check sees the installer
- * that is still running. Written whole through a temporary file and a rename,
- * so a contender never reads an empty lock (a truncating write would show one
- * for an instant, and an empty lock reads as stale).
+ * that is still running. Appended as a second line: the owner line a
+ * contender reads is never touched (a truncating write would show an empty
+ * lock for an instant, and an empty lock reads as stale), and an append needs
+ * no rename, which Windows refuses while another process has the file open.
  */
 function recordNpmPid(lock, pid) {
   if (!pid || !lockIsMine(lock)) return false
-  const tmp = `${lock}.${process.pid}.npm`
   try {
-    writeFileSync(tmp, `${process.pid}\n${pid}`)
-    renameSync(tmp, lock)
+    appendFileSync(lock, `\n${pid}`)
     return readLock(lock)?.text === `${process.pid}\n${pid}`
   } catch {
-    rmSync(tmp, { force: true })
     return false
   }
 }
+
+// Laps of "another installer took the lock" before giving up: a lock that is
+// lost every time means something keeps rewriting it, not a contender.
+const LOST_LOCK_MAX = 5
 
 const LOCK_LOST_STATUS = 75
 
@@ -172,8 +174,9 @@ export function npmCommand(root, { platform = process.platform, env = process.en
 
 const npmEnv = () => ({ ...process.env, npm_config_loglevel: 'error' })
 
-function lostLock(lock) {
+function lostLock(lock, laps) {
   process.stderr.write(`pilcrino-browser: another installer took ${lock} during npm install; waiting for its result\n`)
+  if (laps >= LOST_LOCK_MAX) throw new Error(`the install lock ${lock} was lost ${laps} times in a row; remove it and retry`)
 }
 
 /**
@@ -190,6 +193,7 @@ export function ensureInstalled(root, deps = {}) {
   if (stamped()) return { installed: false }
 
   const start = d.now()
+  let lost = 0
   for (;;) {
     const state = tryLock(lock, d)
     if (state === 'retry') continue
@@ -211,10 +215,10 @@ export function ensureInstalled(root, deps = {}) {
       const r = spawnSync(process.execPath, [NPM_RUN, lock, String(process.pid), file, ...args], { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
       if (r.error?.code === 'ENOENT' || r.status === 127) throw npmMissing(root)
       // The wrapper found the lock gone or taken before npm started: another installer owns the tree now.
-      if (r.status === LOCK_LOST_STATUS) { lostLock(lock); continue }
+      if (r.status === LOCK_LOST_STATUS) { lostLock(lock, ++lost); continue }
       if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
-      if (!lockIsMine(lock)) { lostLock(lock); continue }
+      if (!lockIsMine(lock)) { lostLock(lock, ++lost); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }
@@ -242,6 +246,7 @@ export async function installAsync(root, deps = {}) {
   if (stamped()) return { installed: false }
 
   const start = d.now()
+  let lost = 0
   for (;;) {
     const state = tryLock(lock, d)
     if (state === 'retry') continue
@@ -273,10 +278,10 @@ export async function installAsync(root, deps = {}) {
         child.on('error', (err) => reject(err.code === 'ENOENT' ? npmMissing(root) : err))
         child.on('close', (status, signal) => resolve(status ?? signal))
       })
-      if (code === LOCK_LOST_STATUS) { lostLock(lock); continue }
+      if (code === LOCK_LOST_STATUS) { lostLock(lock, ++lost); continue }
       if (code !== 0) throw new Error(`npm install failed in ${root} (exit ${code})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
-      if (!lockIsMine(lock)) { lostLock(lock); continue }
+      if (!lockIsMine(lock)) { lostLock(lock, ++lost); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }

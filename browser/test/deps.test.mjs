@@ -364,6 +364,7 @@ test('npm-run.mjs names itself on the lock before npm starts, then passes npm\'s
   const seen = readFileSync(lock + '.seen', 'utf8').split('\n')
   assert.equal(seen[0], String(process.pid))
   assert.match(seen[1], /^\d+$/)
+  writeFileSync(lock, String(process.pid)) // a fresh lock, as the installer links one per attempt
   const missing = spawnSync(process.execPath, [wrapper, lock, String(process.pid), join(d, 'no-such-npm'), 'install'], { encoding: 'utf8' })
   assert.equal(missing.status, 127)
 })

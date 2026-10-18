@@ -7,28 +7,25 @@
 // own PID as the second line before npm starts writing. If the installer is
 // killed hard while npm runs (on Windows a kill runs no handler, and npm is
 // left behind), the lock still names a live process, so no other installer
-// reclaims it and runs a second npm over the same tree. The record is written
-// whole through a temporary file and a rename: a lock is never empty, not even
-// for an instant. When the lock is gone or already belongs to another
+// reclaims it and runs a second npm over the same tree. The PID is appended as
+// a second line, so the owner line is never touched and no rename is needed
+// (Windows refuses one while another process reads the file). When the lock
+// is gone or already belongs to another
 // installer (the parent died before this wrapper ran and a successor took
 // over), npm is NOT started: exit 75 tells the caller the lock was lost.
 import { spawnSync } from 'node:child_process'
-import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { appendFileSync, readFileSync } from 'node:fs'
 
 export const LOCK_LOST = 75
 
 const [lock, owner, file, ...args] = process.argv.slice(2)
 let registered = false
-const tmp = `${lock}.${process.pid}.npm`
 try {
-  if (readFileSync(lock, 'utf8').split('\n')[0].trim() === owner) {
-    writeFileSync(tmp, `${owner}\n${process.pid}`)
-    renameSync(tmp, lock)
+  if (readFileSync(lock, 'utf8').trim() === owner) {
+    appendFileSync(lock, `\n${process.pid}`)
     registered = readFileSync(lock, 'utf8') === `${owner}\n${process.pid}`
   }
-} catch {
-  rmSync(tmp, { force: true })
-}
+} catch {}
 if (!registered) {
   process.stderr.write(`pilcrino-browser: the install lock ${lock} is no longer held by ${owner}; npm not started\n`)
   process.exit(LOCK_LOST)
