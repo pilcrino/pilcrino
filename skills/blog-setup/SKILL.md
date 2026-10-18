@@ -449,25 +449,38 @@ Pilcrino may run it.
      then `! winget install GitHub.cli`, and the new-window instruction
      from check 2 (a new Claude Code window is needed for `gh` to be
      found).
-   - Missing, Linux: the same first two sentences, then GitHub's own
-     package repository, one block the owner pastes with `!`: on Debian and
-     Ubuntu the `apt` block from https://github.com/cli/cli/blob/trunk/docs/install_linux.md
-     (give it verbatim from that page, fetched with `curl -fsSL`), on
-     Fedora `! sudo dnf install -y gh`.
+   - Missing, Linux: the same first two sentences, then the distribution's
+     own package, one short line the owner types with `!`: on Debian and
+     Ubuntu `! sudo apt-get install -y gh`, on Fedora `! sudo dnf install
+     -y gh`. Only when apt or dnf reports no such package, give GitHub's
+     repository block from https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+     (fetched with `curl -fsSL`, pasted whole). Never build that block by
+     hand.
 4. **GitHub sign-in.** `gh auth status >/dev/null 2>&1 && echo ok || echo
    signed-out`. Run this BEFORE any look at a repository: an
    unauthenticated check cannot tell a private repository from a wrong
    address, so never say "private or wrong link" before this passes.
-   - Signed out: "Next, sign in to GitHub from this Mac. Type exactly this
-     into Claude Code, with the exclamation mark first:
-     `! gh auth login -h github.com -p https -w`
-     It prints a one-time code (also copied to your clipboard) and a web
-     address, https://github.com/login/device. It asks no questions and
-     does not open the browser for you: open that address in Chrome, sign
-     in to GitHub if asked, paste the code, click Continue, then Authorize.
-     Tell me when it says you are signed in." Claude Code picks the
-     finished command up by itself; either way, re-run `gh auth status` and
-     report the account in one line: "Signed in to GitHub as <login>."
+   - Signed out: run the device sign-in yourself, without a terminal, so
+     it asks nothing and prints the code at once (with a terminal, gh first
+     asks "Authenticate Git with your GitHub credentials?", which Claude
+     Code's `!` mode shows neither the question nor the code for; seen on
+     Linux, 18 Oct 2026). In one Bash call, in the background (the Bash
+     tool's background option, since the command waits until the owner
+     has authorized it):
+     ```bash
+     GH_LOG="$(mktemp -d)/gh-login.txt"; echo "$GH_LOG"
+     gh auth login -h github.com -p https -w </dev/null > "$GH_LOG" 2>&1
+     ```
+     Then read the log after a few seconds (`grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}' "$GH_LOG"`)
+     and tell the owner: "Next, sign in to GitHub from this Mac. Open
+     https://github.com/login/device in your browser, sign in to GitHub if
+     asked, enter the code <code>, click Continue, then Authorize. Tell me
+     when the page says it is done." On the reply, run `gh auth status`
+     (the background command ends by itself once authorized; a "Failed to
+     copy one-time code to clipboard" line in the log is harmless) and
+     report the account in one line: "Signed in to GitHub as <login>." If
+     the log shows no code within 20 seconds, show its last line and ask
+     the owner to check the internet connection.
    - Then: "Shall I let git use this GitHub sign-in too? Without it, the
      pull and push steps later ask for a username and password that GitHub
      no longer accepts." On yes, run `gh auth setup-git`. On no, continue
@@ -3155,12 +3168,15 @@ recorded, in this order:
 
 1. **Git identity.** `git -C "<blog folder>" config user.name` and
    `user.email`. When either is empty, do not ask the owner for an email:
-   take the name and login from `gh api user -q '.name, .login, .id'` and
-   set, for this repository only (`git config user.name "<name or login>"`,
-   `git config user.email "<id>+<login>@users.noreply.github.com"`), then
-   say in one sentence: "Commits will show as <name>, through your GitHub
-   account, with GitHub's private address." Set the author name to the
-   owner's own name from `authors.md` only if they ask.
+   take the name and login from `gh api user -q '.name, .login, .id'`,
+   say first, in one sentence, what is about to happen and why: "This
+   folder has no git identity yet, which every commit needs. I'll set it
+   to <name>, through your GitHub account, with GitHub's private address,
+   for this repository only. Say if you want a different name." Then set
+   it (`git config user.name "<name or login>"`, `git config user.email
+   "<id>+<login>@users.noreply.github.com"`), unless the owner answered
+   with another name, which is used instead. (A fresh-Linux test owner was
+   surprised to learn of it only afterwards, 18 Oct 2026.)
 2. **What goes in.** The commit holds only the paths setup created or
    edited, from Global rule 9's list: never `git add -A`, `git add .` or a
    folder that held the owner's files, and never anything the owner staged
