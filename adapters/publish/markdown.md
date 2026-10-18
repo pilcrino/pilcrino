@@ -67,7 +67,7 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
    **Paste platforms (`jekyll`, `ghost`, `generic`): hand the post over ready to paste, before any approval.** A rich-text editor such as Webflow's does not convert markdown (pasting the `.md` file gives literal `##` and `**`), the worktree folder is hidden from Finder, and the frontmatter fields go into separate CMS fields. So, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
    ```bash
    node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/post-to-clipboard.mjs" "$WT_ABS/{content_dir}/<slug>.md" <--cover-key "$COVER_KEY" when publish.markdown.cover_key is set>
-   open "$WT_ABS/{assets_dir}/<slug>"   # macOS; xdg-open on Linux; cmd.exe /c start "" "<path>" on Windows
+   open "$WT_ABS/{assets_dir}/<slug>"   # macOS; xdg-open on Linux; on Windows (Git Bash): cmd.exe //c start "" "$(cygpath -w "<path>")"
    ```
    The script renders the body (frontmatter left out) to HTML, puts it on the clipboard as formatted text, and prints one line per frontmatter field (`title: ...`, `description: ...`, `date: ...`, `tags: ...`, `author: ...`, `cover: <file>`), then, only when the body has any, one `contains:` line counting its tables and code blocks (`contains: 1 table, 2 code blocks`). The `contains:` line is not a CMS field: never list it among the fields. `open` shows the image folder in Finder (the file manager on Linux and Windows). The banner then says, with the printed values filled in and only the fields the script printed:
 

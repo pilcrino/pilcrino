@@ -4,17 +4,19 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { findChrome, readActivePort, probeIdentity, connectChrome, readExecutableOverride, profileDir, codedError, profileProcesses, isProfileHeld, isProfileRunning } from '../src/chrome.mjs'
+import { findChrome, readActivePort, probeIdentity, connectChrome, readExecutableOverride, profileDir, codedError, profileProcesses, isProfileHeld, isProfileRunning, quitKeys } from '../src/chrome.mjs'
 
 const notHeld = () => false
 
+// Keys are written with forward slashes; on Windows the code joins with backslashes, so lookups are normalised.
+const slash = (p) => String(p).replace(/\\/g, '/')
 const memfs = (files) => ({
-  existsSync: (p) => p in files,
-  readFileSync: (p) => { if (!(p in files)) { const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e } return files[p] },
+  existsSync: (p) => slash(p) in files,
+  readFileSync: (p) => { if (!(slash(p) in files)) { const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e } return files[slash(p)] },
 })
 
 test('profileDir is ~/.pilcrino/browser', () => {
-  assert.equal(profileDir('/home/x'), '/home/x/.pilcrino/browser')
+  assert.equal(profileDir('/home/x'), join('/home/x', '.pilcrino', 'browser'))
 })
 
 test('codedError carries code and extras', () => {
@@ -136,7 +138,7 @@ test('connectChrome: a plain Chrome on the profile fails fast with signin_window
   const asked = []
   await assert.rejects(
     connectChrome({ dir: '/p', exe: '/x/chrome', fs: memfs({}), fetch: async () => { throw new Error('ECONNREFUSED') }, spawn: () => { launched++; return { unref() {}, on() {} } }, sleep: async () => {}, isProfileHeld: (d) => { asked.push(d); return true }, puppeteer: {} }),
-    (e) => e.code === 'signin_window_open' && e.message === 'The Pilcrino sign-in window is still open. Quit it with Cmd+Q, then try again.',
+    (e) => e.code === 'signin_window_open' && e.message === `The Pilcrino sign-in window is still open. Quit it with ${quitKeys()}, then try again.`,
   )
   assert.equal(launched, 0)
   assert.deepEqual(asked, ['/p'])
@@ -156,15 +158,16 @@ test('profileProcesses: main processes on exactly this profile; held means one w
     ' 3800 /Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
   ].join('\n')
   const exec = (bin, args) => { assert.equal(bin, 'ps'); assert.deepEqual(args, ['-axww', '-o', 'pid=,command=']); return ps }
-  assert.equal(profileProcesses('/u/.pilcrino/browser', { exec }).length, 1)
-  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec }), true)
-  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec }), true)
+  const platform = 'darwin'
+  assert.equal(profileProcesses('/u/.pilcrino/browser', { exec, platform }).length, 1)
+  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec, platform }), true)
+  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec, platform }), true)
   const cdp = () => ' 3600 /x/Google Chrome --user-data-dir=/u/.pilcrino/browser --remote-debugging-port=0 --no-first-run about:blank\n'
-  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec: cdp }), false)
-  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec: cdp }), true)
+  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec: cdp, platform }), false)
+  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec: cdp, platform }), true)
   const broken = () => { throw new Error('ENOENT') }
-  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec: broken }), false)
-  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec: broken }), false)
+  assert.equal(isProfileHeld('/u/.pilcrino/browser', { exec: broken, platform }), false)
+  assert.equal(isProfileRunning('/u/.pilcrino/browser', { exec: broken, platform }), false)
 })
 
 test('readExecutableOverride reads browser.executable in block and inline YAML', () => {
@@ -229,10 +232,10 @@ test('profileProcessEntries: pid and command per main process on exactly this pr
     'garbage line',
   ].join('\n')
   const exec = (bin, args) => { assert.equal(bin, 'ps'); assert.deepEqual(args, ['-axww', '-o', 'pid=,command=']); return ps }
-  const entries = profileProcessEntries('/u/.pilcrino/browser', { exec })
+  const entries = profileProcessEntries('/u/.pilcrino/browser', { exec, platform: 'linux' })
   assert.deepEqual(entries.map((e) => e.pid), [3512, 3600])
   assert.deepEqual(entries.map((e) => isPlainCommand(e.command)), [true, false])
-  assert.deepEqual(profileProcessEntries('/u/.pilcrino/browser', { exec: () => { throw new Error('no ps') } }), [])
+  assert.deepEqual(profileProcessEntries('/u/.pilcrino/browser', { exec: () => { throw new Error('no ps') }, platform: 'linux' }), [])
 })
 
 test('findChrome: linux falls back to chromium after google-chrome', () => {
@@ -299,7 +302,7 @@ test('quitKeys per platform', async () => {
   const { quitKeys } = await import('../src/chrome.mjs')
   assert.equal(quitKeys('darwin'), 'Cmd+Q')
   assert.equal(quitKeys('win32'), 'Alt+F4')
-  assert.equal(quitKeys('linux'), 'Ctrl+Q')
+  assert.equal(quitKeys('linux'), 'Ctrl+Shift+W')
 })
 
 test('profileProcessEntries with the real process list finds a child carrying the profile flag', { timeout: 20000 }, async () => {

@@ -35,19 +35,33 @@ export function isInstalled(root) {
   return paths(root).stamped()
 }
 
-/** The lock's text, inode and mtime, or null when it cannot be read (usually: it is gone). */
+/**
+ * The lock's text, inode and mtime, or null when it cannot be read (usually:
+ * it is gone). The text is the owner's PID on the first line and, once npm
+ * runs, npm's PID on the second: on Windows a parent killed from outside is
+ * terminated without its SIGTERM handler, so its npm keeps writing; a lock
+ * that names a live npm is still held.
+ */
 function readLock(lock) {
   try {
     const text = readFileSync(lock, 'utf8').trim()
     const st = statSync(lock)
-    return { text, ino: st.ino, mtimeMs: st.mtimeMs }
+    const [owner, npm] = text.split('\n').map((l) => l.trim())
+    return { text, owner, npm, ino: st.ino, mtimeMs: st.mtimeMs }
   } catch {
     return null
   }
 }
 
 function lockIsMine(lock) {
-  return readLock(lock)?.text === String(process.pid)
+  return readLock(lock)?.owner === String(process.pid)
+}
+
+/** Adds npm's PID to our own lock, so a stale-lock check sees the installer that is still running. */
+function recordNpmPid(lock, pid) {
+  if (pid && lockIsMine(lock)) {
+    try { writeFileSync(lock, `${process.pid}\n${pid}`) } catch {}
+  }
 }
 
 /** Removes the lock only when it holds this process's PID. */
@@ -97,11 +111,11 @@ function tryLock(lock, d) {
   const seen = readLock(lock)
   if (seen === null) return 'retry'
   // A lock with our own PID is ours (left by an earlier attempt in this process).
-  if (seen.text === mine) return 'linked'
-  const pid = /^\d+$/.test(seen.text) ? Number(seen.text) : 0
-  // A lock left by a killed install (its PID is gone, or unreadable) is cleared at once.
+  if (seen.owner === mine) return 'linked'
+  const pids = [seen.owner, seen.npm].filter((p) => /^\d+$/.test(p ?? '')).map(Number)
+  // A lock left by a killed install (its PIDs are gone, or unreadable) is cleared at once.
   // The age rule stays as a second check, for a PID that was reused by another process.
-  if (pid <= 0 || !d.pidAlive(pid) || d.now() - seen.mtimeMs > LOCK_STALE_MS) {
+  if (pids.length === 0 || !pids.some((p) => d.pidAlive(p)) || d.now() - seen.mtimeMs > LOCK_STALE_MS) {
     const again = readLock(lock)
     if (again !== null && again.text === seen.text && again.ino === seen.ino) rmSync(lock, { force: true })
     return 'retry'
@@ -172,6 +186,7 @@ export function ensureInstalled(root, deps = {}) {
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
       const [file, args] = npmCommand(root, deps)
+      // Synchronous: no PID to record before it ends; the caller's own PID holds the lock meanwhile.
       const r = spawnSync(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
       if (r.error?.code === 'ENOENT') throw npmMissing(root)
       if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
@@ -223,6 +238,7 @@ export async function installAsync(root, deps = {}) {
         let file, args
         try { [file, args] = npmCommand(root, deps) } catch (err) { reject(err); return }
         const child = spawn(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+        recordNpmPid(lock, child.pid)
         deps.onSpawn?.(child)
         child.on('error', (err) => reject(err.code === 'ENOENT' ? npmMissing(root) : err))
         child.on('close', (status, signal) => resolve(status ?? signal))

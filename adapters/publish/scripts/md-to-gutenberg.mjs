@@ -264,7 +264,8 @@ function main(argv) {
   let args
   try { args = parseArgs(argv) } catch (err) { process.stderr.write(`${err.message}\n`); return 2 }
   if (!existsSync(args.input)) { process.stderr.write(`error: no such file: ${args.input}\n`); return 1 }
-  const md = readFileSync(args.input, 'utf8')
+  // Python read the file in text mode, which turns CRLF (a Windows editor) into LF.
+  const md = readFileSync(args.input, 'utf8').replace(/\r\n?/g, '\n')
   const blocks = applyExtraBlocks(convert(md), loadExtraBlocks(args.extra))
   process.stdout.write(blocks.map((b) => b.markup).join('\n\n') + '\n')
   return 0

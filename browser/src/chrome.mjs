@@ -45,7 +45,7 @@ export function findChrome({ platform = process.platform, env = process.env, exi
       if (exists(candidate)) return candidate
     } else {
       for (const dir of (env.PATH ?? '').split(platform === 'win32' ? ';' : ':').filter(Boolean)) {
-        const p = join(dir, candidate)
+        const p = (platform === 'win32' ? win32 : posix).join(dir, candidate)
         searched.push(p)
         if (exists(p)) return p
       }
@@ -247,11 +247,15 @@ export function isProfileHeld(dir, opts) {
   return profileProcesses(dir, opts).some(isPlainCommand)
 }
 
-/** How the owner quits a Chrome window on this platform. */
+/**
+ * How the owner quits the sign-in Chrome by hand on this platform. On Windows
+ * and Linux, Chrome exits when its last window closes (the sign-in Chrome has
+ * only that window), and Linux Chrome has no quit shortcut of its own.
+ */
 export function quitKeys(platform = process.platform) {
   if (platform === 'darwin') return 'Cmd+Q'
   if (platform === 'win32') return 'Alt+F4'
-  return 'Ctrl+Q'
+  return 'Ctrl+Shift+W'
 }
 
 export const SIGNIN_WINDOW_OPEN = `The Pilcrino sign-in window is still open. Quit it with ${quitKeys()}, then try again.`

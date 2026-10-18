@@ -28,6 +28,7 @@ test('installs once and writes the stamp when missing', () => {
   const d = root()
   const argv = []
   const r = ensureInstalled(d, {
+    platform: 'linux', env: {},
     spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
   })
   assert.equal(r.installed, true)
@@ -113,7 +114,7 @@ test('installAsync: a dead-PID lock is cleared, npm runs, the stamp is written',
   writeFileSync(join(d, '.install.lock'), String(deadPid()))
   const argv = []
   const r = await installAsync(d, {
-    settleMs: 0,
+    settleMs: 0, platform: 'linux', env: {},
     sleep: async () => { throw new Error('must not wait') },
     spawn: (cmd, args) => {
       argv.push([cmd, ...args])
@@ -282,4 +283,33 @@ test('ensureInstalled runs the fake npm named by PILCRINO_NPM_CLI under this nod
   })
   assert.equal(r.installed, true)
   assert.deepEqual(argv, [[process.execPath, cli, 'install', '--omit=dev', '--no-audit', '--no-fund']])
+})
+
+test('a lock whose owner is dead but whose npm line is alive is still held', async () => {
+  const d = root()
+  writeFileSync(join(d, '.install.lock'), `${deadPid()}\n${process.pid}`)
+  let slept = 0
+  const t0 = Date.now()
+  await assert.rejects(
+    installAsync(d, { settleMs: 0, platform: 'linux', env: {}, now: () => t0 + slept * 400_000, sleep: async () => { slept++ }, spawn: () => { throw new Error('must not install while npm runs') } }),
+    /another install has held/,
+  )
+  assert.ok(slept >= 1)
+})
+
+test('installAsync records the npm child pid on its own lock while npm runs', async () => {
+  const d = root()
+  let seen = ''
+  const r = await installAsync(d, {
+    settleMs: 0, platform: 'linux', env: {},
+    spawn: () => {
+      const child = new EventEmitter()
+      child.pid = 424242
+      setTimeout(() => { seen = readFileSync(join(d, '.install.lock'), 'utf8'); mkdirSync(join(d, 'node_modules'), { recursive: true }); child.emit('close', 0, null) }, 10)
+      return child
+    },
+  })
+  assert.equal(r.installed, true)
+  assert.equal(seen, `${process.pid}\n424242`)
+  assert.equal(existsSync(join(d, '.install.lock')), false)
 })

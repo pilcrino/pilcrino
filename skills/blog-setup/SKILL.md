@@ -1463,7 +1463,7 @@ If that first call fails because the browser tool is unavailable and Node.js was
 2. Call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the sites that are not signed in. It quits the Pilcrino browser and opens the sign-in pages in a Chrome window on the Pilcrino profile without remote control (Google refuses to sign in a browser under remote control). Tell the owner, in this order and in these words or close to them:
    "A second Chrome has just opened: that is Pilcrino's own copy of Chrome, separate from the Chrome you normally use. It has one tab per site: <sites>. You can tell it apart because it has only those tabs and no bookmarks or history of yours; it may sit behind your other windows. Sign in to each tab with your own accounts (Reddit and Google sometimes show a 'verify you are human' check first; that is normal, pass it). Then tell me you are done and I'll close that window for you so the sign-ins are kept. Don't close it yourself: closing it the usual way can quit the wrong Chrome."
    Then wait for the owner's reply. Do not poll and do not sleep.
-3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__close_login` (no arguments). It quits the sign-in Chrome gracefully so the sign-ins persist and returns `{ "closed": true|false, "detail": "<one line>" }`. On `closed: true`, go on to the check. On `closed: false`, read `detail`; tell the owner in plain words what it says and, as the fallback only, how to quit it by hand: "Click once inside Pilcrino's Chrome window (the one with only the <sites> tabs), then press Cmd+Q (Alt+F4 on Windows, Ctrl+Q on Linux). That quits only that copy of Chrome; your own Chrome keeps running. On a Mac, closing the window with the red button is not enough. Tell me when it is gone." Then call `close_login` once more on the reply before checking.
+3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__close_login` (no arguments). It quits the sign-in Chrome gracefully so the sign-ins persist and returns `{ "closed": true|false, "detail": "<one line>" }`. On `closed: true`, go on to the check. On `closed: false`, read `detail`; tell the owner in plain words what it says and, as the fallback only, how to quit it by hand: "Click once inside Pilcrino's Chrome window (the one with only the <sites> tabs), then press Cmd+Q (on Windows Alt+F4, on Linux Ctrl+Shift+W: there, closing that window quits that Chrome, since it has no other window). That quits only that copy of Chrome; your own Chrome keeps running. On a Mac, closing the window with the red button is not enough. Tell me when it is gone." Then call `close_login` once more on the reply before checking.
    Then call `mcp__plugin_pilcrino_pilcrino-browser__login_status` once with the same sites and report each site's state in one line per site. It restarts the Pilcrino browser with remote control. If it fails with `signin_window_open`, the sign-in window is still running: run `close_login` again and, if it still reports `closed: false`, give the quit-by-hand fallback above and check again on the reply.
 4. A site still `signed_out`: ask "Sign in to <site> and tell me when you are done, or skip <site> for now?" On "done", repeat from step 2 for that site only (the sign-in window must be reopened: `login_status` restarted the browser under remote control). Skipping is allowed; research for that source parks later with a card until the owner signs in, and setup says so in one sentence.
 5. `blocked`: "<site> is showing a 'verify you are human' or unusual-traffic check in Pilcrino's Chrome window. That is the site being careful with a browser it has not seen before. Open that window, pass the check, then tell me and I'll look again." `error`: "The Pilcrino browser could not reach <site>. Check the connection and tell me when to check again." Offer a check again or a skip.
@@ -1699,8 +1699,10 @@ title band never vary; only the composition does.
    ```
 7. `Read` the rendered PNG yourself, then **open it for the owner before
    asking anything**, with the system's opener: `open <file>` on macOS
-   (Preview), `xdg-open <file>` on Linux, `start "" <file>` on Windows (in
-   Git Bash: `cmd.exe /c start "" "<file>"`). Then ask, giving the path too: "I've opened
+   (Preview), `xdg-open <file>` on Linux, and on Windows (Git Bash)
+   `cmd.exe //c start "" "$(cygpath -w "<file>")"` (the doubled slash keeps
+   bash from turning `/c` into a path; `cygpath -w` gives cmd a Windows
+   path). Then ask, giving the path too: "I've opened
    the test image on your screen (it is also at
    `<REMOTION_DIR>/out/preview-sample-v1.png`). It uses your colours and
    watermark. <If a webfont is not installed: 'The text is in a standard
@@ -2096,16 +2098,21 @@ Verify the directories exist on disk:
    -lic`).
    **Windows:** only the environment-variable route, kept in the user's
    environment (what every new window gets), never in a file Pilcrino
-   writes. Say: "A small window will ask you to paste the password; it
-   goes into your Windows user settings, where Pilcrino reads it from. I
-   never see it." Then run, in one Bash call with a timeout of at least
-   300000 ms:
+   writes. Say: "A separate PowerShell window will open and ask you to
+   paste the password (nothing shows as you paste); it goes into your
+   Windows user settings, where Pilcrino reads it from. I never see it."
+   Then run, in one Bash call with a timeout of at least 300000 ms (Claude
+   Code's own Bash call has no keyboard, so the prompt must run in a window
+   of its own; `Start-Process ... -Wait` opens one and waits for it):
    ```bash
-   powershell -NoProfile -Command '$s = Read-Host -AsSecureString "Paste the WordPress application password for <blog name>"; $p = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s)); if ($p) { [Environment]::SetEnvironmentVariable("<name>", $p, "User"); "stored" } else { "not stored" }'
+   R="$(mktemp -d)/wp-result.txt"; RW=$(cygpath -w "$R")
+   powershell -NoProfile -Command "Start-Process powershell -Wait -ArgumentList '-NoProfile','-Command',\"\$s = Read-Host -AsSecureString 'Paste the WordPress application password for <blog name>'; \$p = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR(\$s)); if (\$p) { [Environment]::SetEnvironmentVariable('<name>', \$p, 'User'); Set-Content -Path '$RW' -Value stored } else { Set-Content -Path '$RW' -Value 'not stored' }\""
+   cat "$R" 2>/dev/null || echo "not stored"; rm -rf "$(dirname "$R")"
    ```
    (`Read-Host -AsSecureString` hides the typing; the value goes to
-   `SetEnvironmentVariable(..., "User")` inside that one PowerShell
-   process and is never on a command line Pilcrino builds.) On `stored`
+   `SetEnvironmentVariable(..., "User")` inside that window's own
+   PowerShell process and is never on a command line Pilcrino builds; only
+   the word `stored` or `not stored` comes back through the result file.) On `stored`
    write `app_password_env: <name>`. A user-level variable reaches only
    new processes, so say: "Windows gives that setting to programs started
    from now on. Before your first post, quit Claude Code, open a new

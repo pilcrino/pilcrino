@@ -51,7 +51,7 @@ function runs(log) {
   const byPid = new Map()
   for (const line of readFileSync(log, 'utf8').split('\n').filter(Boolean)) {
     const [kind, pid, t] = line.split(' ')
-    const r = byPid.get(pid) ?? {}
+    const r = byPid.get(pid) ?? { pid: Number(pid) }
     r[kind] = Number(t)
     byPid.set(pid, r)
   }
@@ -85,7 +85,10 @@ test('a signal mid-install keeps the lock until npm has exited', { timeout: 30_0
     // The shim (no command) starts npm at once; this npm runs long and takes 1 s to stop on SIGTERM.
     const first = start(sb, [], { FAKE_NPM_MS: '30000', FAKE_NPM_TERM_DELAY_MS: '1000' })
     await until(() => runs(sb.log).length === 1)
-    assert.equal(readFileSync(join(sb.root, '.install.lock'), 'utf8'), String(first.child.pid))
+    // The lock names the shim on its first line and, once npm runs, npm on its second.
+    const lockLines = readFileSync(join(sb.root, '.install.lock'), 'utf8').split('\n')
+    assert.equal(lockLines[0], String(first.child.pid))
+    assert.equal(lockLines[1], String(runs(sb.log)[0].pid))
 
     first.child.kill('SIGTERM')
     const second = start(sb, ['install'], { FAKE_NPM_MS: '200' })

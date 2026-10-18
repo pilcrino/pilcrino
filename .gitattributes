@@ -1,1 +1,3 @@
 tools/remotion/src/Root.tsx merge=union
+# Captured converter outputs are compared byte for byte: never convert their line endings.
+adapters/publish/scripts/fixtures/gutenberg/* -text

@@ -2,6 +2,7 @@ import { test } from 'node:test'
 import { EventEmitter } from 'node:events'
 import assert from 'node:assert/strict'
 import { closeOverCdp, openSignIn, signInOrder, SIGNIN_NEXT } from '../src/signin.mjs'
+import { quitKeys } from '../src/chrome.mjs'
 import { createSession } from '../src/session.mjs'
 
 // Nothing here launches or drives a real Chrome: fs, fetch, spawn, the CDP
@@ -50,7 +51,7 @@ test('openSignIn: the CDP instance is closed and gone before a plain launch with
   assert.deepEqual(out, {
     opened: [{ site: 'google', url: 'https://accounts.google.com/' }, { site: 'reddit', url: 'https://www.reddit.com/login/' }, { site: 'x', url: 'https://x.com/i/flow/login' }],
     mode: 'plain',
-    next: 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.',
+    next: `Sign in, then say you are done and Pilcrino closes that window; or quit it with ${quitKeys()}. Pilcrino restarts the browser on its next call.`,
   })
   assert.equal(out.next, SIGNIN_NEXT)
 })
@@ -203,7 +204,7 @@ test('closeSignIn: a Chrome that ignores SIGTERM is never killed; after 10 s the
   assert.deepEqual(sent, [[3512, 'SIGTERM']])
   assert.equal(out.closed, false)
   assert.match(out.detail, /did not quit within 10 seconds/)
-  assert.match(out.detail, /Cmd\+Q/)
+  assert.ok(out.detail.includes(quitKeys()), out.detail)
 })
 
 test('closeSignIn: a process that quit between the listing and the signal (ESRCH) is not an error', async () => {

@@ -38,6 +38,22 @@ for (const [name, args] of Object.entries(cases)) {
   })
 }
 
+test('a CRLF file converts exactly like its LF twin (frontmatter stripped, code blocks clean)', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const dir = mkdtempSync(join(tmpdir(), 'gut-crlf-'))
+  try {
+    const crlf = join(dir, 'post.md')
+    writeFileSync(crlf, readFileSync(join(fx, 'post.md'), 'utf8').replace(/\n/g, '\r\n'))
+    const r = run(crlf)
+    assert.equal(r.status, 0, r.stderr)
+    assert.equal(r.stdout, expect('post').out)
+    assert.doesNotMatch(r.stdout, /\r/)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('usage: no input exits 2, a missing input file exits 1', () => {
   assert.equal(run().status, 2)
   const r = run('fixtures/gutenberg/nope.md')
