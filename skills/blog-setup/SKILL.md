@@ -292,8 +292,8 @@ resolves to."
     where posts go, pushing consent, the commit question; +1 for
     WordPress (username). A conditional question (the product's address,
     route prefix, site live, author name, product identity fallback,
-    image serving fallback, the Astro template choice when the site fits
-    more than one post format) raises T by one when it arises, said
+    image serving fallback, the Astro template choice when the schema
+    matches neither supported shape) raises T by one when it arises, said
     aloud: "One more than I said: 11 now." The site-edit consents (Astro
     post format fields, draft switch, Hugo or WordPress edits) are
     actions, never counted, on both paths. A
@@ -2063,8 +2063,10 @@ problem).
 
 ### If `astro-git-pr`
 
-Steps 5, 5a, 5b and 6 edit the site with the owner's consent: actions,
-never counted, on both paths.
+The edit consents in steps 5, 5a, 5b and 6 (adding fields, the draft
+switch) are actions, never counted, on both paths. Step 5's template
+menu, asked only when the schema matches neither shape, is a counted
+conditional question.
 
 2. "Is this repo the Astro site itself, or does the site live in a
    subdirectory (a monorepo)?" Read it, don't ask: `astro.config.*` at the
