@@ -31,9 +31,12 @@ rules; they override the wording of any example in this file.
    anything printed to them: phase numbers ("Phase 3.5", "Phase 0"),
    "artifacts", "adapter" or "publish adapter", "assets_dir", "content_dir",
    "archetypes", "base branch", "staging-preview", "frontmatter", "schema",
-   "invariant", "config block", "env var", "bootstrap", "resume run", raw
-   config lines or keys (`apply_inbound_links_live: false`), and hex colour
-   codes unless the owner asks for them. Say what a value means instead of
+   "invariant", "config block", "env var", "bootstrap", "resume run", "PR"
+   and "repo" (say "pull request" and "repository"), a probe path such as
+   `/wp-json/`, raw config lines or keys (`apply_inbound_links_live:
+   false`), and hex colour codes unless the owner asks for them. No em
+   dash or en dash anywhere in owner text: a comma, a colon or a full stop
+   instead. Say what a value means instead of
    quoting it: "images are uploaded to WordPress when the post is staged",
    not "`assets_dir: blog-ops/assets`". The phase headings below are for the
    model; each phase names itself to the owner by what it does:
@@ -52,6 +55,9 @@ rules; they override the wording of any example in this file.
 
 2. **One question per message.** A message ends with exactly one question.
    Never a numbered list of questions, never "also, ..." with a second one.
+   Between two questions, at most two sentences of owner words (a "Saved"
+   line and the next part's name, or one stated derived value); anything
+   longer belongs in the summary before the commit.
    When a question has a fixed set of answers, ask it with `AskUserQuestion`
    as a menu; when it needs free text, ask it in prose.
 3. **Defaults are clicked, never a key press.** An empty Enter does nothing
@@ -283,8 +289,11 @@ resolves to."
     where posts go, pushing consent, the commit question; +1 for
     WordPress (username). A conditional question (the product's address,
     route prefix, site live, author name, product identity fallback,
-    image serving fallback, the Astro template shape) raises T by one
-    when it arises, said aloud: "One more than I said: 11 now." Detailed
+    image serving fallback, the Astro post format questions) raises T by
+    one when it arises, said aloud: "One more than I said: 11 now." A
+    question that falls away (evidence settled it, a block the owner
+    turned off) lowers T, said aloud the same way ("Two fewer: 51 now.").
+    The total never changes silently, on either path. Detailed
     path T
     per adapter and modules: see the table in Phase 6's "Counting the
     detailed path" (filled from the question lists below); when a yes
@@ -518,13 +527,16 @@ cat ~/.pilcrino/console/blogs.json 2>/dev/null
 ```
 
 Drop the current blog folder from the list. If anything remains, read each
-one's `blog-ops/profile/blog.md` (name, niche) and say: "You already set up
-Pilcrino for <blog name> in `<folder>`. Where an answer carries over (who
-reads it, how it sounds, who writes it, your product, competitors, image
-style) I'll show you that blog's answer and you can keep or change it.
-What must be new: this blog's address, where posts go, and whether it has
-posts already." Remember the list; each phase's resume check below offers
-the reuse. When the two blogs turn out to cover the same niche, say once:
+one's `blog-ops/profile/blog.md` (name, niche) and remember the list; say
+nothing about it yet. After the path is chosen (0e), on the **detailed
+path only**, say: "You already set up Pilcrino for <blog name> in
+`<folder>`. Where an answer carries over (who reads it, how it sounds, who
+writes it, your product, competitors, image style) I'll show you that
+blog's answer and you can keep or change it. What must be new: this
+blog's address, where posts go, and whether it has posts already." Each
+phase's resume check below then offers the reuse. On the quick path the
+other blog is evidence only (Global rule 10), with no promise of reuse.
+When the two blogs turn out to cover the same niche, say once:
 "Two blogs chasing the same searches compete with each other in Google;
 fine if one replaces the other, worth a thought if both stay live."
 
@@ -621,9 +633,12 @@ Ask one at a time:
    come from this list; every frontmatter template reads it from
    `{profile_dir}/blog.md`)
    Quick path: derive, **both paths**. Never asked and never invented:
-   the site's existing tags (Phase 1.5's fetched posts, the content
-   collection's values, WordPress `/wp-json/wp/v2/tags`), marker "(from
-   your site)". A site with no tags yet gets the single line `none yet`:
+   the site's existing tags, looked for in this order and taken from the
+   first source that has any: the repository's own posts (the union of
+   the `tags` values in the content folder's frontmatter, most frequent
+   first, marker "(from your repository)"), then Phase 1.5's fetched
+   posts, then WordPress `/wp-json/wp/v2/tags` (marker "(from your
+   site)"). A site with no tags yet gets the single line `none yet`:
    `plan-content` writes the list from the plan it makes, and a post
    written before that proposes its own tags at intake.
 8. Primary CTA target + hook: what should every post's closing CTA point
@@ -765,8 +780,11 @@ Ask one at a time:
 1. Primary audience: who reads this blog (role, context, what brought them
    here)?
    Quick path: ask. Default from the same sources as identity question 4
-   (PRODUCT.md, README, the home page, an earlier setup), offered per rule
-   10; with none, free text.
+   (PRODUCT.md, README, the home page, an earlier setup), else one sentence
+   inferred from the "about" answer, offered per rule 10 as "Use the
+   suggestion" / "I'll type my own" with the suggestion printed above the
+   menu (never as editor ghost text alone); free text only when there is
+   nothing to infer from.
 2. Secondary audience, if any (skip if there's only one clear audience)
    Quick path: omit, none.
 3. Top pain points this audience has, in priority order (this order
@@ -1210,7 +1228,7 @@ Write `{profile_dir}/authors.md`:
 ```markdown
 # Authors
 
-## <slug 1> — <Display Name>
+## <slug 1>: <Display Name>
 
 **Bio:** <bio>
 **Expertise:** <expertise>
@@ -1218,7 +1236,7 @@ Write `{profile_dir}/authors.md`:
 **Byline:** <how this author's name appears in frontmatter/body>
 **Sign-off:** <sign-off pattern, or "none, byline only" for single-voice posts>
 
-## <slug 2> — <Display Name>
+## <slug 2>: <Display Name>
 
 ...
 ```
@@ -1254,7 +1272,7 @@ The `## Selection rubric` heading is exact — it's what the editor persona
 and `templates/brief.md` point to as "select per `{profile_dir}/authors.md`
 §Selection rubric." Only write it (and Co-signed voice, and the
 slug-to-site-key map) when there's more than one author; a single-author
-blog's `authors.md` is just the one `## <slug> — <Display Name>` block, no
+blog's `authors.md` is just the one `## <slug>: <Display Name>` block, no
 rubric needed (matches personas/editor.md: "single-author blogs: skip this
 step, `author_voice` is fixed").
 
@@ -2113,7 +2131,8 @@ never counted, on both paths.
    (or fails the build), so this is settled before anything is written.
    Say: "Your site's post format has no place for a cover image, so every
    post's cover would be thrown away. I can add one optional field for it
-   to the site's post format in the setup commit. Add it?" Add → edit the
+   to the site's post format in the setup commit. Add it?" Counted on
+   both paths: it takes the next N and raises T by one. Add → edit the
    schema file, adding only that field, matching the file's style, and show
    the lines you added:
    - `astro-content.md`: `heroImage: image().optional()`. The `image()`
@@ -2140,7 +2159,8 @@ never counted, on both paths.
    place for <tags / the author's name / either>, so the site would drop
    them. I can add <it / them> as optional fields to the site's post
    format in the setup commit, or leave them out of posts. Which do you
-   prefer?" Add → edit the schema file, adding only the missing fields,
+   prefer?" Counted on both paths: it takes the next N and raises T by
+   one. Add → edit the schema file, adding only the missing fields,
    with the selected template's names and types, inside the collection's
    `z.object({...})` and matching the file's style; never add a field the
    schema already has, and show the lines you added:
@@ -2833,8 +2853,11 @@ are merged without a further step", which the owner can change there).
 Every decision and default is on file by now (the two standing decisions
 and custom instructions above are asked before this, on both paths; the
 quick path omits them as their lines say). Before any check runs and
-before the commit, print what setup is about to save: one line per topic,
-in owner words, in this order: name and address, language, what the blog
+before the commit, print what setup is about to save, as a bulleted list
+in the message itself, directly above the menu. The list is the summary:
+never a sentence saying the summary is compiled, ready or on file in its
+place, and never a summary written to a file instead of the screen. One
+line per topic, in owner words, in this order: name and address, language, what the blog
 is about, mission and point of view (one line), tags, every post ends by pointing to <CTA target> with
 <hook>, how often it publishes, who reads it (and their pain points, one
 line), how it sounds (tone, credibility), who writes it (name, bio in a
@@ -3154,10 +3177,11 @@ are deleted only when the owner leaves the What next menu with anything
 other than "Change a setup answer", and only when the setup files were
 committed: `rm -f "$(git -C "<blog folder>" rev-parse
 --absolute-git-dir)"/pilcrino-setup-{paths,before}`; when they were not
-committed, keep them for the next run. The recap is exactly the lines
-below, in this order, at most eight in all, and nothing else: no sentence
-about files being safe, about what a push is for, or about re-running
-setup, beyond what line 1 says.
+committed, keep them for the next run. The recap is a bulleted list,
+one bullet per line below, in this order, at most eight in all, and
+nothing else: never a paragraph, no sentence about files being safe,
+about what a push is for, or about re-running setup, beyond what line 1
+says.
 
 1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
    (or "`<folder>`, not committed yet; run `/pilcrino:blog-setup` again
