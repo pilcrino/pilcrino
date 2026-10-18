@@ -214,20 +214,38 @@ resolves to."
    3.5's sign-in line) goes above it, never under it. The post workflow's
    Step 0 reads this section to know which site files belong to setup.
 
+10. **The computer's name follows its operating system.** This file says
+   "this Mac" and names macOS tools because that is where Pilcrino began.
+   Phase 0a's step 0 records the operating system; on Windows and Linux say
+   "this computer" wherever this file says "this Mac" (and "Windows
+   Terminal" for "Terminal" on Windows), take the Windows or Linux route
+   wherever a step gives one per system, and never run `osascript`,
+   `open`, `security` or `brew` there. The one place a Mac-only route has
+   no equivalent (the keychain for a WordPress password) says so itself.
+
 ## Phase 0: Preflight and finding the blog
 
 Runs once, before Phase 1, on every invocation (resumed or fresh). To the
-owner this is "Checking this Mac", then "Finding your blog". Open with one
-sentence: "Before any questions, I'll check that this Mac has what Pilcrino
-needs, then find your blog."
+owner this is "Checking this Mac" (or "this computer", Global rule 9), then
+"Finding your blog". Open with one sentence: "Before any questions, I'll
+check that this Mac has what Pilcrino needs, then find your blog."
 
 ### 0a. Preflight: the tools, in this order
 
-Run the checks in exactly this order. **Never run a bare `git`, `python3`,
-`gcc` or `make` before check 1 has passed:** on a Mac without Apple's
-Command Line Tools each of those is a stub that pops up Apple's install
-dialog with no explanation. `xcode-select -p` is safe; so are `node`,
-`gh`, `command -v`, `ls`, `find` and `curl`.
+**Step 0, the operating system.** Run `uname -s` first and keep the answer
+for the whole session: `Darwin` is macOS, `Linux` is Linux, anything
+starting with `MINGW` or `MSYS` is Windows (Claude Code runs this skill in
+Git Bash there, so Git for Windows is present by definition; without it
+nothing in this plugin can run, which the README says). Every check below
+has one route per operating system; take only that route and never offer
+another system's installer or package manager.
+
+Run the checks in exactly this order. **On macOS, never run a bare `git`,
+`python3`, `gcc` or `make` before check 1 has passed:** on a Mac without
+Apple's Command Line Tools each of those is a stub that pops up Apple's
+install dialog with no explanation. `xcode-select -p` is safe; so are
+`node`, `gh`, `command -v`, `ls`, `find` and `curl`. On Windows and Linux
+there is no such stub.
 
 For every miss, the message has four parts and nothing else: what is
 missing, in plain words; why Pilcrino needs it (one sentence); one route to
@@ -236,32 +254,66 @@ where that is possible. Then wait. After the owner says it is done, re-run
 the same check before moving on. A miss never ends setup: fix it, re-check,
 continue.
 
-1. **Apple's Command Line Tools (git).** `xcode-select -p >/dev/null 2>&1
-   && echo ok || echo missing`.
-   - Missing: "This Mac does not have Apple's command line tools yet. They
-     include git, which Pilcrino uses to keep your posts in your GitHub
-     repository. Installing them opens an Apple window: click Install, then
-     Agree; it takes a few minutes and comes straight from Apple. Shall I
-     start that install?" On yes, run `xcode-select --install` and say: "The
-     Apple window should be on your screen now (it can hide behind other
-     windows). Click Install and Agree, wait until it says the software was
-     installed, then tell me." On the reply, re-run the check. Only after
-     `ok` may any `git` command run.
+Installs that need an administrator password are never run by Pilcrino on
+Windows and Linux: there is no window to type it into. The owner types the
+command in Claude Code with the exclamation mark first (`! sudo apt-get
+install -y git`), so the password prompt appears on their own screen; say
+that in the same message as the command. On macOS the `osascript ...
+with administrator privileges` route below shows the password dialog, so
+Pilcrino may run it.
+
+1. **git.**
+   - macOS: **Apple's Command Line Tools.** `xcode-select -p >/dev/null
+     2>&1 && echo ok || echo missing`. Missing: "This Mac does not have
+     Apple's command line tools yet. They include git, which Pilcrino uses
+     to keep your posts in your GitHub repository. Installing them opens an
+     Apple window: click Install, then Agree; it takes a few minutes and
+     comes straight from Apple. Shall I start that install?" On yes, run
+     `xcode-select --install` and say: "The Apple window should be on your
+     screen now (it can hide behind other windows). Click Install and
+     Agree, wait until it says the software was installed, then tell me."
+     On the reply, re-run the check. Only after `ok` may any `git` command
+     run.
+   - Windows: `git --version` (always passes: this skill is running inside
+     Git for Windows' bash).
+   - Linux: `command -v git >/dev/null 2>&1 && echo ok || echo missing`.
+     Missing: "This computer does not have git, which Pilcrino uses to keep
+     your posts in your GitHub repository. Type exactly this into Claude
+     Code, with the exclamation mark first, and enter your password when it
+     asks: `! sudo apt-get install -y git` (on Fedora: `! sudo dnf install
+     -y git`). Tell me when it is done."
 2. **Node.js 22.13 or newer.** `command -v node >/dev/null 2>&1 && node
    --version || echo missing`. Parse the major and minor: 22.13 or newer
    passes; 24 is fine.
-   - Missing or too old: "Pilcrino's browser, its diagram images and an
-     Astro site all run on Node.js, which this Mac does not have (or has an
-     old version of). I can download the official installer from nodejs.org
-     and run it; macOS will ask for your Mac password in its own window,
-     which I never see. Or you can download the macOS installer from
-     https://nodejs.org yourself and double-click it. Which do you prefer?"
-     On "do it": download the current LTS `.pkg` from nodejs.org's download
-     page to a new empty folder under `$(mktemp -d)` with `curl -fsSL -o`,
-     then run it through `osascript -e 'do shell script "installer -pkg
-     <file> -target /" with administrator privileges'` (macOS shows its
-     password dialog; the Bash call needs a long timeout). Re-check with
-     `node --version`.
+   - Missing or too old, macOS: "Pilcrino's browser, its diagram images and
+     an Astro site all run on Node.js, which this Mac does not have (or has
+     an old version of). I can download the official installer from
+     nodejs.org and run it; macOS will ask for your Mac password in its own
+     window, which I never see. Or you can download the macOS installer
+     from https://nodejs.org yourself and double-click it. Which do you
+     prefer?" On "do it": download the current LTS `.pkg` from nodejs.org's
+     download page to a new empty folder under `$(mktemp -d)` with `curl
+     -fsSL -o`, then run it through `osascript -e 'do shell script
+     "installer -pkg <file> -target /" with administrator privileges'`
+     (macOS shows its password dialog; the Bash call needs a long timeout).
+     Re-check with `node --version`.
+   - Missing or too old, Windows: the same first sentence with "this
+     computer", then: "The quickest route is Windows' own package tool.
+     Type exactly this into Claude Code, with the exclamation mark first:
+     `! winget install OpenJS.NodeJS.LTS --architecture x64` and approve the
+     Windows prompt that appears. Then close this Claude Code window, open
+     a new one in the same folder and run `/pilcrino:blog-setup` again:
+     a new window is the only way the `node` command becomes visible."
+     (x64 on purpose: Pilcrino's diagram images run on an x64 build of
+     Node, which Windows on Arm runs through its emulation.) Setup resumes
+     per Global rule 8.
+   - Missing or too old, Linux: the same first sentence with "this
+     computer", then the official route for the distribution: on Debian and
+     Ubuntu the NodeSource repository (`! curl -fsSL
+     https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt-get
+     install -y nodejs`), on Fedora `! sudo dnf install -y nodejs`; on
+     anything else the download page https://nodejs.org. Then the same
+     "close this window and open a new one" instruction as Windows.
    - If Node was missing when this session started, Pilcrino's browser
      could not start with it, and an MCP server starts only with Claude
      Code. Say so now, once: "One more thing: because Node.js was missing
@@ -271,22 +323,27 @@ continue.
      blog's folder; every answer is saved as we go." Do that restart only
      if the first browser tool call in Phase 1.5 or Phase 3.5 actually
      fails (never pre-emptively), and give the exact three lines then: quit
-     with `/exit`, in Terminal `cd <blog folder>` then `claude`, then
-     `/pilcrino:blog-setup`.
+     with `/exit`, in Terminal (on Windows: Windows Terminal) `cd <blog
+     folder>` then `claude`, then `/pilcrino:blog-setup`.
    - A browser tool that answers "pilcrino-browser is installing its
      packages" is not a failure: right after a plugin update the browser
      installs its packages on first start, which takes a minute or two.
      Tell the owner once, wait a minute, and call it again; never ask for a
      restart or for any file to be deleted for this.
+   - On Windows, also run `node -p process.arch`. If it prints `arm64`,
+     remember it for Phase 4: Pilcrino's diagram images (Remotion) have no
+     Windows on Arm build, so that image type is offered only after Node is
+     reinstalled as x64 (the `winget` command above), and otherwise left
+     out of the image types with one sentence saying why.
 3. **GitHub CLI (`gh`).** `command -v gh >/dev/null 2>&1 && gh --version |
    head -1 || echo missing`.
-   - Missing: "Pilcrino uses GitHub's command line tool to open each post
-     as a pull request for you to review, and to sign in to GitHub from
-     this Mac. It is not installed. I can download the official installer
-     and run it (macOS asks for your Mac password in its own window), or
-     you can get it from https://cli.github.com. Shall I install it?"
-     On yes: if `command -v brew` succeeds, run `brew install gh`;
-     otherwise download the latest macOS `.pkg` from
+   - Missing, macOS: "Pilcrino uses GitHub's command line tool to open each
+     post as a pull request for you to review, and to sign in to GitHub
+     from this Mac. It is not installed. I can download the official
+     installer and run it (macOS asks for your Mac password in its own
+     window), or you can get it from https://cli.github.com. Shall I
+     install it?" On yes: if `command -v brew` succeeds, run `brew install
+     gh`; otherwise download the latest macOS `.pkg` from
      `https://github.com/cli/cli/releases/latest` (the asset named
      `gh_<version>_macOS_universal.pkg`) with `curl -fsSL -o` into a new
      empty folder under `$(mktemp -d)` and run it through the same
@@ -296,6 +353,15 @@ continue.
      package is from an unidentified developer, tell them: right-click the
      file, choose Open, then Open again; or System Settings, Privacy &
      Security, "Open Anyway". Re-check with `gh --version`.
+   - Missing, Windows: the same first two sentences with "this computer",
+     then `! winget install GitHub.cli`, and the new-window instruction
+     from check 2 (a new Claude Code window is needed for `gh` to be
+     found).
+   - Missing, Linux: the same first two sentences, then GitHub's own
+     package repository, one block the owner pastes with `!`: on Debian and
+     Ubuntu the `apt` block from https://github.com/cli/cli/blob/trunk/docs/install_linux.md
+     (give it verbatim from that page, fetched with `curl -fsSL`), on
+     Fedora `! sudo dnf install -y gh`.
 4. **GitHub sign-in.** `gh auth status >/dev/null 2>&1 && echo ok || echo
    signed-out`. Run this BEFORE any look at a repository: an
    unauthenticated check cannot tell a private repository from a wrong
@@ -314,12 +380,39 @@ continue.
      pull and push steps later ask for a username and password that GitHub
      no longer accepts." On yes, run `gh auth setup-git`. On no, continue
      and expect to repeat the offer at the first push.
-5. **Google Chrome.** `[ -d "/Applications/Google Chrome.app" ] || [ -d
-   "$HOME/Applications/Google Chrome.app" ] && echo ok || echo missing`.
+5. **Google Chrome.**
+   - macOS: `[ -d "/Applications/Google Chrome.app" ] || [ -d
+     "$HOME/Applications/Google Chrome.app" ] && echo ok || echo missing`.
+   - Windows: `[ -e "/c/Program Files/Google/Chrome/Application/chrome.exe"
+     ] || [ -e "$LOCALAPPDATA/Google/Chrome/Application/chrome.exe" ] &&
+     echo ok || echo missing`.
+   - Linux: `command -v google-chrome >/dev/null 2>&1 || command -v
+     google-chrome-stable >/dev/null 2>&1 && echo ok || echo missing`. When
+     that misses but `command -v chromium` or `command -v
+     chromium-browser` succeeds, check `snap list chromium >/dev/null 2>&1`:
+     a snap Chromium cannot read Pilcrino's browser profile (snaps are kept
+     out of the hidden folders in your home folder), so treat it as
+     missing and say so in one sentence; a Chromium that is not a snap
+     counts as `ok`. Also, if both `DISPLAY` and `WAYLAND_DISPLAY` are
+     empty, say once: "Pilcrino's browser needs a desktop session on this
+     computer to open its Chrome window; over a plain terminal connection
+     the research steps cannot run."
    - Missing: "Pilcrino researches in its own copy of Google Chrome, which
      this Mac does not have. Install it from https://www.google.com/chrome
      when you can; the questions up to the sign-in step do not need it."
-     Continue; Phase 3.5 re-checks.
+     (Windows: `! winget install Google.Chrome` is the one-line route;
+     Linux: the `.deb` or `.rpm` from that page, installed with `! sudo
+     apt-get install -y ./google-chrome-stable_current_amd64.deb` or the
+     `arm64` file on an Arm computer.) Continue; Phase 3.5 re-checks.
+6. **`jq`**, only when the blog publishes to WordPress (known from an
+   earlier setup, or asked in Phase 5; when unknown here, re-run this check
+   at the start of Phase 5): `command -v jq >/dev/null 2>&1 && echo ok ||
+   echo missing`. Missing: "Pilcrino builds the WordPress requests with a
+   small tool called jq, which this computer does not have." macOS: `brew
+   install jq` when `brew` exists, else the binary from
+   https://jqlang.github.io/jq/download/; Windows: `! winget install
+   jqlang.jq` plus the new-window instruction; Linux: `! sudo apt-get
+   install -y jq` (Fedora: `dnf`).
 
 When everything passes, say so in one line ("This Mac has everything
 Pilcrino needs: git, Node.js <version>, the GitHub tool signed in as
@@ -1370,8 +1463,8 @@ If that first call fails because the browser tool is unavailable and Node.js was
 2. Call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the sites that are not signed in. It quits the Pilcrino browser and opens the sign-in pages in a Chrome window on the Pilcrino profile without remote control (Google refuses to sign in a browser under remote control). Tell the owner, in this order and in these words or close to them:
    "A second Chrome has just opened: that is Pilcrino's own copy of Chrome, separate from the Chrome you normally use. It has one tab per site: <sites>. You can tell it apart because it has only those tabs and no bookmarks or history of yours; it may sit behind your other windows. Sign in to each tab with your own accounts (Reddit and Google sometimes show a 'verify you are human' check first; that is normal, pass it). Then tell me you are done and I'll close that window for you so the sign-ins are kept. Don't close it yourself: closing it the usual way can quit the wrong Chrome."
    Then wait for the owner's reply. Do not poll and do not sleep.
-3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__close_login` (no arguments). It quits the sign-in Chrome gracefully so the sign-ins persist and returns `{ "closed": true|false, "detail": "<one line>" }`. On `closed: true`, go on to the check. On `closed: false`, read `detail`; tell the owner in plain words what it says and, as the fallback only, how to quit it by hand: "Click once inside Pilcrino's Chrome window (the one with only the <sites> tabs), then press Cmd+Q. That quits only that copy of Chrome; your own Chrome keeps running. Closing the window with the red button is not enough. Tell me when it is gone." Then call `close_login` once more on the reply before checking.
-   Then call `mcp__plugin_pilcrino_pilcrino-browser__login_status` once with the same sites and report each site's state in one line per site. It restarts the Pilcrino browser with remote control. If it fails with `signin_window_open`, the sign-in window is still running: run `close_login` again and, if it still reports `closed: false`, give the Cmd+Q fallback above and check again on the reply.
+3. When the owner says done, call `mcp__plugin_pilcrino_pilcrino-browser__close_login` (no arguments). It quits the sign-in Chrome gracefully so the sign-ins persist and returns `{ "closed": true|false, "detail": "<one line>" }`. On `closed: true`, go on to the check. On `closed: false`, read `detail`; tell the owner in plain words what it says and, as the fallback only, how to quit it by hand: "Click once inside Pilcrino's Chrome window (the one with only the <sites> tabs), then press Cmd+Q (Alt+F4 on Windows, Ctrl+Q on Linux). That quits only that copy of Chrome; your own Chrome keeps running. On a Mac, closing the window with the red button is not enough. Tell me when it is gone." Then call `close_login` once more on the reply before checking.
+   Then call `mcp__plugin_pilcrino_pilcrino-browser__login_status` once with the same sites and report each site's state in one line per site. It restarts the Pilcrino browser with remote control. If it fails with `signin_window_open`, the sign-in window is still running: run `close_login` again and, if it still reports `closed: false`, give the quit-by-hand fallback above and check again on the reply.
 4. A site still `signed_out`: ask "Sign in to <site> and tell me when you are done, or skip <site> for now?" On "done", repeat from step 2 for that site only (the sign-in window must be reopened: `login_status` restarted the browser under remote control). Skipping is allowed; research for that source parks later with a card until the owner signs in, and setup says so in one sentence.
 5. `blocked`: "<site> is showing a 'verify you are human' or unusual-traffic check in Pilcrino's Chrome window. That is the site being careful with a browser it has not seen before. Open that window, pass the check, then tell me and I'll look again." `error`: "The Pilcrino browser could not reach <site>. Check the connection and tell me when to check again." Offer a check again or a skip.
 6. Record the outcome in `blog-ops/profile/setup-notes.md` as "Pilcrino browser: signed in to <sites> on <date>" (and "skipped <sites>" when any were).
@@ -1587,7 +1680,16 @@ title band never vary; only the composition does.
    **Scope it to generated registries only.** Never add a prose path (anything
    under `{content_dir}`) to this file: union-merging two edits to the same
    paragraph keeps both sides and silently publishes a mangled sentence.
-5. `npm install`, from inside `REMOTION_DIR`. Make sure the repo-root
+5. On Linux (Debian and Ubuntu) say once before installing: Remotion's
+   renderer needs a few shared libraries that a desktop install usually has;
+   if the test render in step 6 fails naming a missing `.so`, give the
+   owner the one `! sudo apt-get install -y libnss3 libatk-bridge2.0-0
+   libgbm1 libasound2t64 libxss1 libgtk-3-0` line (the list from
+   https://www.remotion.dev/docs/miscellaneous/linux-dependencies, fetched
+   if the names differ for the release). Other distributions get that link.
+   On Windows with `arm64` Node (Phase 0a check 2) this image type was
+   never offered, so this step is not reached.
+   `npm install`, from inside `REMOTION_DIR`. Make sure the repo-root
    `.gitignore` lists `<REMOTION_DIR>/node_modules/` and
    `<REMOTION_DIR>/out/` (append the two lines when missing), so the
    installed packages and test renders never reach the commit.
@@ -1596,8 +1698,9 @@ title band never vary; only the composition does.
    cd "<REMOTION_DIR>" && npx remotion still SampleDiagram --output=out/preview-sample-v1.png
    ```
 7. `Read` the rendered PNG yourself, then **open it for the owner before
-   asking anything**: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
-   (macOS opens it in Preview). Then ask, giving the path too: "I've opened
+   asking anything**, with the system's opener: `open <file>` on macOS
+   (Preview), `xdg-open <file>` on Linux, `start "" <file>` on Windows (in
+   Git Bash: `cmd.exe /c start "" "<file>"`). Then ask, giving the path too: "I've opened
    the test image on your screen (it is also at
    `<REMOTION_DIR>/out/preview-sample-v1.png`). It uses your colours and
    watermark. <If a webfont is not installed: 'The text is in a standard
