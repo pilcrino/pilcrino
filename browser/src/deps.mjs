@@ -1,6 +1,6 @@
 import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from 'node:child_process'
 import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { dirname, join, win32 } from 'node:path'
 
 const LOCK_STALE_MS = 10 * 60 * 1000
 const WAIT_MAX_MS = 5 * 60 * 1000
@@ -118,6 +118,24 @@ function npmMissing(root) {
   return new Error(`npm was not found. Install Node 22 with npm, or run: node ${join(root, 'bin.mjs')} install`)
 }
 
+/**
+ * The command that runs npm: `[file, args]`. On Windows `npm` is `npm.cmd`,
+ * which Node refuses to spawn without a shell, and a shell would make the
+ * child `cmd.exe` rather than npm, so bin.mjs could no longer stop the real
+ * installer before releasing the lock. So npm's JavaScript entry runs under
+ * this very Node instead. PILCRINO_NPM_CLI names that entry explicitly (tests
+ * use it for a fake npm on every platform). A missing entry file is reported
+ * before any spawn: Node would otherwise start and fail with MODULE_NOT_FOUND,
+ * which reads as a generic install failure.
+ */
+export function npmCommand(root, { platform = process.platform, env = process.env, exists = existsSync, execPath = process.execPath } = {}) {
+  let cli = env.PILCRINO_NPM_CLI
+  if (!cli && platform === 'win32') cli = win32.join(win32.dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (!cli) return ['npm', NPM_ARGS]
+  if (!exists(cli)) throw npmMissing(root)
+  return [execPath, [cli, ...NPM_ARGS]]
+}
+
 const npmEnv = () => ({ ...process.env, npm_config_loglevel: 'error' })
 
 function lostLock(lock) {
@@ -153,7 +171,8 @@ export function ensureInstalled(root, deps = {}) {
       if (stamped()) return { installed: false }
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
-      const r = spawnSync('npm', NPM_ARGS, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+      const [file, args] = npmCommand(root, deps)
+      const r = spawnSync(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
       if (r.error?.code === 'ENOENT') throw npmMissing(root)
       if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
@@ -201,7 +220,9 @@ export async function installAsync(root, deps = {}) {
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       const code = await new Promise((resolve, reject) => {
         // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
-        const child = spawn('npm', NPM_ARGS, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+        let file, args
+        try { [file, args] = npmCommand(root, deps) } catch (err) { reject(err); return }
+        const child = spawn(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
         deps.onSpawn?.(child)
         child.on('error', (err) => reject(err.code === 'ENOENT' ? npmMissing(root) : err))
         child.on('close', (status, signal) => resolve(status ?? signal))

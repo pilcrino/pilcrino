@@ -260,3 +260,28 @@ test('session.closeSignIn passes the profile and the resolved Chrome, and never 
   assert.equal(out.closed, true)
   assert.deepEqual(seen, [{ profile: session.profile, exe: '/env/chrome' }])
 })
+
+test('closeSignIn on win32: taskkill without /F per Chrome pid, never process.kill', async () => {
+  const { closeSignIn, platformQuit } = await import('../src/signin.mjs')
+  const calls = []
+  const quit = platformQuit('win32', { kill: () => { throw new Error('process.kill must not be used on Windows') }, exec: (bin, args) => { calls.push([bin, ...args]) } })
+  const chrome = { pid: 4001, command: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\Users\\Dana Reyes\\.pilcrino\\browser"' }
+  let polls = 0
+  const out = await closeSignIn({
+    profile: 'C:\\Users\\Dana Reyes\\.pilcrino\\browser',
+    exe: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    platform: 'win32',
+    quit,
+    processes: () => (polls++ === 0 ? [chrome] : []),
+    sleep: async () => {},
+  })
+  assert.deepEqual(calls, [['taskkill', '/PID', '4001']])
+  assert.equal(out.closed, true)
+})
+
+test('platformQuit off Windows sends SIGTERM', async () => {
+  const { platformQuit } = await import('../src/signin.mjs')
+  const sent = []
+  platformQuit('linux', { kill: (pid, sig) => sent.push([pid, sig]), exec: () => { throw new Error('no taskkill here') } })(7)
+  assert.deepEqual(sent, [[7, 'SIGTERM']])
+})

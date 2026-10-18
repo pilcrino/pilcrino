@@ -234,3 +234,91 @@ test('profileProcessEntries: pid and command per main process on exactly this pr
   assert.deepEqual(entries.map((e) => isPlainCommand(e.command)), [true, false])
   assert.deepEqual(profileProcessEntries('/u/.pilcrino/browser', { exec: () => { throw new Error('no ps') } }), [])
 })
+
+test('findChrome: linux falls back to chromium after google-chrome', () => {
+  const exists = (p) => p === '/usr/bin/chromium'
+  assert.equal(findChrome({ platform: 'linux', env: { PATH: '/usr/local/bin:/usr/bin' }, exists }), '/usr/bin/chromium')
+  const both = (p) => p === '/usr/bin/chromium' || p === '/usr/bin/google-chrome'
+  assert.equal(findChrome({ platform: 'linux', env: { PATH: '/usr/bin' }, exists: both }), '/usr/bin/google-chrome')
+})
+
+test('findChrome: win32 per-user install under LOCALAPPDATA', () => {
+  const local = 'C:\\Users\\dana\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe'
+  const exists = (p) => p === local
+  assert.equal(findChrome({ platform: 'win32', env: { LOCALAPPDATA: 'C:\\Users\\dana\\AppData\\Local' }, exists }), local)
+  assert.throws(() => findChrome({ platform: 'win32', env: {}, exists }), (e) => e.code === 'chrome_not_found' && e.searched.length === 2)
+})
+
+test('splitWindowsArgs: quotes group, escaped quotes stay, backslashes are kept', async () => {
+  const { splitWindowsArgs } = await import('../src/chrome.mjs')
+  assert.deepEqual(splitWindowsArgs('"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\Users\\Dana Reyes\\.pilcrino\\browser" --no-first-run'), [
+    'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    '--user-data-dir=C:\\Users\\Dana Reyes\\.pilcrino\\browser',
+    '--no-first-run',
+  ])
+  assert.deepEqual(splitWindowsArgs('a  "b c"  d\\"e'), ['a', 'b c', 'd"e'])
+  assert.deepEqual(splitWindowsArgs(''), [])
+})
+
+test('profileProcessEntries on win32: PowerShell listing, quoted paths with spaces and non-ASCII, exact profile, no helpers', async () => {
+  const { profileProcessEntries, isPlainCommand, processListCommand } = await import('../src/chrome.mjs')
+  const dir = 'C:\\Users\\José Reyes\\.pilcrino\\browser'
+  const lines = [
+    '4001 "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\Users\\José Reyes\\.pilcrino\\browser" --no-first-run https://accounts.google.com/',
+    '4002 "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --type=renderer --user-data-dir="C:\\Users\\José Reyes\\.pilcrino\\browser"',
+    '4003 "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\Users\\José Reyes\\.pilcrino\\browser2"',
+    '4004 "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="c:/users/josé reyes/.pilcrino/browser" --remote-debugging-port=0',
+    '4005 C:\\Windows\\explorer.exe',
+    '',
+  ].join('\r\n')
+  const exec = (bin, args, opts) => {
+    assert.equal(bin, 'powershell')
+    assert.deepEqual(args.slice(0, 3), ['-NoProfile', '-NonInteractive', '-Command'])
+    assert.match(args[3], /OutputEncoding.*UTF8/)
+    assert.equal(opts.windowsHide, true)
+    return lines
+  }
+  const entries = profileProcessEntries(dir, { exec, platform: 'win32' })
+  assert.deepEqual(entries.map((e) => e.pid), [4001, 4004])
+  assert.deepEqual(entries.map((e) => isPlainCommand(e.command)), [true, false])
+  assert.deepEqual(processListCommand('linux'), ['ps', ['-axww', '-o', 'pid=,command=']])
+})
+
+test('isChromeCommand on win32: a quoted chrome.exe, the resolved exe case-insensitively, never python', async () => {
+  const { isChromeCommand, commandExecutable } = await import('../src/chrome.mjs')
+  const exe = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
+  const line = `"${exe}" --user-data-dir="C:\\Users\\Dana Reyes\\.pilcrino\\browser"`
+  assert.equal(commandExecutable(line), exe)
+  assert.equal(isChromeCommand(line, undefined, 'win32'), true)
+  assert.equal(isChromeCommand(line, exe.toLowerCase(), 'win32'), true)
+  assert.equal(isChromeCommand('"C:\\Python\\python.exe" --user-data-dir=C:\\p', exe, 'win32'), false)
+  assert.equal(isChromeCommand('"D:\\My Browser\\browser.exe" --user-data-dir=C:\\p', 'D:\\My Browser\\browser.exe', 'win32'), true)
+})
+
+test('quitKeys per platform', async () => {
+  const { quitKeys } = await import('../src/chrome.mjs')
+  assert.equal(quitKeys('darwin'), 'Cmd+Q')
+  assert.equal(quitKeys('win32'), 'Alt+F4')
+  assert.equal(quitKeys('linux'), 'Ctrl+Q')
+})
+
+test('profileProcessEntries with the real process list finds a child carrying the profile flag', { timeout: 20000 }, async () => {
+  const { profileProcessEntries } = await import('../src/chrome.mjs')
+  const { spawn } = await import('node:child_process')
+  const base = mkdtempSync(join(tmpdir(), 'pb-José-'))
+  const dir = join(base, 'browser')
+  const child = spawn(process.execPath, ['-e', 'setTimeout(()=>{},20000)', '--', `--user-data-dir=${dir}`], { stdio: 'ignore' })
+  try {
+    await new Promise((r) => child.once('spawn', r))
+    let found = []
+    for (let i = 0; i < 20 && found.length === 0; i++) {
+      found = profileProcessEntries(dir).filter((e) => e.pid === child.pid)
+      if (found.length === 0) await new Promise((r) => setTimeout(r, 100))
+    }
+    assert.equal(found.length, 1, 'the child is listed under its profile')
+    assert.equal(profileProcessEntries(dir + '2').length, 0)
+  } finally {
+    child.kill()
+    rmSync(base, { recursive: true, force: true })
+  }
+})

@@ -25,7 +25,7 @@
 // which a build passes and a screenshot reviewer may or may not mention.
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
@@ -134,7 +134,7 @@ export function pageProbe(selector, tolerance) {
 async function loadPuppeteer() {
   const require = createRequire(join(BROWSER_ROOT, 'package.json'))
   try {
-    return (await import(require.resolve('puppeteer-core'))).default
+    return (await import(pathToFileURL(require.resolve('puppeteer-core')).href)).default
   } catch {
     throw new Error(`puppeteer-core is not installed under ${BROWSER_ROOT}; ${INSTALL_HINT}`)
   }

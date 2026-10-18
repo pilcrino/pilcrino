@@ -260,3 +260,26 @@ test('installAsync: a lock lost during npm is neither stamped nor released', asy
   assert.equal(readFileSync(lock, 'utf8'), String(process.ppid))
   rmSync(d, { recursive: true, force: true })
 })
+
+test('npmCommand: PILCRINO_NPM_CLI wins on every platform, win32 defaults to npm-cli.js next to node, a missing cli is reported before any spawn', async () => {
+  const { npmCommand } = await import('../src/deps.mjs')
+  const root = '/r'
+  const args = ['install', '--omit=dev', '--no-audit', '--no-fund']
+  assert.deepEqual(npmCommand(root, { platform: 'linux', env: {}, exists: () => true, execPath: '/n/node' }), ['npm', args])
+  assert.deepEqual(npmCommand(root, { platform: 'linux', env: { PILCRINO_NPM_CLI: '/fake/npm-cli.js' }, exists: () => true, execPath: '/n/node' }), ['/n/node', ['/fake/npm-cli.js', ...args]])
+  assert.deepEqual(npmCommand(root, { platform: 'win32', env: {}, exists: () => true, execPath: 'C:\\nodejs\\node.exe' }), ['C:\\nodejs\\node.exe', ['C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js', ...args]])
+  assert.throws(() => npmCommand(root, { platform: 'win32', env: {}, exists: () => false, execPath: 'C:\\nodejs\\node.exe' }), /npm was not found/)
+})
+
+test('ensureInstalled runs the fake npm named by PILCRINO_NPM_CLI under this node', () => {
+  const d = root()
+  const cli = join(d, 'fake-npm-cli.js')
+  writeFileSync(cli, "require('node:fs').mkdirSync('node_modules', { recursive: true })\n")
+  const argv = []
+  const r = ensureInstalled(d, {
+    env: { ...process.env, PILCRINO_NPM_CLI: cli },
+    spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
+  })
+  assert.equal(r.installed, true)
+  assert.deepEqual(argv, [[process.execPath, cli, 'install', '--omit=dev', '--no-audit', '--no-fund']])
+})

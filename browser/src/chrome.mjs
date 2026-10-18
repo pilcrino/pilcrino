@@ -1,7 +1,7 @@
 import * as nodeFs from 'node:fs'
 import { execFileSync, spawn as nodeSpawn } from 'node:child_process'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { join, posix, win32 } from 'node:path'
 import { parse as parseYaml } from 'yaml'
 
 export function profileDir(home = homedir()) {
@@ -12,10 +12,25 @@ export function codedError(code, message, extra = {}) {
   return Object.assign(new Error(message), { code, ...extra })
 }
 
-const DEFAULTS = {
-  darwin: ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'],
-  win32: ['C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe', 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'],
-  linux: ['google-chrome', 'google-chrome-stable'],
+/**
+ * Where Chrome is looked for, per platform. Linux prefers Google Chrome over
+ * Chromium: Ubuntu's `chromium` is a snap, and snaps cannot read dot-folders
+ * under $HOME, so the Pilcrino profile is invisible to it. Windows adds the
+ * per-user install under %LOCALAPPDATA%.
+ */
+function defaultCandidates(platform, env) {
+  switch (platform) {
+    case 'darwin':
+      return ['/Applications/Google Chrome.app/Contents/MacOS/Google Chrome']
+    case 'win32':
+      return [
+        'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+        'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+        ...(env.LOCALAPPDATA ? [win32.join(env.LOCALAPPDATA, 'Google', 'Chrome', 'Application', 'chrome.exe')] : []),
+      ]
+    default:
+      return ['google-chrome', 'google-chrome-stable', 'chromium', 'chromium-browser']
+  }
 }
 
 export function findChrome({ platform = process.platform, env = process.env, exists = nodeFs.existsSync, override } = {}) {
@@ -24,7 +39,7 @@ export function findChrome({ platform = process.platform, env = process.env, exi
   if (env.PILCRINO_CHROME) return env.PILCRINO_CHROME
   if (override) return override
   const searched = []
-  for (const candidate of DEFAULTS[platform] ?? DEFAULTS.linux) {
+  for (const candidate of defaultCandidates(platform, env)) {
     if (candidate.includes('/') || candidate.includes('\\')) {
       searched.push(candidate)
       if (exists(candidate)) return candidate
@@ -98,28 +113,82 @@ export function launchChrome(exe, dir, { spawn = nodeSpawn } = {}) {
 export const sleepMs = (ms) => new Promise((r) => setTimeout(r, ms))
 
 /**
- * Chrome's main processes on this profile as `{ pid, command }` (helpers carry
- * `--type=` and are left out). Read through `ps`, so a missing `ps` or any
- * other failure reads as nothing running. The profile flag must end the
- * argument exactly, so `.../browser2` never matches `.../browser`.
+ * Splits a Windows command line the way CreateProcess does for the common
+ * cases: whitespace separates arguments, double quotes group them, `\"` is a
+ * literal quote, and backslashes elsewhere are kept as they are (paths).
  */
-export function profileProcessEntries(dir, { exec = execFileSync } = {}) {
+export function splitWindowsArgs(line) {
+  const args = []
+  let cur = ''
+  let inQuotes = false
+  let seen = false
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i]
+    if (c === '\\' && line[i + 1] === '"') { cur += '"'; seen = true; i++; continue }
+    if (c === '"') { inQuotes = !inQuotes; seen = true; continue }
+    if (!inQuotes && /\s/.test(c)) {
+      if (seen) { args.push(cur); cur = ''; seen = false }
+      continue
+    }
+    cur += c
+    seen = true
+  }
+  if (seen) args.push(cur)
+  return args
+}
+
+// PowerShell's own output encoding is the console code page unless set, which
+// would garble a profile under a user name like José; the prefix forces UTF-8.
+const WIN_PROCESS_LIST = "[Console]::OutputEncoding = [Text.Encoding]::UTF8; Get-CimInstance Win32_Process | % { '{0} {1}' -f $_.ProcessId, $_.CommandLine }"
+
+/** The platform's process-list command and arguments. */
+export function processListCommand(platform = process.platform) {
+  return platform === 'win32'
+    ? ['powershell', ['-NoProfile', '-NonInteractive', '-Command', WIN_PROCESS_LIST]]
+    : ['ps', ['-axww', '-o', 'pid=,command=']]
+}
+
+/**
+ * Whether a command line names this profile: a `--user-data-dir=` argument
+ * whose value is exactly `dir` (so `.../browser2` never matches
+ * `.../browser`), and no `--type=` (a helper, not a main process). On
+ * Windows the line is split into arguments first, since the executable and
+ * the profile path are quoted when they carry spaces, and the comparison is
+ * case-insensitive after normalising separators.
+ */
+export function commandOnProfile(command, dir, platform = process.platform) {
+  if (platform === 'win32') {
+    const args = splitWindowsArgs(command)
+    if (args.some((a) => a.startsWith('--type='))) return false
+    const want = win32.normalize(dir).toLowerCase()
+    return args.some((a) => a.startsWith('--user-data-dir=') && win32.normalize(a.slice('--user-data-dir='.length)).toLowerCase() === want)
+  }
+  const flag = `--user-data-dir=${dir}`
+  const at = command.indexOf(flag)
+  if (at < 0) return false
+  const next = command[at + flag.length]
+  return (next === undefined || next === ' ') && !/ --type=/.test(command)
+}
+
+/**
+ * Chrome's main processes on this profile as `{ pid, command }` (helpers carry
+ * `--type=` and are left out). Read through `ps`, or PowerShell on Windows,
+ * so a missing tool or any other failure reads as nothing running.
+ */
+export function profileProcessEntries(dir, { exec = execFileSync, platform = process.platform } = {}) {
   let out
   try {
-    out = String(exec('ps', ['-axww', '-o', 'pid=,command='], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }))
+    const [bin, args] = processListCommand(platform)
+    out = String(exec(bin, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }))
   } catch {
     return []
   }
-  const flag = `--user-data-dir=${dir}`
   const entries = []
   for (const raw of out.split('\n')) {
-    const m = /^\s*(\d+)\s+(.*)$/.exec(raw)
+    const m = /^\s*(\d+)\s+(.*)$/.exec(raw.replace(/\r$/, ''))
     if (!m) continue
     const command = m[2]
-    const at = command.indexOf(flag)
-    if (at < 0) continue
-    const next = command[at + flag.length]
-    if ((next === undefined || next === ' ') && !/ --type=/.test(command)) entries.push({ pid: Number(m[1]), command })
+    if (commandOnProfile(command, dir, platform)) entries.push({ pid: Number(m[1]), command })
   }
   return entries
 }
@@ -134,21 +203,30 @@ export function profileProcesses(dir, opts) {
  * ` --`, since a macOS Chrome path carries spaces ("Google Chrome.app").
  */
 export function commandExecutable(command) {
-  const at = command.indexOf(' --')
-  return (at < 0 ? command : command.slice(0, at)).trim()
+  const trimmed = command.trim()
+  if (trimmed.startsWith('"')) {
+    // A quoted Windows executable: everything up to the closing quote.
+    const end = trimmed.indexOf('"', 1)
+    if (end > 0) return trimmed.slice(1, end)
+  }
+  const at = trimmed.indexOf(' --')
+  return (at < 0 ? trimmed : trimmed.slice(0, at)).trim()
 }
+
+const sameExecutable = (a, b, platform) => (platform === 'win32' ? win32.normalize(a).toLowerCase() === win32.normalize(b).toLowerCase() : a === b)
 
 /**
  * Whether a command line runs Chrome: its executable is the Chrome binary this
  * session resolved (`exe`), or a Chrome binary by name: macOS's
- * `.../Google Chrome` and Linux's `.../chrome` (what the `google-chrome`
- * wrapper execs). Any other program that happens to carry the profile argument
- * is not Chrome and is never signalled.
+ * `.../Google Chrome`, Linux's `.../chrome` (what the `google-chrome`
+ * wrapper execs) and Windows's `chrome.exe`. Any other program that happens
+ * to carry the profile argument is not Chrome and is never signalled.
  */
-export function isChromeCommand(command, exe) {
+export function isChromeCommand(command, exe, platform = process.platform) {
   const bin = commandExecutable(command)
-  if (exe && bin === exe) return true
-  return bin.endsWith('/Google Chrome') || bin.endsWith('/chrome')
+  if (exe && sameExecutable(bin, exe, platform)) return true
+  if (bin.endsWith('/Google Chrome') || bin.endsWith('/chrome')) return true
+  return (platform === 'win32' ? win32 : posix).basename(bin).toLowerCase() === 'chrome.exe'
 }
 
 /** A command line without the remote-control port names the sign-in window. */
@@ -169,7 +247,14 @@ export function isProfileHeld(dir, opts) {
   return profileProcesses(dir, opts).some(isPlainCommand)
 }
 
-export const SIGNIN_WINDOW_OPEN = 'The Pilcrino sign-in window is still open. Quit it with Cmd+Q, then try again.'
+/** How the owner quits a Chrome window on this platform. */
+export function quitKeys(platform = process.platform) {
+  if (platform === 'darwin') return 'Cmd+Q'
+  if (platform === 'win32') return 'Alt+F4'
+  return 'Ctrl+Q'
+}
+
+export const SIGNIN_WINDOW_OPEN = `The Pilcrino sign-in window is still open. Quit it with ${quitKeys()}, then try again.`
 
 /**
  * Connects to the profile's Chrome, launching it when nothing answers. A
