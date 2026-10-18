@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { spawnSync } from 'node:child_process'
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
+import { resolve } from 'node:path'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { hasUnionMerge, parseArgs, PLUGIN_ROOT, runChecks, TEMPLATE_KEYS } from './validate-config.mjs'
@@ -234,6 +235,6 @@ test('hasUnionMerge and parseArgs', () => {
   assert.equal(hasUnionMerge('# c\n/tools/remotion/src/Root.tsx   merge=union text\n', 'tools/remotion/src/Root.tsx'), true)
   assert.equal(hasUnionMerge('tools/remotion/src/Root.tsx merge=ours\n', 'tools/remotion/src/Root.tsx'), false)
   assert.equal(parseArgs(['--repo', '/r', '--no-install']).install, false)
-  assert.equal(parseArgs(['--repo', '/r']).repo, '/r')
+  assert.equal(parseArgs(['--repo', '/r']).repo, resolve('/r')) // an absolute path on every platform (D:\r on Windows)
   assert.throws(() => parseArgs(['--bogus']), /unknown argument/)
 })
