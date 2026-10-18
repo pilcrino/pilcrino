@@ -71,7 +71,7 @@ In the app's zip both shapes become `./<file>` (`./featured.png`); always write 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `description` is 160 chars at most
 - [ ] `pubDate` is `YYYY-MM-DD`
-- [ ] `tags` has 2-4 entries from the taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] `tags` has exactly the 2-4 entries `brief.md` §Tags lists (only when `tags` is emitted, §Which keys to emit)
 - [ ] `author` is a plain display string, not an array (only when `author` is emitted, §Which keys to emit)
 - [ ] the cover key (`heroImage`, or `publish.markdown.cover_key` when set) resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body

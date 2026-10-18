@@ -36,7 +36,7 @@ image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, s
 - **`title`**: quoted, 50-60 chars, the page H1 rendered by the layout; never repeat an H1 in the body.
 - **`description`**: the meta description, 160 chars at most.
 - **`date`** (the date key): `YYYY-MM-DD`. Write the drafting date and leave it. The Pilcrino app overwrites it with the publish day's date: on the branch copy at approval, and in the zip copy at download (`publish-date.ts`). Keep the `YYYY-MM-DD` shape; the app rewrites only a value it can parse as one.
-- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet). Eleventy also builds collections from `tags`, so use the taxonomy names exactly.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet). Eleventy also builds collections from `tags`, so use the names exactly as the brief spells them.
 - **`author`**: one string, not an array: the display name from `{profile_dir}/authors.md`, or a co-signed byline (e.g. `"Alex & Sam"`) for `author_voice=we`.
 - **`image`** (the cover key): one quoted single-line value, see §Cover path computation.
 - **No draft key.** The post is unpublished until its PR merges; nothing is stripped at staging.
@@ -70,7 +70,7 @@ In the app's zip both shapes become `./<file>` (`./featured.png`); always write 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `description` is 160 chars at most
 - [ ] `date` is `YYYY-MM-DD`
-- [ ] `tags` has 2-4 entries from the taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] `tags` has exactly the 2-4 entries `brief.md` §Tags lists (only when `tags` is emitted, §Which keys to emit)
 - [ ] `author` is a plain display string, not an array (only when `author` is emitted, §Which keys to emit)
 - [ ] the cover key (`image`, or `publish.markdown.cover_key` when set) resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body
