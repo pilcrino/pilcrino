@@ -55,9 +55,12 @@ rules; they override the wording of any example in this file.
 
 2. **One question per message.** A message ends with exactly one question.
    Never a numbered list of questions, never "also, ..." with a second one.
-   Between two questions, at most two sentences of owner words (a "Saved"
-   line and the next part's name, or one stated derived value); anything
-   longer belongs in the summary before the commit.
+   Transition narration between two questions is at most two sentences
+   (a "Saved" line and the next part's name, or one stated derived
+   value). This limit does not apply to the summary before the commit,
+   the closing recap, a rule read back under rule 6, or the one-sentence
+   reason a consent question needs; everything else that is longer
+   belongs in the summary.
    When a question has a fixed set of answers, ask it with `AskUserQuestion`
    as a menu; when it needs free text, ask it in prose.
 3. **Defaults are clicked, never a key press.** An empty Enter does nothing
@@ -289,8 +292,11 @@ resolves to."
     where posts go, pushing consent, the commit question; +1 for
     WordPress (username). A conditional question (the product's address,
     route prefix, site live, author name, product identity fallback,
-    image serving fallback, the Astro post format questions) raises T by
-    one when it arises, said aloud: "One more than I said: 11 now." A
+    image serving fallback, the Astro template choice when the site fits
+    more than one post format) raises T by one when it arises, said
+    aloud: "One more than I said: 11 now." The site-edit consents (Astro
+    post format fields, draft switch, Hugo or WordPress edits) are
+    actions, never counted, on both paths. A
     question that falls away (evidence settled it, a block the owner
     turned off) lowers T, said aloud the same way ("Two fewer: 51 now.").
     The total never changes silently, on either path. Detailed
@@ -2131,8 +2137,9 @@ never counted, on both paths.
    (or fails the build), so this is settled before anything is written.
    Say: "Your site's post format has no place for a cover image, so every
    post's cover would be thrown away. I can add one optional field for it
-   to the site's post format in the setup commit. Add it?" Counted on
-   both paths: it takes the next N and raises T by one. Add → edit the
+   to the site's post format in the setup commit. Add it?" A consent
+   action, never counted, on both paths (no "Question N of T" prefix).
+   Add → edit the
    schema file, adding only that field, matching the file's style, and show
    the lines you added:
    - `astro-content.md`: `heroImage: image().optional()`. The `image()`
@@ -2159,8 +2166,8 @@ never counted, on both paths.
    place for <tags / the author's name / either>, so the site would drop
    them. I can add <it / them> as optional fields to the site's post
    format in the setup commit, or leave them out of posts. Which do you
-   prefer?" Counted on both paths: it takes the next N and raises T by
-   one. Add → edit the schema file, adding only the missing fields,
+   prefer?" A consent action, never counted, on both paths (no "Question
+   N of T" prefix). Add → edit the schema file, adding only the missing fields,
    with the selected template's names and types, inside the collection's
    `z.object({...})` and matching the file's style; never add a field the
    schema already has, and show the lines you added:

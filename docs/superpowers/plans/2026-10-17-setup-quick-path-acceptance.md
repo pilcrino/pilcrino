@@ -208,7 +208,7 @@ Fixed in the skill after the runs above (commit after f863fbe):
 - M: tags are taken from the repository's own posts first, then the fetched site, then WordPress.
 - N: the summary list must be printed above the Save menu (case 4 skipped it).
 - O: a total that falls is announced like one that rises.
-- P: the Astro post-format questions are counted on both paths.
+- P: the Astro post-format consents are actions, uncounted on both paths (as the spec says); case 2 counted one and that was the slip, not case 6.
 
 Not fixed: case 2's "Question 2" stand-in sentence was skipped once in case 4c (minor, wording already in the rule); the product menu's option order varies (Yes/No vs No/Yes).
 
