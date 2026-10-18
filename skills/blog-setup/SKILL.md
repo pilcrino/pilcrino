@@ -734,12 +734,12 @@ fills this section)
 
 ## Primary CTA
 
-**Target:** <link or destination from answer 9>
-**Hook:** <one-line hook from answer 9>
+**Target:** <link or destination from answer 8>
+**Hook:** <one-line hook from answer 8>
 
 ## Publish cadence
 
-<answer 10>
+<answer 9>
 ```
 
 ### Interview: audience
@@ -828,11 +828,11 @@ blog:
   url: <origin from answer 2: scheme and host only, never a path>
   language: <answer 3>
   route_prefix: <the derived prefix from question 10, with both slashes>
-  trailing_slash: <answer 12, default true>
+  trailing_slash: <answer 11, default true>
 ```
 
 Write the full file (Global rule 4). If this is a fresh run, the file now
-contains only the `blog:` block; later phases add the rest. When Q12's gate
+contains only the `blog:` block; later phases add the rest. When Q11's gate
 above deferred `trailing_slash` (existing blog, research offer still
 pending), the value written here is the provisional default — Phase 1.5(a),
 if it runs, re-merges and rewrites this same `blog:` block once the real
@@ -862,7 +862,7 @@ diff's "keep, edit, or skip", the trailing-slash confirmation, Phase 2's
 "confirm, edit, or tell me what's off") is not asked on the quick path:
 the values are written and shown in the summary before the commit (Phase
 6), where the owner changes any of them. The decline sub-case's "firm up
-Q12 by asking" does not apply: Q12 is omitted as `true` on the quick path.
+Q11 by asking" does not apply: Q11 is omitted as `true` on the quick path.
 
 **Record the answer durably, before branching on it.** Read the
 `{profile_dir}/blog.md` Phase 1 already wrote, insert `existing_blog:
@@ -887,7 +887,7 @@ decline research.
   created, and `{profile_dir}/site-conventions.md` stays unwritten — per
   config-schema.md it's recommended, not required, for a non-WordPress
   adapter or a blog that declined this offer). Before moving on, firm up
-  Phase 1 Q12's provisional `blog.trailing_slash` now — ask the user
+  Phase 1 Q11's provisional `blog.trailing_slash` now — ask the user
   directly (research detection will never run for this blog); update
   `config.yaml` with the confirmed value.
 
@@ -915,7 +915,7 @@ immediately, don't batch until the end of the phase).
 **Also detect `trailing_slash` from these same URLs.** Look at whichever of
 the discovered post URLs are real permalinks (not feed/sitemap/REST API
 endpoints) and note whether they end in `/` (e.g. `/blog/my-post/`) or not
-(`/blog/my-post`). This is real evidence Phase 1's Q12 couldn't have had —
+(`/blog/my-post`). This is real evidence Phase 1's Q11 couldn't have had —
 fold it into the SAME single pre-fill confirmation as (b)-(d)'s evidence in
 (f) below, never a separate ask. Phase 5's adapter site inspection later
 cross-checks this against the live site's actual permalink format and flags
@@ -994,7 +994,7 @@ Using ONLY (a)-(d)'s evidence (never (e), which hasn't run yet):
   never silently overwrite the answers already on file from Phase 1's own
   interview.
 - **`trailing_slash` (Phase 1, `blog:` block, already written above).**
-  (a)'s URL-based detection is the real evidence Q12's gate (§Phase 1) may
+  (a)'s URL-based detection is the real evidence Q11's gate (§Phase 1) may
   have deferred. Present the detected value alongside (b)-(d)'s evidence in
   this SAME confirmation pass: "Based on the fetched post URLs, this blog's
   posts <do/don't> end in a trailing slash — update `blog.trailing_slash`
@@ -2660,7 +2660,7 @@ your site"), not a question here.
 
 **Cross-check `blog.trailing_slash`.** Both adapters' inspection procedures
 read the site's actual permalink format and compare it against
-`blog.trailing_slash` (set by Phase 1's Q12 directly, when its gate was
+`blog.trailing_slash` (set by Phase 1's Q11 directly, when its gate was
 open, or already corrected once by Phase 1.5(a)'s own pre-fill confirmation
 otherwise — either way, usually already correct by this point, but this
 cross-check is the final safety net regardless of which path set it). If

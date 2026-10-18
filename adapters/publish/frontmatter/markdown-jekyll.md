@@ -18,7 +18,7 @@ description: "<meta description, 160 chars at most>"
 date: <YYYY-MM-DD>
 tags:
   - <tag-1>
-  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+  # 2-4 tags total, exactly the ones brief.md §Tags lists
 author: "<Author, or a co-signed byline string for author_voice=we>"
 image: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png, see Cover path computation>"
 published: false
@@ -39,7 +39,7 @@ published: false
 - **`title`**: quoted, 50-60 chars, the page H1 rendered by the layout; never repeat an H1 in the body.
 - **`description`**: the meta description, 160 chars at most.
 - **`date`** (the date key): `YYYY-MM-DD`. Write the drafting date and leave it. The Pilcrino app overwrites it with the publish day's date: on the branch copy at approval, and in the zip copy at download (`publish-date.ts`). Keep the `YYYY-MM-DD` shape; the app rewrites only a value it can parse as one. Use the same date in the file name when pasting.
-- **`tags`**: 2-4 entries from this blog's tag taxonomy.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet).
 - **`author`**: one string, not an array: the display name from `{profile_dir}/authors.md`, or a co-signed byline (e.g. `"Alex & Sam"`) for `author_voice=we`.
 - **`image`** (the cover key): one quoted single-line value, see §Cover path computation.
 - **`published: false`** (the draft key): present on every drafted post; `markdown.md` §Staging step 2 strips it, so Jekyll builds the pasted post.
