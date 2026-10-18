@@ -17,7 +17,7 @@ date: <YYYY-MM-DD>
 excerpt: "<meta description, ≤160 chars>"
 tags:
   - <tag-1>
-  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+  # 2-4 tags total, exactly the ones brief.md §Tags lists
 authors:
   - <Author>
 # OR for a co-signed post (author_voice = we in brief.md/outline.md/plan.md):
@@ -42,7 +42,7 @@ draft: true
 - **`title`**: quoted, 50-60 chars, matches the outline's "Final title" exactly. Maps to the WP post's `title` field verbatim — see §WP REST field mapping.
 - **`date`**: `YYYY-MM-DD`, for internal consistency with the other frontmatter templates and with `{drafts_dir}` bookkeeping. The adapter ignores this value: WordPress stamps the post's actual date when the human clicks Publish in WP admin, not from anything the workflow sends. The console still refreshes it to today's date on the branch just before merging the content PR (`console/src/publish-date.ts`), so the repo copy, which is the canonical archive of what shipped, does not sit there disagreeing with the live post by three weeks.
 - **`excerpt`**: the meta description, ≤160 chars. Maps to the WP post's `excerpt` field verbatim.
-- **`tags`**: 2-4 entries from this blog's tag taxonomy (`{profile_dir}/blog.md`). Maps to the WP post's `tags` field by name — see §WP REST field mapping for how name-to-ID resolution works.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet). Maps to the WP post's `tags` field by name — see §WP REST field mapping for how name-to-ID resolution works.
 - **`authors`**: one or more entries, each matching an author in `{profile_dir}/authors.md` (its display name or byline, not the lowercase `author_voice` slug — same author_voice → authors mapping discipline as the Astro Starlight template's §Authors map). Only `authors[0]` has a WP REST equivalent (see below); for a co-signed post, later entries are documentation only, carried by the body's byline/sign-off, since core WordPress has no multi-author field.
 - **`draft: true`**: present on every freshly drafted post, matching the other frontmatter templates' contract — but for this adapter it is a documentation-only guard, not a build-exclusion mechanism. WordPress has no build step to exclude from. What actually gates publication is the WP post's `status` field (`publish.wordpress.default_status`, always `draft` in v1): a `draft`-status post is invisible to readers regardless of what this frontmatter line says, and this adapter never sets `status` beyond `draft` on its own. Conceptually this line is "stripped" at staging the same way the Astro templates strip theirs, it just has nothing left to strip toward — the WP status field was already doing the real gating.
 
@@ -69,7 +69,7 @@ The `## FAQ` body section converts to regular HTML like any other section (§Sta
 
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `excerpt` ≤160 chars
-- [ ] `tags` has 2-4 entries from this blog's tag taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] `tags` has exactly the 2-4 entries `brief.md` §Tags lists (only when `tags` is emitted, §Which keys to emit)
 - [ ] every `authors:` entry matches an author in `{profile_dir}/authors.md` (only when `authors` is emitted, §Which keys to emit)
 - [ ] no `cover`/`heroImage` field present — the featured image ships via media upload, not frontmatter
 - [ ] `draft: true` present

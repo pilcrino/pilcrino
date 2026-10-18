@@ -15,7 +15,7 @@ description: "<meta description, ≤160 chars>"
 pubDate: <YYYY-MM-DD>
 tags:
   - <tag-1>
-  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+  # 2-4 tags total, exactly the ones brief.md §Tags lists
 author: "<Author, or a co-signed byline string for author_voice=we>"
 heroImage: "<relative path from {content_dir} to {assets_dir}/<slug>/featured.png — see §Hero path computation>"
 draft: true
@@ -36,7 +36,7 @@ draft: true
 - **`title`**: quoted, 50-60 chars, rendered as the page H1 by the blog layout — never duplicate an H1 in the body.
 - **`description`**: the meta description, ≤160 chars. This schema's equivalent of the Starlight variant's `excerpt`; same content, different key name.
 - **`pubDate`**: `YYYY-MM-DD`. Write the drafting date and leave it: the CONSOLE overwrites this with today's date on the post's branch immediately before it merges the PR (`console/src/publish-date.ts`, `ensurePublishDateStamped`), because for `astro-git-pr` the merge commit IS the published date and a post approved three weeks after it was drafted would otherwise ship dated three weeks stale. Keep the `YYYY-MM-DD` shape: the console rewrites only a value it can parse as one, and leaves anything else alone rather than risk writing a shape the content schema never expected.
-- **`tags`**: 2-4 entries from this blog's tag taxonomy.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet).
 - **`author`**: a SINGLE string field, not an array, and not a site authors-map key the way the Starlight variant's `authors:` is — this schema has no author-map concept. For a single-author voice, the display name directly (e.g. `"Alex"`). For a co-signed post (`author_voice=we`), a shared byline string (e.g. `"Alex & Sam"`), since the field can't hold two array entries. If `{profile_dir}/authors.md` defines a preferred co-sign byline format, use it verbatim.
 - **`heroImage`**: see §Hero path computation below. This schema has no separate `alt` field; if a specific blog's content-collections schema was extended with one (e.g. `heroImageAlt`), add it using the same alt text `images.md`'s Featured image entry carries — otherwise the alt text lives only in the layout's `<img>` tag (commonly hardcoded to the post title by the theme) and in the image's own `images.md` record.
 - **`draft: true`**: the same build-exclusion guard and strip/keep behavior as `astro-starlight.md` — `astro-git-pr.md` handles it identically regardless of which frontmatter template is configured.

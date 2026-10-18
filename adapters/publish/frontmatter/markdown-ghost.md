@@ -17,7 +17,7 @@ excerpt: "<meta description, 160 chars at most>"
 published_at: <YYYY-MM-DD>
 tags:
   - <tag-1>
-  # 2-4 tags total, from this blog's tag taxonomy ({profile_dir}/blog.md)
+  # 2-4 tags total, exactly the ones brief.md §Tags lists
 authors:
   - "<Author>"
   # a co-signed post (author_voice=we) lists each author
@@ -38,7 +38,7 @@ feature_image: "<relative path from {content_dir} to {assets_dir}/<slug>/feature
 - **`title`**: quoted, 50-60 chars, the post title in Ghost; never repeat an H1 in the body.
 - **`excerpt`**: the meta description, 160 chars at most; Ghost's custom excerpt.
 - **`published_at`** (the date key): `YYYY-MM-DD`. Write the drafting date and leave it. The Pilcrino app overwrites it with the publish day's date: on the branch copy at approval, and in the zip copy at download (`publish-date.ts`, whose date keys include `published_at`). Keep the `YYYY-MM-DD` shape; the app rewrites only a value it can parse as one.
-- **`tags`**: 2-4 entries from this blog's tag taxonomy.
+- **`tags`**: the 2-4 entries `brief.md` §Tags lists (taken from the blog's tag taxonomy at intake, or approved at intake when the blog had no tags yet).
 - **`authors`**: a list; each entry is a display name from `{profile_dir}/authors.md`.
 - **`feature_image`** (the cover key): one quoted single-line value, see §Cover path computation.
 - **No draft key.** Ghost drafts live in Ghost; nothing is stripped at staging.
@@ -59,7 +59,7 @@ In the app's zip both become `./<file>` (`./featured.png`); always write the rep
 - [ ] `title` matches the outline's "Final title" exactly
 - [ ] `excerpt` is 160 chars at most
 - [ ] `published_at` is `YYYY-MM-DD`
-- [ ] `tags` has 2-4 entries from the taxonomy (only when `tags` is emitted, §Which keys to emit)
+- [ ] `tags` has exactly the 2-4 entries `brief.md` §Tags lists (only when `tags` is emitted, §Which keys to emit)
 - [ ] every `authors` entry matches `{profile_dir}/authors.md` (only when `authors` is emitted, §Which keys to emit)
 - [ ] the cover key (`feature_image`, or `publish.markdown.cover_key` when set) resolves to `{assets_dir}/<slug>/featured.png`
 - [ ] no raw HTML in the body

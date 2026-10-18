@@ -256,13 +256,15 @@ files, "Yes, and don't ask again" is safe.
    in the blog's folder (`cd <blog folder>` then `claude`) for every later
    command, because the skills read `blog-ops/config.yaml` from the folder
    you start in.
-2. **Answer the interview.** One question at a time, each with a recommended
-   answer (reply `default` to take it); setup saves as it goes, so you can
-   stop and run it again later to continue. It reads your site (which
-   fields your posts can carry, whether there is a draft switch, how the
-   site goes live) and asks before changing anything in it. It opens the
-   sign-in window for the Pilcrino browser once (see below). Allow 1 to 1.5
-   hours on a new Mac, installs included. Setup writes a `blog-ops/` folder
+2. **Answer the questions.** Quick setup asks about ten, each with the
+   recommended answer as the first choice, and takes the rest from your
+   site and repository; detailed setup asks every question. Everything it
+   derived is shown to you before it is saved. Setup saves as it goes, so
+   you can stop and run it again later to continue. It reads your site
+   (which fields your posts can carry, whether there is a draft switch,
+   how the site goes live) and asks before changing anything in it. It
+   opens the sign-in window for the Pilcrino browser once (see below).
+   Setup writes a `blog-ops/` folder
    in your repository (plus a `tools/remotion/` image project when you turn
    on drawn images) and, at the end, asks before committing and pushing
    those files to your main branch; every post needs them there.
@@ -474,7 +476,7 @@ markdown and personalization data, and the publish adapter pushes to WP.
     ├── config.yaml            # machine-readable dispatch contract
     ├── content-plan.md        # optional post queue, written by plan-content
     ├── profile/
-    │   ├── blog.md             # niche, mission, point of view, content pillars
+    │   ├── blog.md             # niche, mission, point of view, tags
     │   ├── voice.md            # tone, personality, credibility, lexicon,
     │   │                       #   anecdote bank, additional forbidden phrases
     │   ├── authors.md          # 1..N author voices
@@ -754,6 +756,28 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 - `layout-check.mjs` imports puppeteer-core through a file URL, which a Windows drive path needs.
 - Tests: the browser suites run their fake npm through `PILCRINO_NPM_CLI` on every platform; Windows cases for process listing, Chrome detection and the quit; a real process-list check; the WordPress secret suite is skipped on Windows (it runs the bash script with Unix stubs). CI runs the Node suites on Ubuntu, Windows and macOS.
 - Not supported: Windows on Arm (Remotion has no build for it; setup offers to leave drawn images out), WSL (untested).
+
+### 0.57.0 - Setup has a quick path
+
+- `blog-setup` offers two paths: quick setup, about ten questions with the
+  rest taken from the site and the repository, or detailed setup, every
+  question. Every question shows its place ("Question 3 of 10"); defaults
+  are menu clicks, never typed. Everything setup derived is shown in one
+  summary before it is saved, where any line can be changed. No colour
+  codes, font stacks or check counts reach the owner, and setup never
+  mentions the app. The content plan file and the approval settings are
+  always written. Setup ends with a What next menu: plan posts, write a
+  post, research a competitor, change an answer.
+- Setup no longer asks for content pillars or tags: `plan-content` owns
+  the pillars, tags are copied from the site (a site without tags gets
+  them from the plan), and a post picks its category from the site's own
+  list. Setup commits its files with one question, "push now" or "not
+  yet". The posts' address prefix is derived, never asked; it is built from a live post link or from the site's own routing
+  under the deployment path, so a blog under `/docs/` gets `/docs/...`
+  links and image addresses. A WordPress site installed under a path keeps
+  that path in its API address and its links. "Site live" is derived only
+  from deployment evidence that names this repository's base branch and
+  the site's host; otherwise it is asked.
 
 ### 0.56.3 - README names what the app adds
 

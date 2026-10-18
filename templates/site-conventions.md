@@ -36,14 +36,7 @@ This is passed as-is to `md-to-gutenberg.py --extra-blocks` (position `after-int
 - ...
 (or: "None yet — no existing posts/categories to inspect.")
 
-**Per-cluster mapping** (which category each of this blog's content pillars maps to — cross-reference `{profile_dir}/blog.md` §Content pillars):
-
-| Content pillar | Category |
-|---|---|
-| <pillar from blog.md> | <matching category name, or "no existing category fits — human to confirm/create one"> |
-| ... | ... |
-
-`templates/brief.md`'s Category field resolves against this table. Once this table exists for a blog, a post never ships uncategorized (WordPress: no post left as "Uncategorized"; git-based: no post with a missing/empty category field).
+`templates/brief.md`'s Category field resolves against this list: the post workflow proposes the category closest to the post's pillar (the plan row's Pillar column) or, without a plan, to its topic, and the human confirms. Once this list exists for a blog, a post never ships uncategorized (WordPress: no post left as "Uncategorized"; git-based: no post with a missing/empty category field).
 
 ## SEO plugin
 
