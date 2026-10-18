@@ -80,7 +80,12 @@ rules; they override the wording of any example in this file.
    a hex code, a font stack, a count of checks or invariants ("Checks
    passed", never "14 pass" or "pass by vacuity"), a file name other than
    the final folder, or the word "app". The Pilcrino app is never
-   mentioned during setup, on either path, at any step.
+   mentioned during setup, on either path, at any step. Nor the thinking
+   behind a step: why a question comes now, how a suggestion was arrived
+   at ("I'll name the repository after your blog's title"), or that a
+   command failed and was retried; a retry that worked is not mentioned,
+   and only a failure that changes what the owner gets is said, in one
+   line of owner words.
 9. **Known answers are stated, not asked.** When evidence settles a value
    (the repository, the live site, an earlier answer), say it in one line
    with its source and move on: "Language: English, from your site."
@@ -442,8 +447,13 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
    answer 2. No: "Shall I create a private GitHub repository called
    `<blog-slug>` under your account <login> and download it to
    `~/<blog-slug>`?" as a menu: "Yes, call it `<blog-slug>`" (default) / "Another name". Derive the
-   name from the blog's name (ask for the name first if it is not known
-   yet; it is reused as Phase 1's first answer). On consent run `gh repo
+   name from the blog's name. When the name is not known yet, ask it
+   here as a plain question with a default from the folder or repository
+   when one exists, without a "Question N of T" prefix (the path is not
+   chosen yet); it is Phase 1's first answer, which Phase 1 then states
+   in one line ("Name: `<name>`, from earlier") and counts as question 1
+   without asking again. Propose the repository name, never the
+   reasoning behind it. On consent run `gh repo
    create <name> --private --clone` from the home folder, which creates the
    repository and the local folder in one step. Never create a local-only
    repository (`git init` without a remote): no pull request could ever be
@@ -451,9 +461,10 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
 
 Whichever answer: from here on every command runs from the blog folder
 (`cd <blog folder> && ...` at the top of each Bash call, or `git -C`).
-There is no restart. Say: "I'll continue in `<folder>` for the rest of
-setup. Next time, start Claude Code there: in Terminal, `cd <folder>` then
-`claude`."
+There is no restart. When the blog folder is not the folder Claude Code
+was started in, say: "I'll continue in `<folder>` for the rest of setup.
+Next time, start Claude Code there: in Terminal, `cd <folder>` then
+`claude`." When it is the current folder, say nothing about folders.
 
 **Put the folder on its main branch, before setup writes anything.** Setup
 commits its files to the repository's main branch (the base branch every
@@ -1296,11 +1307,13 @@ shouldn't need this doc open to answer):
 4. "Will posts reference or compare named competitors?"
    (`modules.competitors`). If yes, ask (4a) and seed the competitor
    methodology below.
-   Quick path: ask, as the competitor names question from the competitor
-   section below, exact wording "Name the competitors posts may compare
-   you with, or say none." Free text. `modules.competitors` is true iff
-   at least one name was given; the timing menu is omitted ("the first
-   time a post names it").
+   Quick path: ask, as one counted question, with `AskUserQuestion`:
+   "Will posts name competitors to compare you with?" with the options
+   "No competitors" (first) / "Yes, I'll name them". "Yes" takes the names
+   as free text in the same question's turn (not counted again), with
+   the exact wording "Name the competitors posts may compare you with."
+   `modules.competitors` is true iff at least one name was given; the
+   timing menu is omitted ("the first time a post names it").
 4a. If (4) is yes: "Where should competitor profiles live: the default
     location inside this blog's own workspace (`blog-ops/profile/competitors`),
     or an existing directory this blog already shares with other
@@ -1475,8 +1488,8 @@ website addresses if you know them. Reply `none` if you'd rather decide
 post by post." For each name, note the name and, when given, the site; a
 missing site is found by the research skill later, not guessed now. Read
 the list back.
-Quick path: this is modules question 4 ("Name the competitors posts may
-compare you with, or say none."), already asked and counted; do not ask
+Quick path: this is modules question 4 (the "No competitors" / "Yes,
+I'll name them" menu and its names), already asked and counted; do not ask
 again. The explanation paragraph above is said in one sentence after the
 names ("Pilcrino researches a fact sheet on each of them, in its own
 browser, before a post names them.").
@@ -1864,9 +1877,9 @@ title band never vary; only the composition does.
 7. `Read` the rendered PNG yourself to confirm it rendered, then open it
    for the owner: `open "<REMOTION_DIR>/out/preview-sample-v1.png"`
    (macOS opens it in Preview). Report one line and ask nothing (both
-   paths): "Test image rendered; I've opened it on your screen." plus,
-   when a webfont fell back, "It uses a standard font on this Mac; your
-   site is not affected." Never a list of problems to decide on, never a
+   paths): "Test image rendered; I've opened it on your screen." and
+   nothing else: a webfont that fell back to a system font on this Mac
+   is not mentioned (rule 8). Never a list of problems to decide on, never a
    question: the owner changes colours in the summary before the commit
    (Phase 6), which rewrites `theme.ts` and re-renders. The test render is
    not committed (`out/` is ignored, step 5).
@@ -1944,6 +1957,12 @@ Netlify, Vercel, Cloudflare Pages and GitHub Pages do that)?"
 - "No, it is not online yet" → `publish.site_live: false`.
 - "I don't know" → `publish.site_live: false`; say: "I'll treat it as not
   live for now. Once it is, run this setup again and change the answer."
+
+**A placeholder address settles it (both paths).** When Phase 1's address
+answer is a stand-in (`example.com`, a `.example` domain, `localhost`, or
+the template's own default left in place), the site is not online: write
+`publish.site_live: false`, say "Not online yet: the address is still the
+stand-in." and do not ask. Otherwise:
 
 Quick path: derive when deployment evidence ties the entered site to this
 repository's base branch, else ask the menu above, counted. The value
@@ -3135,11 +3154,14 @@ are deleted only when the owner leaves the What next menu with anything
 other than "Change a setup answer", and only when the setup files were
 committed: `rm -f "$(git -C "<blog folder>" rev-parse
 --absolute-git-dir)"/pilcrino-setup-{paths,before}`; when they were not
-committed, keep them for the next run. The recap,
-at most eight lines, in this order:
+committed, keep them for the next run. The recap is exactly the lines
+below, in this order, at most eight in all, and nothing else: no sentence
+about files being safe, about what a push is for, or about re-running
+setup, beyond what line 1 says.
 
 1. Where the blog lives: "`<folder>`, pushed to <owner/repo> on GitHub"
-   (or "not committed yet"). Say "pushed"
+   (or "`<folder>`, not committed yet; run `/pilcrino:blog-setup` again
+   when you want it on GitHub"). Say "pushed"
    only when Phase 6's check found `blog-ops/config.yaml` and the profile
    docs on `origin/<base branch>`; a setup commit that left one of them out
    is "not committed yet", with the file named.

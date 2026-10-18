@@ -150,7 +150,7 @@ Expected: one hit each, lint clean.
 
 - [ ] **Step 1: Modules dispositions**
 
-1 Reddit: omit, on. 2 X: omit, off. 3 product: ask, menu yes / no, exact text "Do posts promote a product of yours?". 4 competitors: ask as the names question, exact text "Name the competitors posts may compare you with, or say none." (free text; `modules.competitors` is true iff at least one name); 4a folder: omit, default. 5 repurpose: omit, on.
+1 Reddit: omit, on. 2 X: omit, off. 3 product: ask, menu yes / no, exact text "Do posts promote a product of yours?". 4 competitors: ask as a menu "No competitors" / "Yes, I'll name them", the names as free text in the same turn (`modules.competitors` is true iff at least one name); 4a folder: omit, default. 5 repurpose: omit, on.
 
 - [ ] **Step 2: Product on the quick path, new subsection "Product from first-party evidence (quick path)"**
 

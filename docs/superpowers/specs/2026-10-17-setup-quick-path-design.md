@@ -98,8 +98,9 @@ arises ("One more than I said: 11 now").
    claim, and every post's expertise statement comes from it.
 6. Your product: "Do posts promote a product of yours?" Menu: yes / no.
    Yes asks the product's address (counted as 6b). See Product below.
-7. Competitors: "Name the competitors posts may compare you with, or say
-   none." Free text. Names only; profiles are researched later as today.
+7. Competitors: "Will posts name competitors to compare you with?" Menu:
+   "No competitors" / "Yes, I'll name them"; yes takes the names as free
+   text in the same turn. Names only; profiles are researched later as today.
 8. Where posts go. Adapter detected as today, confirmed with one menu in
    owner words. Adapter actions follow as today (WordPress password dialog,
    Astro format edit consent); they are not counted.
