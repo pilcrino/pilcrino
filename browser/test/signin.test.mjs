@@ -7,9 +7,11 @@ import { createSession } from '../src/session.mjs'
 
 // Nothing here launches or drives a real Chrome: fs, fetch, spawn, the CDP
 // close and the process check are all injected.
+// Keys are written with forward slashes; on Windows the code joins with backslashes, so lookups are normalised.
+const slash = (p) => String(p).replace(/\\/g, '/')
 const memfs = (files) => ({
-  existsSync: (p) => p in files,
-  readFileSync: (p) => { if (!(p in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); return files[p] },
+  existsSync: (p) => slash(p) in files,
+  readFileSync: (p) => { if (!(slash(p) in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); return files[slash(p)] },
   mkdirSync: () => {},
 })
 const WS = 'ws://127.0.0.1:9100/devtools/browser/pil'

@@ -2105,14 +2105,22 @@ Verify the directories exist on disk:
    Code's own Bash call has no keyboard, so the prompt must run in a window
    of its own; `Start-Process ... -Wait` opens one and waits for it):
    ```bash
-   R="$(mktemp -d)/wp-result.txt"; RW=$(cygpath -w "$R")
-   powershell -NoProfile -Command "Start-Process powershell -Wait -ArgumentList '-NoProfile','-Command',\"\$s = Read-Host -AsSecureString 'Paste the WordPress application password for <blog name>'; \$p = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR(\$s)); if (\$p) { [Environment]::SetEnvironmentVariable('<name>', \$p, 'User'); Set-Content -Path '$RW' -Value stored } else { Set-Content -Path '$RW' -Value 'not stored' }\""
-   cat "$R" 2>/dev/null || echo "not stored"; rm -rf "$(dirname "$R")"
+   D="$(mktemp -d)"; cat > "$D/ask.ps1" <<'PS'
+   $s = Read-Host -AsSecureString "Paste the WordPress application password for BLOG_NAME"
+   $p = [Runtime.InteropServices.Marshal]::PtrToStringBSTR([Runtime.InteropServices.Marshal]::SecureStringToBSTR($s))
+   if ($p) { [Environment]::SetEnvironmentVariable("VAR_NAME", $p, "User"); Set-Content -Path "$PSScriptRoot\result.txt" -Value stored }
+   else { Set-Content -Path "$PSScriptRoot\result.txt" -Value "not stored" }
+   PS
+   sed -i "s/BLOG_NAME/<blog name>/; s/VAR_NAME/<name>/" "$D/ask.ps1"
+   powershell -NoProfile -Command "Start-Process powershell -Wait -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','$(cygpath -w "$D/ask.ps1")'"
+   cat "$D/result.txt" 2>/dev/null || echo "not stored"; rm -rf "$D"
    ```
-   (`Read-Host -AsSecureString` hides the typing; the value goes to
-   `SetEnvironmentVariable(..., "User")` inside that window's own
-   PowerShell process and is never on a command line Pilcrino builds; only
-   the word `stored` or `not stored` comes back through the result file.) On `stored`
+   (The prompt script is a file, so neither bash nor the outer PowerShell
+   expands anything in it; `Read-Host -AsSecureString` hides the typing;
+   the value goes to `SetEnvironmentVariable(..., "User")` inside that
+   window's own PowerShell process and is never on a command line Pilcrino
+   builds; only the word `stored` or `not stored` comes back through the
+   result file. `<blog name>` and `<name>` must not contain `/` or `"`.) On `stored`
    write `app_password_env: <name>`. A user-level variable reaches only
    new processes, so say: "Windows gives that setting to programs started
    from now on. Before your first post, quit Claude Code, open a new

@@ -110,6 +110,28 @@ test('a signal mid-install keeps the lock until npm has exited', { timeout: 30_0
   }
 })
 
+test('the synchronous installer killed hard mid-install leaves a lock that a second installer honours', { timeout: 60_000 }, async () => {
+  const sb = sandbox()
+  try {
+    const first = start(sb, ['install'], { FAKE_NPM_MS: '4000' })
+    await until(() => runs(sb.log).length === 1)
+    first.child.kill('SIGKILL')
+    await first.exited
+    // The wrapper named itself on the lock, and it is alive while the fake npm runs.
+    const lines = readFileSync(join(sb.root, '.install.lock'), 'utf8').split('\n')
+    assert.equal(lines[0], String(first.child.pid))
+    assert.match(lines[1], /^\d+$/)
+    const second = start(sb, ['install'], { FAKE_NPM_MS: '200' })
+    const b = await second.exited
+    assert.equal(b.code, 0, second.stderr())
+    const [r1, r2] = runs(sb.log)
+    assert.ok(r2.start >= r1.end, `second npm started ${r1.end - r2.start} ms before the first ended`)
+    assert.equal(existsSync(join(sb.root, '.install.lock')), false)
+  } finally {
+    rmSync(sb.dir, { recursive: true, force: true })
+  }
+})
+
 test('two installers started at once never run npm together', { timeout: 120_000 }, async () => {
   const ITERATIONS = 12
   for (let i = 0; i < ITERATIONS; i++) {

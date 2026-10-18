@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { ensureInstalled, installAsync } from '../src/deps.mjs'
 
 function root() {
@@ -32,7 +34,11 @@ test('installs once and writes the stamp when missing', () => {
     spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
   })
   assert.equal(r.installed, true)
-  assert.deepEqual(argv, [['npm', 'install', '--omit=dev', '--no-audit', '--no-fund']])
+  // npm runs under the wrapper that names itself on the lock: node npm-run.mjs <lock> <owner> npm install ...
+  assert.equal(argv.length, 1)
+  assert.equal(argv[0][0], process.execPath)
+  assert.match(argv[0][1], /npm-run\.mjs$/)
+  assert.deepEqual(argv[0].slice(2), [join(d, '.install.lock'), String(process.pid), 'npm', 'install', '--omit=dev', '--no-audit', '--no-fund'])
   assert.equal(readFileSync(join(d, 'node_modules', '.pilcrino-installed'), 'utf8'), '0.40.0')
   assert.equal(existsSync(join(d, '.install.lock')), false)
   rmSync(d, { recursive: true, force: true })
@@ -282,7 +288,7 @@ test('ensureInstalled runs the fake npm named by PILCRINO_NPM_CLI under this nod
     spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
   })
   assert.equal(r.installed, true)
-  assert.deepEqual(argv, [[process.execPath, cli, 'install', '--omit=dev', '--no-audit', '--no-fund']])
+  assert.deepEqual(argv[0].slice(5), [cli, 'install', '--omit=dev', '--no-audit', '--no-fund'])
 })
 
 test('a lock whose owner is dead but whose npm line is alive is still held', async () => {
@@ -312,4 +318,52 @@ test('installAsync records the npm child pid on its own lock while npm runs', as
   assert.equal(r.installed, true)
   assert.equal(seen, `${process.pid}\n424242`)
   assert.equal(existsSync(join(d, '.install.lock')), false)
+})
+
+test('an aged lock whose npm line is alive is still held (age never overrides a live installer)', async () => {
+  const { utimesSync } = await import('node:fs')
+  const d = root()
+  const lock = join(d, '.install.lock')
+  const dead = deadPid()
+  writeFileSync(lock, `${dead}\n${process.pid}`)
+  const old = new Date(Date.now() - 60 * 60 * 1000)
+  utimesSync(lock, old, old)
+  let slept = 0
+  const t0 = Date.now()
+  await assert.rejects(
+    installAsync(d, { settleMs: 0, platform: 'linux', env: {}, now: () => t0 + slept * 400_000, sleep: async () => { slept++ }, spawn: () => { throw new Error('must not install while npm runs') } }),
+    /another install has held/,
+  )
+  assert.equal(readFileSync(lock, 'utf8'), `${dead}\n${process.pid}`, 'the lock was left alone')
+})
+
+test('an aged lock with a dead owner and no npm line is reclaimed', async () => {
+  const { utimesSync } = await import('node:fs')
+  const d = root()
+  const lock = join(d, '.install.lock')
+  writeFileSync(lock, String(deadPid()))
+  const old = new Date(Date.now() - 60 * 60 * 1000)
+  utimesSync(lock, old, old)
+  const r = await installAsync(d, {
+    settleMs: 0, platform: 'linux', env: {},
+    spawn: () => { const c = new EventEmitter(); setTimeout(() => { mkdirSync(join(d, 'node_modules'), { recursive: true }); c.emit('close', 0, null) }, 5); return c },
+  })
+  assert.equal(r.installed, true)
+})
+
+test('npm-run.mjs names itself on the lock before npm starts, then passes npm\'s exit code through', async () => {
+  const d = root()
+  const lock = join(d, '.install.lock')
+  writeFileSync(lock, String(process.pid))
+  const fake = join(d, 'fake-npm.js')
+  // The fake npm copies the lock as it sees it, so the test can check the wrapper wrote first.
+  writeFileSync(fake, "require('node:fs').copyFileSync(process.argv[2], process.argv[2] + '.seen'); process.exit(Number(process.env.FAKE_EXIT || 0))")
+  const wrapper = join(dirname(fileURLToPath(await import.meta.resolve('../src/deps.mjs'))), 'npm-run.mjs')
+  const r = spawnSync(process.execPath, [wrapper, lock, String(process.pid), process.execPath, fake, lock], { encoding: 'utf8', env: { ...process.env, FAKE_EXIT: '3' } })
+  assert.equal(r.status, 3, r.stderr)
+  const seen = readFileSync(lock + '.seen', 'utf8').split('\n')
+  assert.equal(seen[0], String(process.pid))
+  assert.match(seen[1], /^\d+$/)
+  const missing = spawnSync(process.execPath, [wrapper, lock, String(process.pid), join(d, 'no-such-npm'), 'install'], { encoding: 'utf8' })
+  assert.equal(missing.status, 127)
 })
