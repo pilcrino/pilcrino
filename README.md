@@ -40,7 +40,7 @@ Blog posts for your product's blog, written inside Claude Code.
 /plugin install pilcrino@pilcrino
 ```
 
-A new Mac needs Chrome, Node and the GitHub CLI first: [What you need](#what-you-need)
+A new computer needs Chrome, Node and the GitHub CLI first: [What you need](#what-you-need)
 and [Install](#install) walk through it. Then run `/pilcrino:blog-setup`
 (see [Quickstart](#quickstart)).
 
@@ -143,17 +143,27 @@ account leaks.
 
 ## What you need
 
-It runs on macOS only. Pilcrino does not host or deploy your blog; it only
-adds posts to it. Every blog needs a GitHub repository, because every post
-is reviewed as a pull request. A site that is not live yet is fine.
+It runs on macOS, Windows 10 or 11 (x64) and Linux (Debian, Ubuntu and
+Fedora are the ones with install commands in setup; a desktop session is
+needed for the browser). Pilcrino does not host or deploy your blog; it
+only adds posts to it. Every blog needs a GitHub repository, because every
+post is reviewed as a pull request. A site that is not live yet is fine.
 
 Software, installed once:
 
 - Google Chrome.
-- Claude Code, signed in to a Claude plan that includes it.
-- Apple's Command Line Tools (these bring `git`).
-- Node 22.13 or newer; 24 is fine.
+- Claude Code, signed in to a Claude plan that includes it. On Windows,
+  Claude Code runs in Windows Terminal with Git for Windows installed
+  (Pilcrino's steps run in its bash), not in PowerShell alone.
+- `git`: Apple's Command Line Tools on a Mac, Git for Windows on Windows,
+  the `git` package on Linux.
+- Node 22.13 or newer; 24 is fine. On Windows the x64 build, also on an Arm
+  PC (the drawn-images renderer has no Windows on Arm build).
 - GitHub CLI (`gh`), signed in to your GitHub account.
+- `jq`, only for a WordPress blog.
+
+Setup checks all of these on its first run and gives the one install route
+for your system for anything missing.
 
 Accounts:
 
@@ -162,14 +172,25 @@ Accounts:
 - Reddit and X, only if you turn those research sources on in setup.
 - WordPress: an application password (in WordPress admin, Users, Profile,
   Application Passwords). Pilcrino creates drafts with it and never publishes.
-  Setup asks for it once through a hidden prompt (a small macOS dialog) and
-  stores it in your Mac's keychain; it never goes into a file, the
-  repository or the chat. If you prefer an environment variable, setup
-  offers that route too.
+  Setup asks for it once through a hidden prompt and stores it in your
+  Mac's keychain, or in your user settings on Windows, or in your shell's
+  settings file on Linux; it never goes into the repository or the chat.
+  On a Mac an environment variable is offered as the alternative.
 - LinkedIn, only for `post-to-linkedin`: you must be an admin of the company
   page.
 
 ## Install
+
+The steps below are for a Mac. On Windows: install Git for Windows
+(https://git-scm.com/download/win, defaults), then in Windows Terminal run
+`winget install OpenJS.NodeJS.LTS --architecture x64 GitHub.cli Google.Chrome`,
+open a new window, and continue from step 4. On Linux: install `git`,
+Node 22 (https://nodejs.org or your distribution's package), the GitHub CLI
+(https://github.com/cli/cli/blob/trunk/docs/install_linux.md) and Google
+Chrome (the `.deb` or `.rpm` from https://www.google.com/chrome; the snap
+Chromium does not work, because snaps cannot read the hidden folder the
+Pilcrino browser keeps its profile in), then continue from step 4. Setup
+also checks all of this and offers the missing pieces.
 
 Open Terminal (in Spotlight, type Terminal). On a Mac that has never had
 developer tools, the very first command below may open an Apple dialog
@@ -198,7 +219,7 @@ command again.
 
 Then, in Claude Code:
 
-5. Run `claude` in Terminal. Which folder you are in does not matter yet
+5. Run `claude` in Terminal (Windows Terminal on Windows). Which folder you are in does not matter yet
    (it will after setup, see Quickstart). At the safety question, choose
    "Yes, I trust this folder"; the highlighted default exits.
 6. Type these two commands into Claude Code's prompt, one at a time (they are
@@ -347,8 +368,11 @@ claude plugin uninstall pilcrino@pilcrino
 claude plugin marketplace remove pilcrino
 rm -rf ~/.claude/plugins/data/pilcrino-pilcrino
 rm -rf ~/.pilcrino/browser
-rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser
+rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser   # macOS; ~/.cache/claude-cli-nodejs on Linux, %LOCALAPPDATA%\claude-cli-nodejs on Windows
 ```
+
+On Windows run these in Git Bash (`~` is your user folder, so
+`~/.pilcrino/browser` is `C:\Users\<you>\.pilcrino\browser`).
 
 `~/.pilcrino/browser` is the Pilcrino browser's signed-in Chrome profile
 (about 1.3 GB). If you want those Google, Reddit and X sessions ended rather
@@ -604,7 +628,7 @@ https://pilcrino.com/pricing.
 draft, and Webflow, Ghost, Jekyll and other platforms through a file you
 paste in.
 
-**Does it run on Windows or Linux?** No, macOS only today.
+**Does it run on Windows or Linux?** Yes, since 0.58.0: Windows 10 and 11 on x64 (Claude Code in Windows Terminal with Git for Windows) and Linux with a desktop session. Windows on Arm is not supported, because the drawn-images renderer has no build for it; WSL is untested.
 
 **Does it invent statistics?** No. A post cites numbers only from
 `facts.md`, where each one has its source. A claim the writer cannot source
@@ -627,10 +651,11 @@ GitHub CLI signed in to your account, and Chrome. AI illustrations through
 **Can I run it for several blogs?** Yes. One plugin, and a `blog-ops/`
 folder in each blog's repository.
 
-**Where does my data go?** Research runs in a Chrome profile on your Mac
+**Where does my data go?** Research runs in a Chrome profile on your computer
 (`~/.pilcrino/browser`). Posts and the `blog-ops/` workspace stay in your
-repository. A WordPress application password goes in your Mac's keychain, or
-in a settings file on your Mac (`~/.zshrc`) if you choose that in setup.
+repository. A WordPress application password goes in your Mac's keychain (or
+in a settings file, `~/.zshrc`, if you choose that in setup), in your Windows
+user settings, or in your shell's settings file on Linux.
 Writing runs through Claude Code on your Claude plan.
 
 **How long does a post take?** About 40 minutes of work ending in a pull
@@ -718,6 +743,17 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.58.0 - Windows and Linux
+
+- The plugin runs on Windows (x64, Claude Code in Windows Terminal with Git for Windows) and Linux (with a desktop session), not only macOS. `blog-setup`'s preflight records the operating system first and gives one install route per system for git, Node, the GitHub CLI, Chrome and, for WordPress blogs, `jq`; installs that need an administrator password are typed by the owner with the `!` prefix on Windows and Linux. "This Mac" becomes "this computer" there, and every reveal (`open`) and quit hint (Cmd+Q) has its Windows and Linux form.
+- The Pilcrino browser on Windows: npm's first-start install runs under Node itself (Windows' `npm.cmd` cannot be spawned without a shell, and a shell would hide the installer from the shutdown that waits for it); Chrome's processes are listed through PowerShell in UTF-8 with a Windows command-line parser, so a profile under a name with a space or an accent is found; the sign-in window is closed with `taskkill` without `/F` (a clean quit that keeps the sign-ins) instead of a hard kill; a per-user Chrome under `%LOCALAPPDATA%` is found. On Linux, `chromium` and `chromium-browser` are fallbacks after Google Chrome; setup warns that the snap Chromium cannot read the profile.
+- Paste platforms: `post-to-clipboard.mjs` copies rich text on Windows (CF_HTML through Windows PowerShell) and Linux (`wl-copy` under Wayland, else `xclip`); when neither Linux tool is installed, it names the package and prints the HTML instead so nothing is lost.
+- WordPress: the Gutenberg converter is Node (`md-to-gutenberg.mjs`, same output as the Python it replaces, proven by captured fixtures), so Windows needs no Python; the two content updates pipe jq into `curl -d @-` instead of a bash process substitution that Windows curl cannot open; the application password goes into the Windows user environment through a hidden PowerShell prompt, or `~/.bashrc` on Linux, with the self-check per system; the keychain stays macOS only.
+- The Reddit thread split in the post workflow runs in Node and removes its capture only after every thread file is written.
+- `layout-check.mjs` imports puppeteer-core through a file URL, which a Windows drive path needs.
+- Tests: the browser suites run their fake npm through `PILCRINO_NPM_CLI` on every platform; Windows cases for process listing, Chrome detection and the quit; a real process-list check; the WordPress secret suite is skipped on Windows (it runs the bash script with Unix stubs). CI runs the Node suites on Ubuntu, Windows and macOS.
+- Not supported: Windows on Arm (Remotion has no build for it; setup offers to leave drawn images out), WSL (untested).
 
 ### 0.56.3 - README names what the app adds
 
