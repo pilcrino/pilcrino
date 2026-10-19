@@ -104,6 +104,59 @@ export async function probeIdentity(dir, { fs = nodeFs, fetch = globalThis.fetch
   }
 }
 
+/**
+ * The TCP ports a process listens on: Get-NetTCPConnection on Windows, lsof
+ * elsewhere, `ss` on a Linux without lsof. Unknown or failed means none.
+ */
+export function listeningPorts(pid, { exec = execFileSync, platform = process.platform } = {}) {
+  const run = (bin, args) => String(exec(bin, args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'], windowsHide: true }))
+  const ports = (list) => [...new Set(list.filter((n) => Number.isInteger(n) && n > 0))]
+  try {
+    if (platform === 'win32') {
+      const out = run('powershell', ['-NoProfile', '-NonInteractive', '-Command', `Get-NetTCPConnection -OwningProcess ${Number(pid)} -State Listen -ErrorAction SilentlyContinue | ForEach-Object { $_.LocalPort }`])
+      return ports(out.split(/\s+/).filter((t) => /^\d+$/.test(t)).map(Number))
+    }
+    try {
+      // -Fn prints one `n<address>` line per socket, e.g. `n127.0.0.1:51033`.
+      const out = run('lsof', ['-nP', '-a', '-p', String(pid), '-iTCP', '-sTCP:LISTEN', '-Fn'])
+      return ports(out.split('\n').filter((l) => l.startsWith('n')).map((l) => Number(l.slice(l.lastIndexOf(':') + 1))))
+    } catch {
+      if (platform !== 'linux') return []
+      // ss -ltnpH: `LISTEN 0 10 127.0.0.1:51033 0.0.0.0:* users:(("chrome",pid=6116,fd=45))`
+      const out = run('ss', ['-ltnpH'])
+      return ports(out.split('\n').filter((l) => l.includes(`pid=${Number(pid)},`)).map((l) => { const local = l.trim().split(/\s+/)[3] ?? ''; return Number(local.slice(local.lastIndexOf(':') + 1)) }))
+    }
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Finds the Pilcrino Chrome without DevToolsActivePort: the process list
+ * names the main process launched with the debugging port, the OS gives
+ * the ports it listens on, and `/json/version` on each of them answers with
+ * the WebSocket URL. Chrome on Windows was seen (19 Oct 2026, after a
+ * sign-in window closed) listening for 47 s without rewriting the file, so
+ * the file is rewritten here from the answer for the sessions that follow.
+ * Null when no such Chrome answers.
+ */
+export async function discoverIdentity(dir, { fs = nodeFs, fetch = globalThis.fetch, exec = execFileSync, platform = process.platform, ports = listeningPorts } = {}) {
+  const entries = profileProcessEntries(dir, { exec, platform }).filter((e) => !isPlainCommand(e.command))
+  for (const { pid } of entries) {
+    for (const port of ports(pid, { exec, platform })) {
+      try {
+        const res = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(3000) })
+        if (!res.ok) continue
+        const ws = (await res.json()).webSocketDebuggerUrl
+        if (typeof ws !== 'string') continue
+        try { fs.writeFileSync(join(dir, 'DevToolsActivePort'), `${port}\n${new URL(ws).pathname}\n`) } catch {}
+        return ws
+      } catch {}
+    }
+  }
+  return null
+}
+
 export function launchChrome(exe, dir, { spawn = nodeSpawn } = {}) {
   const child = spawn(exe, [`--user-data-dir=${dir}`, '--remote-debugging-port=0', '--no-first-run', '--no-default-browser-check', '--no-startup-window'], { detached: true, stdio: 'ignore' })
   child.on?.('error', () => {})
@@ -265,11 +318,13 @@ export const SIGNIN_WINDOW_OPEN = `The Pilcrino sign-in window is still open. Qu
  * Chrome on the profile without the debugging port (the sign-in window) fails
  * fast with `signin_window_open`: a launch would only hand its arguments to
  * that window and never answer. After
- * a launch the only success condition is the identity match: a launcher that
- * loses Chrome's profile lock exits without writing anything, and this
- * process still finds the Chrome the other session started.
+ * a launch the success conditions are the identity match on
+ * DevToolsActivePort or, failing that, a debugging Chrome on the profile
+ * found from the process list (`discoverIdentity`): a launcher that loses
+ * Chrome's profile lock exits without writing anything, and this process
+ * still finds the Chrome the other session started.
  */
-export async function connectChrome({ dir, exe, fs = nodeFs, fetch = globalThis.fetch, spawn = nodeSpawn, sleep = sleepMs, isProfileHeld: held = isProfileHeld, puppeteer, timeoutMs = 20000, now = Date.now }) {
+export async function connectChrome({ dir, exe, fs = nodeFs, fetch = globalThis.fetch, spawn = nodeSpawn, sleep = sleepMs, isProfileHeld: held = isProfileHeld, discover = discoverIdentity, puppeteer, timeoutMs = 20000, now = Date.now }) {
   const start = now()
   const left = () => timeoutMs - (now() - start)
   const unavailable = () => codedError('browser_unavailable', `The Pilcrino browser did not start within ${timeoutMs / 1000}s (profile ${dir}, executable ${exe}).`)
@@ -278,10 +333,19 @@ export async function connectChrome({ dir, exe, fs = nodeFs, fetch = globalThis.
     if (held(dir)) throw codedError('signin_window_open', SIGNIN_WINDOW_OPEN)
     fs.mkdirSync?.(dir, { recursive: true })
     launchChrome(exe, dir, { spawn })
+    const launched = now()
+    let lastDiscover = launched
     while (!wsUrl) {
       if (left() <= 0) throw unavailable()
       await sleep(250)
       wsUrl = await probeIdentity(dir, { fs, fetch })
+      // The file is the fast path; a Chrome that listens without having
+      // written it (seen on Windows) is found from the process list, at most
+      // once a second from two seconds after the launch.
+      if (!wsUrl && now() - launched >= 2000 && now() - lastDiscover >= 1000) {
+        lastDiscover = now()
+        wsUrl = await discover(dir, { fs, fetch })
+      }
     }
   }
   // The whole connection shares one deadline: the connect itself is bounded by

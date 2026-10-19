@@ -509,9 +509,11 @@ Pilcrino may run it.
      Linux: the `.deb` or `.rpm` from that page, installed with `! sudo
      apt-get install -y ./google-chrome-stable_current_amd64.deb` or the
      `arm64` file on an Arm computer.) Continue; Phase 3.5 re-checks.
-6. **`jq`**, only when the blog publishes to WordPress (known from an
-   earlier setup, or asked in Phase 5; when unknown here, re-run this check
-   at the start of Phase 5): `command -v jq >/dev/null 2>&1 && echo ok ||
+6. **`jq`**, only when the blog is known to publish to WordPress (from an
+   earlier setup). When that is unknown here, say nothing about jq (not
+   even that it is only needed for WordPress: the owner cannot tell whether
+   that applies) and run this check at the start of Phase 5 instead, once
+   the adapter is WordPress: `command -v jq >/dev/null 2>&1 && echo ok ||
    echo missing`. Missing: "Pilcrino builds the WordPress requests with a
    small tool called jq, which this computer does not have." macOS: `brew
    install jq` when `brew` exists, else the binary from
@@ -2019,9 +2021,11 @@ title band never vary; only the composition does.
    `cmd.exe //c start "" "$(cygpath -w "<file>")"` (the doubled slash keeps
    bash from turning `/c` into a path; `cygpath -w` gives cmd a Windows
    path). Report one line and ask nothing (both
-   paths): "Test image rendered; I've opened it on your screen." and
-   nothing else: a webfont that fell back to a system font on this Mac
-   is not mentioned (rule 8). Never a list of problems to decide on, never a
+   paths): "Test image rendered; I've opened it in a window on your
+   screen. Close that window and come back here when you've had a look."
+   and nothing else (the image window takes the keyboard on Windows, so
+   the owner must know to close it): a webfont that fell back to a system
+   font on this Mac is not mentioned (rule 8). Never a list of problems to decide on, never a
    question: the owner changes colours in the summary before the commit
    (Phase 6), which rewrites `theme.ts` and re-renders. The test render is
    not committed (`out/` is ignored, step 5).

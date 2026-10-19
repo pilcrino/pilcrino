@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { execSync } from 'node:child_process'
-import { findChrome, readActivePort, probeIdentity, connectChrome, readExecutableOverride, profileDir, codedError, profileProcesses, isProfileHeld, isProfileRunning, quitKeys } from '../src/chrome.mjs'
+import { findChrome, readActivePort, probeIdentity, connectChrome, readExecutableOverride, profileDir, codedError, profileProcesses, isProfileHeld, isProfileRunning, quitKeys, listeningPorts, discoverIdentity } from '../src/chrome.mjs'
 
 const notHeld = () => false
 
@@ -324,4 +324,43 @@ test('profileProcessEntries with the real process list finds a child carrying th
     child.kill()
     rmSync(base, { recursive: true, force: true })
   }
+})
+
+test('listeningPorts: PowerShell on Windows, lsof -Fn elsewhere, ss when lsof is missing on Linux', () => {
+  const win = (bin, args) => { assert.equal(bin, 'powershell'); assert.match(args.at(-1), /OwningProcess 10048 -State Listen/); return '51033\r\n51033\r\n' }
+  assert.deepEqual(listeningPorts(10048, { exec: win, platform: 'win32' }), [51033])
+  const lsof = (bin) => { assert.equal(bin, 'lsof'); return 'p6116\nn127.0.0.1:64826\nn[::1]:64826\n' }
+  assert.deepEqual(listeningPorts(6116, { exec: lsof, platform: 'darwin' }), [64826])
+  const ss = (bin) => { if (bin === 'lsof') throw new Error('ENOENT'); assert.equal(bin, 'ss'); return 'LISTEN 0 10 127.0.0.1:39901 0.0.0.0:* users:(("chrome",pid=6116,fd=45))\nLISTEN 0 10 127.0.0.1:22 0.0.0.0:* users:(("sshd",pid=900,fd=3))\n' }
+  assert.deepEqual(listeningPorts(6116, { exec: ss, platform: 'linux' }), [39901])
+  assert.deepEqual(listeningPorts(6116, { exec: () => { throw new Error('x') }, platform: 'darwin' }), [])
+})
+
+test('discoverIdentity: the debugging Chrome on the profile answers on its own port and the file is rewritten', async () => {
+  const files = { '/p/DevToolsActivePort': '59261\n/devtools/browser/old\n' }
+  const fs = { ...memfs(files), writeFileSync: (p, c) => { files[slash(p)] = c } }
+  const exec = () => '7 /x/chrome --user-data-dir=/p --no-first-run https://accounts.google.com/\n8 /x/chrome --user-data-dir=/p --remote-debugging-port=0 --no-startup-window\n9 /x/chrome --type=renderer --user-data-dir=/p\n'
+  const asked = []
+  const ports = (pid) => { asked.push(pid); return pid === 8 ? [51033] : [1] }
+  const fetch = async (url) => { if (url !== 'http://127.0.0.1:51033/json/version') throw new Error('ECONNREFUSED'); return { ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:51033/devtools/browser/new' }) } }
+  const ws = await discoverIdentity('/p', { fs, fetch, exec, platform: 'linux', ports })
+  assert.equal(ws, 'ws://127.0.0.1:51033/devtools/browser/new')
+  assert.deepEqual(asked, [8]) // the plain sign-in Chrome and the renderer are never asked
+  assert.equal(files['/p/DevToolsActivePort'], '51033\n/devtools/browser/new\n')
+  assert.equal(await discoverIdentity('/p', { fs, fetch, exec: () => '', platform: 'linux', ports }), null)
+})
+
+test('connectChrome: a launched Chrome that never rewrites DevToolsActivePort is found from the process list', async () => {
+  const files = { '/p/DevToolsActivePort': '59261\n/devtools/browser/old\n' } // stale from the Chrome the sign-in quit
+  const fs = { ...memfs(files), writeFileSync: (p, c) => { files[slash(p)] = c } }
+  const spawn = () => ({ unref() {}, on() {} }) // Chrome starts and listens on 51033 but leaves the file alone
+  const fetch = async (url) => { if (url !== 'http://127.0.0.1:51033/json/version') throw new Error('ECONNREFUSED'); return { ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:51033/devtools/browser/new' }) } }
+  let discovers = 0
+  const discover = async () => { discovers++; return discovers < 2 ? null : 'ws://127.0.0.1:51033/devtools/browser/new' }
+  const puppeteer = { connect: async ({ browserWSEndpoint }) => ({ ws: browserWSEndpoint }) }
+  let t = 0
+  const now = () => { t += 500; return t }
+  const r = await connectChrome({ dir: '/p', exe: '/x/chrome', fs, fetch, spawn, sleep: async () => {}, isProfileHeld: notHeld, discover, puppeteer, now, timeoutMs: 20000 })
+  assert.equal(r.wsUrl, 'ws://127.0.0.1:51033/devtools/browser/new')
+  assert.equal(discovers, 2)
 })
