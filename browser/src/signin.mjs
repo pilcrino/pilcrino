@@ -1,13 +1,25 @@
 import * as nodeFs from 'node:fs'
 import { spawn as nodeSpawn } from 'node:child_process'
-import { codedError, commandExecutable, isChromeCommand, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, sleepMs } from './chrome.mjs'
+import { execFileSync } from 'node:child_process'
+import { SIGNIN_WINDOW_OPEN, codedError, commandExecutable, discoverIdentity, isChromeCommand, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, quitKeys, sleepMs } from './chrome.mjs'
 import { SIGN_IN_URLS } from './login.mjs'
 
-export const SIGNIN_NEXT = 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.'
+export const SIGNIN_NEXT = `Sign in, then say you are done and Pilcrino closes that window; or quit it with ${quitKeys()}. Pilcrino restarts the browser on its next call.`
 
 export const CLOSE_LOGIN_NONE = 'No Pilcrino sign-in window is open.'
 export const CLOSE_LOGIN_CLOSED = 'The Pilcrino sign-in window is closed and your sign-ins are kept.'
-export const closeLoginTimedOut = (secs) => `The Pilcrino sign-in window did not quit within ${secs} seconds. Quit it with Cmd+Q (it is the Chrome window with the sign-in pages, not your own Chrome), then try again.`
+export const closeLoginTimedOut = (secs) => `The Pilcrino sign-in window did not quit within ${secs} seconds. Quit it with ${quitKeys()} (it is the Chrome window with the sign-in pages, not your own Chrome), then try again.`
+
+/**
+ * Asks a Chrome main process to quit the way the platform allows a clean exit:
+ * SIGTERM where signals exist (Chrome treats it as a normal quit), and on
+ * Windows `taskkill /PID` without `/F`, which posts WM_CLOSE to its windows;
+ * `process.kill` there is TerminateProcess and would lose the sign-ins.
+ */
+export function platformQuit(platform = process.platform, { kill = process.kill.bind(process), exec = execFileSync } = {}) {
+  if (platform !== 'win32') return (pid) => kill(pid, 'SIGTERM')
+  return (pid) => exec('taskkill', ['/PID', String(pid)], { stdio: 'ignore', windowsHide: true })
+}
 
 /** Names processes that carry the Pilcrino profile but are not Chrome, so the owner can check them. */
 export const notChromeNote = (entries) =>
@@ -30,21 +42,23 @@ export async function closeSignIn({
   profile,
   exe,
   processes = profileProcessEntries,
-  kill = process.kill.bind(process),
+  platform = process.platform,
+  kill,
+  quit = kill ? (pid) => kill(pid, 'SIGTERM') : platformQuit(platform),
   sleep = sleepMs,
   now = Date.now,
   quitTimeoutMs = 10000,
 } = {}) {
   const plainAll = () => processes(profile).filter((e) => isPlainCommand(e.command))
-  const plain = () => plainAll().filter((e) => isChromeCommand(e.command, exe))
+  const plain = () => plainAll().filter((e) => isChromeCommand(e.command, exe, platform))
   const first = plainAll()
-  const targets = first.filter((e) => isChromeCommand(e.command, exe))
-  const others = first.filter((e) => !isChromeCommand(e.command, exe))
+  const targets = first.filter((e) => isChromeCommand(e.command, exe, platform))
+  const others = first.filter((e) => !isChromeCommand(e.command, exe, platform))
   const note = others.length ? ' ' + notChromeNote(others) : ''
   if (targets.length === 0) return { closed: false, detail: CLOSE_LOGIN_NONE + note }
   for (const { pid } of targets) {
-    // ESRCH: it quit between the listing and the signal, which is what we want.
-    try { kill(pid, 'SIGTERM') } catch {}
+    // ESRCH (or a taskkill that finds nothing): it quit between the listing and the request, which is what we want.
+    try { quit(pid) } catch {}
   }
   const start = now()
   while (plain().length > 0) {
@@ -82,6 +96,41 @@ export function closeOverCdp(wsUrl, { WebSocketImpl = globalThis.WebSocket, time
     ws.onclose = done
     ws.onerror = done
   })
+}
+
+export const QUIT_NOT_RUNNING = 'The Pilcrino browser is not running.'
+export const QUIT_DONE = 'The Pilcrino browser has quit.'
+export const quitTimedOut = (secs) => `The Pilcrino browser did not quit within ${secs} seconds. Quit it with ${quitKeys()}, then try again.`
+
+/**
+ * Quits the Pilcrino Chrome (the one with the remote-control port, found
+ * through DevToolsActivePort or the process list) with CDP `Browser.close`
+ * and waits until no Chrome holds the profile, so the profile folder can be
+ * removed: that Chrome outlives Claude Code, and Windows refuses to delete
+ * files a running Chrome holds. A plain sign-in window on the profile is
+ * reported, not touched (`close-login` is for that). Resolves
+ * `{ quit, detail }` and never rejects.
+ */
+export async function quitBrowser({
+  profile,
+  fs = nodeFs,
+  fetch = globalThis.fetch,
+  closeBrowser = closeOverCdp,
+  discover = discoverIdentity,
+  isProfileRunning: running = isProfileRunning,
+  sleep = sleepMs,
+  now = Date.now,
+  quitTimeoutMs = 10000,
+} = {}) {
+  const wsUrl = (await probeIdentity(profile, { fs, fetch })) ?? (await discover(profile, { fs, fetch }))
+  if (!wsUrl) return running(profile) ? { quit: false, detail: SIGNIN_WINDOW_OPEN } : { quit: true, detail: QUIT_NOT_RUNNING }
+  await closeBrowser(wsUrl)
+  const start = now()
+  while (running(profile)) {
+    if (now() - start >= quitTimeoutMs) return { quit: false, detail: quitTimedOut(quitTimeoutMs / 1000) }
+    await sleep(250)
+  }
+  return { quit: true, detail: QUIT_DONE }
 }
 
 /** Google first (the other sites' Google sign-in buttons need it), then the rest in the order asked. */
@@ -124,7 +173,7 @@ export async function openSignIn(sites, {
     // because the identity check refuses it.
     while (running(profile)) {
       if (now() - start >= quitTimeoutMs) {
-        throw codedError('browser_unavailable', `The Pilcrino browser did not quit within ${quitTimeoutMs / 1000}s, so the sign-in window could not open. Quit it with Cmd+Q, then try again.`)
+        throw codedError('browser_unavailable', `The Pilcrino browser did not quit within ${quitTimeoutMs / 1000}s, so the sign-in window could not open. Quit it with ${quitKeys()}, then try again.`)
       }
       await sleep(250)
     }

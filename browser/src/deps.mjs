@@ -1,6 +1,9 @@
 import { spawn as nodeSpawn, spawnSync as nodeSpawnSync } from 'node:child_process'
-import { existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
-import { join } from 'node:path'
+import { appendFileSync, existsSync, linkSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { dirname, join, win32 } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const NPM_RUN = join(dirname(fileURLToPath(import.meta.url)), 'npm-run.mjs')
 
 const LOCK_STALE_MS = 10 * 60 * 1000
 const WAIT_MAX_MS = 5 * 60 * 1000
@@ -35,20 +38,50 @@ export function isInstalled(root) {
   return paths(root).stamped()
 }
 
-/** The lock's text, inode and mtime, or null when it cannot be read (usually: it is gone). */
+/**
+ * The lock's text, inode and mtime, or null when it cannot be read (usually:
+ * it is gone). The text is the owner's PID on the first line and, once npm
+ * runs, npm's PID on the second: on Windows a parent killed from outside is
+ * terminated without its SIGTERM handler, so its npm keeps writing; a lock
+ * that names a live npm is still held.
+ */
 function readLock(lock) {
   try {
     const text = readFileSync(lock, 'utf8').trim()
     const st = statSync(lock)
-    return { text, ino: st.ino, mtimeMs: st.mtimeMs }
+    const [owner, npm] = text.split('\n').map((l) => l.trim())
+    return { text, owner, npm, ino: st.ino, mtimeMs: st.mtimeMs }
   } catch {
     return null
   }
 }
 
 function lockIsMine(lock) {
-  return readLock(lock)?.text === String(process.pid)
+  return readLock(lock)?.owner === String(process.pid)
 }
+
+/**
+ * Adds npm's PID to our own lock, so a stale-lock check sees the installer
+ * that is still running. Appended as a second line: the owner line a
+ * contender reads is never touched (a truncating write would show an empty
+ * lock for an instant, and an empty lock reads as stale), and an append needs
+ * no rename, which Windows refuses while another process has the file open.
+ */
+function recordNpmPid(lock, pid) {
+  if (!pid || !lockIsMine(lock)) return false
+  try {
+    appendFileSync(lock, `\n${pid}`)
+    return readLock(lock)?.text === `${process.pid}\n${pid}`
+  } catch {
+    return false
+  }
+}
+
+// Laps of "another installer took the lock" before giving up: a lock that is
+// lost every time means something keeps rewriting it, not a contender.
+const LOST_LOCK_MAX = 5
+
+const LOCK_LOST_STATUS = 75
 
 /** Removes the lock only when it holds this process's PID. */
 function releaseLock(lock) {
@@ -97,11 +130,14 @@ function tryLock(lock, d) {
   const seen = readLock(lock)
   if (seen === null) return 'retry'
   // A lock with our own PID is ours (left by an earlier attempt in this process).
-  if (seen.text === mine) return 'linked'
-  const pid = /^\d+$/.test(seen.text) ? Number(seen.text) : 0
-  // A lock left by a killed install (its PID is gone, or unreadable) is cleared at once.
-  // The age rule stays as a second check, for a PID that was reused by another process.
-  if (pid <= 0 || !d.pidAlive(pid) || d.now() - seen.mtimeMs > LOCK_STALE_MS) {
+  if (seen.owner === mine) return 'linked'
+  const pids = [seen.owner, seen.npm].filter((p) => /^\d+$/.test(p ?? '')).map(Number)
+  const alive = pids.filter((p) => d.pidAlive(p))
+  const npmAlive = /^\d+$/.test(seen.npm ?? '') && alive.includes(Number(seen.npm))
+  // A lock left by a killed install (its PIDs are gone, or unreadable) is cleared at once.
+  // The age rule is a second check for an owner PID reused by another process; it never
+  // overrides a lock whose npm line is alive, since a slow install is still an install.
+  if (alive.length === 0 || (!npmAlive && d.now() - seen.mtimeMs > LOCK_STALE_MS)) {
     const again = readLock(lock)
     if (again !== null && again.text === seen.text && again.ino === seen.ino) rmSync(lock, { force: true })
     return 'retry'
@@ -118,10 +154,29 @@ function npmMissing(root) {
   return new Error(`npm was not found. Install Node 22 with npm, or run: node ${join(root, 'bin.mjs')} install`)
 }
 
+/**
+ * The command that runs npm: `[file, args]`. On Windows `npm` is `npm.cmd`,
+ * which Node refuses to spawn without a shell, and a shell would make the
+ * child `cmd.exe` rather than npm, so bin.mjs could no longer stop the real
+ * installer before releasing the lock. So npm's JavaScript entry runs under
+ * this very Node instead. PILCRINO_NPM_CLI names that entry explicitly (tests
+ * use it for a fake npm on every platform). A missing entry file is reported
+ * before any spawn: Node would otherwise start and fail with MODULE_NOT_FOUND,
+ * which reads as a generic install failure.
+ */
+export function npmCommand(root, { platform = process.platform, env = process.env, exists = existsSync, execPath = process.execPath } = {}) {
+  let cli = env.PILCRINO_NPM_CLI
+  if (!cli && platform === 'win32') cli = win32.join(win32.dirname(execPath), 'node_modules', 'npm', 'bin', 'npm-cli.js')
+  if (!cli) return ['npm', NPM_ARGS]
+  if (!exists(cli)) throw npmMissing(root)
+  return [execPath, [cli, ...NPM_ARGS]]
+}
+
 const npmEnv = () => ({ ...process.env, npm_config_loglevel: 'error' })
 
-function lostLock(lock) {
+function lostLock(lock, laps) {
   process.stderr.write(`pilcrino-browser: another installer took ${lock} during npm install; waiting for its result\n`)
+  if (laps >= LOST_LOCK_MAX) throw new Error(`the install lock ${lock} was lost ${laps} times in a row; remove it and retry`)
 }
 
 /**
@@ -138,6 +193,7 @@ export function ensureInstalled(root, deps = {}) {
   if (stamped()) return { installed: false }
 
   const start = d.now()
+  let lost = 0
   for (;;) {
     const state = tryLock(lock, d)
     if (state === 'retry') continue
@@ -153,11 +209,16 @@ export function ensureInstalled(root, deps = {}) {
       if (stamped()) return { installed: false }
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
-      const r = spawnSync('npm', NPM_ARGS, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
-      if (r.error?.code === 'ENOENT') throw npmMissing(root)
+      const [file, args] = npmCommand(root, deps)
+      // npm runs under a wrapper that names itself on the lock first (see npm-run.mjs), so a
+      // caller killed hard mid-install still leaves a lock that reads as held while npm writes.
+      const r = spawnSync(process.execPath, [NPM_RUN, lock, String(process.pid), file, ...args], { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+      if (r.error?.code === 'ENOENT' || r.status === 127) throw npmMissing(root)
+      // The wrapper found the lock gone or taken before npm started: another installer owns the tree now.
+      if (r.status === LOCK_LOST_STATUS) { lostLock(lock, ++lost); continue }
       if (r.status !== 0) throw new Error(`npm install failed in ${root} (exit ${r.status ?? r.signal})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
-      if (!lockIsMine(lock)) { lostLock(lock); continue }
+      if (!lockIsMine(lock)) { lostLock(lock, ++lost); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }
@@ -185,6 +246,7 @@ export async function installAsync(root, deps = {}) {
   if (stamped()) return { installed: false }
 
   const start = d.now()
+  let lost = 0
   for (;;) {
     const state = tryLock(lock, d)
     if (state === 'retry') continue
@@ -201,14 +263,25 @@ export async function installAsync(root, deps = {}) {
       process.stderr.write(`pilcrino-browser: installing packages in ${root}\n`)
       const code = await new Promise((resolve, reject) => {
         // fd 1 is the MCP channel, so npm's stdout goes to our stderr.
-        const child = spawn('npm', NPM_ARGS, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+        let file, args
+        try { [file, args] = npmCommand(root, deps) } catch (err) { reject(err); return }
+        const child = spawn(file, args, { cwd: root, stdio: ['ignore', 2, 2], env: npmEnv() })
+        // A child without a pid never started (its 'error' follows); a started one must be on the lock.
+        if (child.pid !== undefined && !recordNpmPid(lock, child.pid)) {
+          // The lock is no longer ours (or could not be updated): this npm must not write. Stop it now.
+          try { child.kill('SIGKILL') } catch {}
+          child.on?.('error', () => {})
+          resolve(LOCK_LOST_STATUS)
+          return
+        }
         deps.onSpawn?.(child)
         child.on('error', (err) => reject(err.code === 'ENOENT' ? npmMissing(root) : err))
         child.on('close', (status, signal) => resolve(status ?? signal))
       })
+      if (code === LOCK_LOST_STATUS) { lostLock(lock, ++lost); continue }
       if (code !== 0) throw new Error(`npm install failed in ${root} (exit ${code})`)
       // A lost lock means another installer is running npm now: it writes the stamp, not us.
-      if (!lockIsMine(lock)) { lostLock(lock); continue }
+      if (!lockIsMine(lock)) { lostLock(lock, ++lost); continue }
       mkdirSync(join(root, 'node_modules'), { recursive: true })
       writeFileSync(stamp, version)
       return { installed: true }

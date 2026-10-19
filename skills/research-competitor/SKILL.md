@@ -107,7 +107,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
 - **Single-page app / no separate pricing page:** pricing blocks are often below the fold; if the 20000-character `text` cuts off before them, capture again with `document.body.innerText.substring(20000, 40000)` in the `text` field.
 - **Comparison pages** (e.g. "vs Acme"): Read them — they contain marketing-positioning claims and self-reported competitive data worth documenting (and fact-checking).
 - **Login-walled pricing:** Note `pricing_status: login_required` and document only what is visible publicly.
-- **Currency:** a page may show prices in the visitor's local currency (the Mac's locale). Prefer the page's structured data (`application/ld+json` offers carry `priceCurrency`) and record the currency the product sells in; note a local-currency display as such.
+- **Currency:** a page may show prices in the visitor's local currency (the computer's locale). Prefer the page's structured data (`application/ld+json` offers carry `priceCurrency`) and record the currency the product sells in; note a local-currency display as such.
 - **Pricing toggles** (monthly/annual, by audience segment): Capture both states: they often show different tiers or limits. A `capture` script can flip the toggle itself (`el.click()`, then `await new Promise(r => setTimeout(r, 1000))`) before it returns the text; write each state to its own file (`pricing-monthly.json`, `pricing-annual.json`).
 - **404s or captcha blocks:** Log in the Sources section as "attempted but 404/blocked" rather than fabricating the data.
 

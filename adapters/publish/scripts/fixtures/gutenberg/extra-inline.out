@@ -1,0 +1,66 @@
+<!-- wp:i -->I<!-- /wp:i -->
+
+<!-- wp:paragraph -->
+<p>Intro paragraph with <strong>bold</strong>, <em>italic</em>, <code>code</code> and a <a href="https://example.com/a?b=1&amp;c=2">link</a>. It continues on a second line &amp; has an ampersand &lt;and&gt; angle brackets.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading -->
+<h2 class="wp-block-heading">First heading</h2>
+<!-- /wp:heading -->
+
+<!-- wp:list -->
+<ul class="wp-block-list">
+<!-- wp:list-item -->
+<li>one item with <em>emphasis</em></li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>two <strong>strong</strong></li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>three</li>
+<!-- /wp:list-item -->
+</ul>
+<!-- /wp:list -->
+
+<!-- wp:list {"ordered":true} -->
+<ol class="wp-block-list">
+<!-- wp:list-item -->
+<li>first</li>
+<!-- /wp:list-item -->
+<!-- wp:list-item -->
+<li>second</li>
+<!-- /wp:list-item -->
+</ol>
+<!-- /wp:list -->
+
+<!-- wp:image {"sizeSlug":"large","linkDestination":"none"} -->
+<figure class="wp-block-image size-large"><img src="images/flow.png" alt="A diagram of the flow"/></figure>
+<!-- /wp:image -->
+
+<!-- wp:quote -->
+<blockquote class="wp-block-quote"><p>Quoted line one continues here</p><p>Second quoted paragraph</p></blockquote>
+<!-- /wp:quote -->
+
+<!-- wp:code -->
+<pre class="wp-block-code"><code>const x = "&lt;tag&gt;" &amp;&amp; 1;</code></pre>
+<!-- /wp:code -->
+
+<!-- wp:table -->
+<figure class="wp-block-table"><table><thead><tr><th>Plan</th><th>Price</th></tr></thead><tbody><tr><td>Free</td><td>0 €</td></tr><tr><td>Pro</td><td>10 €</td></tr></tbody></table></figure>
+<!-- /wp:table -->
+
+<!-- wp:heading {"level":3} -->
+<h3 class="wp-block-heading">Deeper heading</h3>
+<!-- /wp:heading -->
+
+<!-- wp:paragraph -->
+<p>Last paragraph with Facturación: café.</p>
+<!-- /wp:paragraph -->
+
+<!-- wp:heading {"level":4} -->
+<h4 class="wp-block-heading">Level four</h4>
+<!-- /wp:heading -->
+
+<!-- wp:heading {"level":1} -->
+<h1 class="wp-block-heading">Level one</h1>
+<!-- /wp:heading -->

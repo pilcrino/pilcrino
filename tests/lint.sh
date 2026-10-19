@@ -92,11 +92,10 @@ yaml.safe_load(parts[1])
 PYEOF
 done
 
-# 10. Gutenberg converter present, executable, compiles
-GUT=adapters/publish/scripts/md-to-gutenberg.py
+# 10. Gutenberg converter present and parses (its tests run in the script_tests step below)
+GUT=adapters/publish/scripts/md-to-gutenberg.mjs
 if [ -f "$GUT" ]; then
-  [ -x "$GUT" ] || err "$GUT not executable"
-  python3 -m py_compile "$GUT" 2>/dev/null || err "$GUT does not compile"
+  node --check "$GUT" 2>/dev/null || err "$GUT does not parse"
 else
   err "$GUT missing"
 fi

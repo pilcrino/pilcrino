@@ -1,0 +1,2 @@
+warning: input markdown starts with a frontmatter block (---); stripping it here defensively — the caller is expected to have already done this (see adapters/publish/wordpress-rest.md)
+warning: extra-blocks source not found/parseable: /tmp/does-not-exist-toc.json; continuing without insertions

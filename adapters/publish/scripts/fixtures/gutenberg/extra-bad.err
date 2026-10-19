@@ -1,0 +1,2 @@
+warning: input markdown starts with a frontmatter block (---); stripping it here defensively — the caller is expected to have already done this (see adapters/publish/wordpress-rest.md)
+error: --extra-blocks file 'fixtures/gutenberg/extra-bad.json' is not valid JSON: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)

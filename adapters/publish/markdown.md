@@ -40,7 +40,7 @@ None. This adapter never reads the site. `publish.markdown.platform` and `publis
 
 ## Relationship to the git repo
 
-The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner pastes the post into the platform first (§Staging step 6 puts the formatted text on the clipboard and opens the image folder; a blog registered with the Pilcrino app can also download the app's zip: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
+The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner puts the post into the platform first (§Staging step 6 hands over the markdown file and its image folder; a blog registered with the Pilcrino app can also download the app's zip: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
 
 ## Staging (Stage 4b.5)
 
@@ -64,25 +64,22 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
 5. **`pr-monitor.json`.** astro-git-pr.md §Staging step 7's schema, `mode: pr`. This adapter adds no fields.
 6. **Preview line for the Gate 2 banner.** `Preview: <pr_url>` (the diff) and, when the blog is registered with the Pilcrino app (SKILL.md Step 2.5's test), the app's preview page for this post. There is no staging site.
 
-   **Paste platforms (`jekyll`, `ghost`, `generic`): hand the post over ready to paste, before any approval.** A rich-text editor such as Webflow's does not convert markdown (pasting the `.md` file gives literal `##` and `**`), the worktree folder is hidden from Finder, and the frontmatter fields go into separate CMS fields. So, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
+   **Paste platforms (`jekyll`, `ghost`, `generic`): hand the post over as a file, before any approval.** The post is a markdown file with its images beside it; the owner puts it into the platform the way that platform takes a markdown file (an import, or the text pasted into a new post), converting it if the platform needs another format. The worktree folder is hidden from the file manager, so open it for the owner, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
    ```bash
-   node "${CLAUDE_PLUGIN_ROOT}/adapters/publish/scripts/post-to-clipboard.mjs" "$WT_ABS/{content_dir}/<slug>.md" <--cover-key "$COVER_KEY" when publish.markdown.cover_key is set>
-   open "$WT_ABS/{assets_dir}/<slug>"
+   open "$WT_ABS/{assets_dir}/<slug>"   # macOS; xdg-open on Linux; on Windows (Git Bash): cmd.exe //c start "" "$(cygpath -w "<path>")"
    ```
-   The script renders the body (frontmatter left out) to HTML, puts it on the clipboard as formatted text, and prints one line per frontmatter field (`title: ...`, `description: ...`, `date: ...`, `tags: ...`, `author: ...`, `cover: <file>`), then, only when the body has any, one `contains:` line counting its tables and code blocks (`contains: 1 table, 2 code blocks`). The `contains:` line is not a CMS field: never list it among the fields. `open` shows the image folder in Finder. The banner then says, with the printed values filled in and only the fields the script printed:
+   Read the post's frontmatter yourself for the field values (`title`, `description`, `date`, `tags`, `author`, and the cover key when `publish.markdown.cover_key` is set). The banner then says, with the values filled in and only the fields the frontmatter has:
 
-   > To put the post on <Platform>: I copied the post's text to your clipboard, already formatted, and opened its image folder in Finder. In <Platform>, create a new post and paste into the post body. Then fill these fields one by one:
+   > To put the post on <Platform>: the post is the file `<WT_ABS/{content_dir}/<slug>.md>`, and its pictures are in the folder I opened. Put the post into <Platform> the way it takes a markdown file (its import, or the text pasted into a new post), and fill these fields one by one:
    > - Title: <title>
    > - Description: <description>
    > - Date: today, <today's date> (the date in the file is the drafting day)
    > - Tags: <tags>
    > - Author: <author>
    > - Cover image: <cover file>, from the folder I opened
-   > Each picture in the text shows its file name: replace it with the file of that name from the same folder. When it looks right in <Platform>, tell me "approve". If the clipboard has changed since, say "copy the post again".
+   > Each picture in the text names its file: add the file of that name from the same folder. When it looks right in <Platform>, tell me "approve".
 
-   When the script printed a `contains:` line and the platform is `ghost` or `generic`, add before "When it looks right", with the counts filled in and only the parts that apply: "This post has <N table(s)> and <N code block(s)>. Many rich-text editors drop a pasted table or flatten a code block without saying so, so check each one is there after pasting. If one is missing, add it in <Platform> by hand (an embed, or an image of the table) before you approve." Not for `jekyll`: the owner puts the markdown file itself in `_posts`, and the site renders tables and code blocks from it.
-
-   Registered blogs only, add: "Or download the post as a zip from the Pilcrino app." Never mention the app to an owner whose blog is not registered with it. For `jekyll` add: "Name the file `YYYY-MM-DD-<slug>.md` when you put it in `_posts`." "Copy the post again" re-runs the two commands above. When the script exits 1, give its one-line reason, still run `open`, and name the post file to open instead (`$WT_ABS/{content_dir}/<slug>.md`). The order matters: after the merge and cleanup the app serves the published copy from the owner's checkout, which only has the post once they pull.
+   Registered blogs only, add: "Or download the post as a zip from the Pilcrino app." Never mention the app to an owner whose blog is not registered with it. For `jekyll` add: "Name the file `YYYY-MM-DD-<slug>.md` when you put it in `_posts`." The order matters: after the merge and cleanup the app serves the published copy from the owner's checkout, which only has the post once they pull.
 7. **Layout line for the Gate 2 banner.** `Layout: not checked (the markdown adapter has no site preview)`. Never omit the line.
 
 ## On review-loop edit
@@ -126,6 +123,6 @@ Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`):
 Paste platform (`jekyll`, `ghost`, `generic`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
-- [ ] Paste the post into <Platform> as the Gate 2 banner says (formatted text from the clipboard, then each field and image; set the date field to today), then merge the pull request (on GitHub, or tell Pilcrino "merge it"; it files the repository copy). Registered with the Pilcrino app: the app's zip works too.
+- [ ] Put the post into <Platform> as the Gate 2 banner says (the markdown file, then each field and image; set the date field to today), then merge the pull request (on GitHub, or tell Pilcrino "merge it"; it files the repository copy). Registered with the Pilcrino app: the app's zip works too.
 - [ ] Jekyll only (emit this item only when `platform` is `jekyll`): name the file `YYYY-MM-DD-<slug>.md` in `_posts`.
 - [ ] Once <Platform> shows the post, verify it per action-items §8.

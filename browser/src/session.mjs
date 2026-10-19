@@ -1,7 +1,7 @@
 import * as nodeFs from 'node:fs'
 import { connectChrome, findChrome, profileDir, readExecutableOverride } from './chrome.mjs'
 import { outRoots } from './paths.mjs'
-import { closeSignIn, openSignIn } from './signin.mjs'
+import { closeSignIn, openSignIn, quitBrowser } from './signin.mjs'
 import { TabRegistry } from './tabs.mjs'
 
 /**
@@ -64,6 +64,8 @@ export function createSession({ cwd = process.cwd(), env = process.env } = {}, d
       try { resolved = exe() } catch {}
       return (deps.closeSignIn ?? closeSignIn)({ profile, exe: resolved })
     },
+    /** Quits the Pilcrino Chrome so its profile can be removed (signin.mjs quitBrowser). Never connects. `deps.quitBrowser` is a test seam. */
+    async quitBrowser() { return (deps.quitBrowser ?? quitBrowser)({ profile }) },
     async closeOwned() { if (current) await current.registry.closeAll().catch(() => {}) },
   }
 }

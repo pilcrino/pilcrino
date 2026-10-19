@@ -1,14 +1,17 @@
 import { test } from 'node:test'
 import { EventEmitter } from 'node:events'
 import assert from 'node:assert/strict'
-import { closeOverCdp, openSignIn, signInOrder, SIGNIN_NEXT } from '../src/signin.mjs'
+import { closeOverCdp, openSignIn, signInOrder, SIGNIN_NEXT, quitBrowser, QUIT_DONE, QUIT_NOT_RUNNING } from '../src/signin.mjs'
+import { quitKeys } from '../src/chrome.mjs'
 import { createSession } from '../src/session.mjs'
 
 // Nothing here launches or drives a real Chrome: fs, fetch, spawn, the CDP
 // close and the process check are all injected.
+// Keys are written with forward slashes; on Windows the code joins with backslashes, so lookups are normalised.
+const slash = (p) => String(p).replace(/\\/g, '/')
 const memfs = (files) => ({
-  existsSync: (p) => p in files,
-  readFileSync: (p) => { if (!(p in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); return files[p] },
+  existsSync: (p) => slash(p) in files,
+  readFileSync: (p) => { if (!(slash(p) in files)) throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' }); return files[slash(p)] },
   mkdirSync: () => {},
 })
 const WS = 'ws://127.0.0.1:9100/devtools/browser/pil'
@@ -50,7 +53,7 @@ test('openSignIn: the CDP instance is closed and gone before a plain launch with
   assert.deepEqual(out, {
     opened: [{ site: 'google', url: 'https://accounts.google.com/' }, { site: 'reddit', url: 'https://www.reddit.com/login/' }, { site: 'x', url: 'https://x.com/i/flow/login' }],
     mode: 'plain',
-    next: 'Sign in, then say you are done and Pilcrino closes that window; or quit it with Cmd+Q. Pilcrino restarts the browser on its next call.',
+    next: `Sign in, then say you are done and Pilcrino closes that window; or quit it with ${quitKeys()}. Pilcrino restarts the browser on its next call.`,
   })
   assert.equal(out.next, SIGNIN_NEXT)
 })
@@ -203,7 +206,7 @@ test('closeSignIn: a Chrome that ignores SIGTERM is never killed; after 10 s the
   assert.deepEqual(sent, [[3512, 'SIGTERM']])
   assert.equal(out.closed, false)
   assert.match(out.detail, /did not quit within 10 seconds/)
-  assert.match(out.detail, /Cmd\+Q/)
+  assert.ok(out.detail.includes(quitKeys()), out.detail)
 })
 
 test('closeSignIn: a process that quit between the listing and the signal (ESRCH) is not an error', async () => {
@@ -259,4 +262,62 @@ test('session.closeSignIn passes the profile and the resolved Chrome, and never 
   const out = await session.closeSignIn()
   assert.equal(out.closed, true)
   assert.deepEqual(seen, [{ profile: session.profile, exe: '/env/chrome' }])
+})
+
+test('closeSignIn on win32: taskkill without /F per Chrome pid, never process.kill', async () => {
+  const { closeSignIn, platformQuit } = await import('../src/signin.mjs')
+  const calls = []
+  const quit = platformQuit('win32', { kill: () => { throw new Error('process.kill must not be used on Windows') }, exec: (bin, args) => { calls.push([bin, ...args]) } })
+  const chrome = { pid: 4001, command: '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" --user-data-dir="C:\\Users\\Dana Reyes\\.pilcrino\\browser"' }
+  let polls = 0
+  const out = await closeSignIn({
+    profile: 'C:\\Users\\Dana Reyes\\.pilcrino\\browser',
+    exe: 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+    platform: 'win32',
+    quit,
+    processes: () => (polls++ === 0 ? [chrome] : []),
+    sleep: async () => {},
+  })
+  assert.deepEqual(calls, [['taskkill', '/PID', '4001']])
+  assert.equal(out.closed, true)
+})
+
+test('platformQuit off Windows sends SIGTERM', async () => {
+  const { platformQuit } = await import('../src/signin.mjs')
+  const sent = []
+  platformQuit('linux', { kill: (pid, sig) => sent.push([pid, sig]), exec: () => { throw new Error('no taskkill here') } })(7)
+  assert.deepEqual(sent, [[7, 'SIGTERM']])
+})
+
+test('quitBrowser: closes the Pilcrino Chrome over CDP and waits until nothing holds the profile', async () => {
+  const fs = { existsSync: () => true, readFileSync: () => '9100\n/devtools/browser/q\n' }
+  const fetch = async () => ({ ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:9100/devtools/browser/q' }) })
+  const closed = []
+  let polls = 0
+  const r = await quitBrowser({ profile: '/p', fs, fetch, closeBrowser: async (ws) => { closed.push(ws) }, isProfileRunning: () => ++polls < 3, sleep: async () => {} })
+  assert.deepEqual(closed, ['ws://127.0.0.1:9100/devtools/browser/q'])
+  assert.deepEqual(r, { quit: true, detail: QUIT_DONE })
+})
+
+test('quitBrowser: a Chrome found only from the process list is quit too; nothing running is quit true; a plain window is reported', async () => {
+  const fs = { existsSync: () => false, readFileSync: () => { throw new Error('ENOENT') } }
+  const fetch = async () => { throw new Error('ECONNREFUSED') }
+  const closed = []
+  let running = true
+  const r = await quitBrowser({ profile: '/p', fs, fetch, discover: async () => 'ws://127.0.0.1:9200/devtools/browser/d', closeBrowser: async (ws) => { closed.push(ws); running = false }, isProfileRunning: () => running, sleep: async () => {} })
+  assert.deepEqual(closed, ['ws://127.0.0.1:9200/devtools/browser/d'])
+  assert.equal(r.quit, true)
+  assert.deepEqual(await quitBrowser({ profile: '/p', fs, fetch, discover: async () => null, isProfileRunning: () => false }), { quit: true, detail: QUIT_NOT_RUNNING })
+  const plain = await quitBrowser({ profile: '/p', fs, fetch, discover: async () => null, isProfileRunning: () => true })
+  assert.equal(plain.quit, false)
+  assert.match(plain.detail, /sign-in window/)
+})
+
+test('quitBrowser: a Chrome that never quits is reported within the bound', async () => {
+  const fs = { existsSync: () => true, readFileSync: () => '9100\n/devtools/browser/q\n' }
+  const fetch = async () => ({ ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:9100/devtools/browser/q' }) })
+  let t = 0
+  const r = await quitBrowser({ profile: '/p', fs, fetch, closeBrowser: async () => {}, isProfileRunning: () => true, sleep: async () => {}, now: () => (t += 4000) })
+  assert.equal(r.quit, false)
+  assert.match(r.detail, /did not quit within 10 seconds/)
 })

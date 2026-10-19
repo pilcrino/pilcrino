@@ -5,7 +5,9 @@ import { loginStatus, validSites } from './login.mjs'
  * status <sites...> prints {site: state}; open-login <sites...> prints
  * {opened, mode, next} and never connects (it quits the Pilcrino Chrome and
  * opens a plain one, see signin.mjs); close-login prints {closed, detail} and
- * never connects either (it quits that plain window). Exit 1 on any failure,
+ * never connects either (it quits that plain window); quit prints
+ * {quit, detail} after quitting the Pilcrino Chrome so its profile can be
+ * removed (the README's Uninstall section). Exit 1 on any failure,
  * with {error, message} on stdout.
  */
 export async function runCli(cmd, sites) {
@@ -15,6 +17,10 @@ export async function runCli(cmd, sites) {
   try {
     if (cmd === 'close-login') {
       process.stdout.write(JSON.stringify(await session.closeSignIn()) + '\n')
+      return 0
+    }
+    if (cmd === 'quit') {
+      process.stdout.write(JSON.stringify(await session.quitBrowser()) + '\n')
       return 0
     }
     const list = validSites(sites) // before connecting: a typo never launches Chrome

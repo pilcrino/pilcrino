@@ -100,11 +100,11 @@ if (cmd === undefined && !isInstalled(root)) {
   } else if (cmd === undefined) {
     const { startServer } = await import('./src/server.mjs')
     await startServer()
-  } else if (cmd === 'status' || cmd === 'open-login' || cmd === 'close-login') {
+  } else if (cmd === 'status' || cmd === 'open-login' || cmd === 'close-login' || cmd === 'quit') {
     const { runCli } = await import('./src/cli.mjs')
     process.exit(await runCli(cmd, rest))
   } else {
-    process.stderr.write(`usage: node bin.mjs [status <sites...> | open-login <sites...> | close-login | install]\n`)
+    process.stderr.write(`usage: node bin.mjs [status <sites...> | open-login <sites...> | close-login | quit | install]\n`)
     process.exit(2)
   }
 }

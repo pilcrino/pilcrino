@@ -5,6 +5,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { spawnSync } from 'node:child_process'
 import { EventEmitter } from 'node:events'
+import { dirname } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { ensureInstalled, installAsync } from '../src/deps.mjs'
 
 function root() {
@@ -28,10 +30,15 @@ test('installs once and writes the stamp when missing', () => {
   const d = root()
   const argv = []
   const r = ensureInstalled(d, {
+    platform: 'linux', env: {},
     spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
   })
   assert.equal(r.installed, true)
-  assert.deepEqual(argv, [['npm', 'install', '--omit=dev', '--no-audit', '--no-fund']])
+  // npm runs under the wrapper that names itself on the lock: node npm-run.mjs <lock> <owner> npm install ...
+  assert.equal(argv.length, 1)
+  assert.equal(argv[0][0], process.execPath)
+  assert.match(argv[0][1], /npm-run\.mjs$/)
+  assert.deepEqual(argv[0].slice(2), [join(d, '.install.lock'), String(process.pid), 'npm', 'install', '--omit=dev', '--no-audit', '--no-fund'])
   assert.equal(readFileSync(join(d, 'node_modules', '.pilcrino-installed'), 'utf8'), '0.40.0')
   assert.equal(existsSync(join(d, '.install.lock')), false)
   rmSync(d, { recursive: true, force: true })
@@ -113,7 +120,7 @@ test('installAsync: a dead-PID lock is cleared, npm runs, the stamp is written',
   writeFileSync(join(d, '.install.lock'), String(deadPid()))
   const argv = []
   const r = await installAsync(d, {
-    settleMs: 0,
+    settleMs: 0, platform: 'linux', env: {},
     sleep: async () => { throw new Error('must not wait') },
     spawn: (cmd, args) => {
       argv.push([cmd, ...args])
@@ -259,4 +266,160 @@ test('installAsync: a lock lost during npm is neither stamped nor released', asy
   assert.equal(stampSeenOnWait, false)
   assert.equal(readFileSync(lock, 'utf8'), String(process.ppid))
   rmSync(d, { recursive: true, force: true })
+})
+
+test('npmCommand: PILCRINO_NPM_CLI wins on every platform, win32 defaults to npm-cli.js next to node, a missing cli is reported before any spawn', async () => {
+  const { npmCommand } = await import('../src/deps.mjs')
+  const root = '/r'
+  const args = ['install', '--omit=dev', '--no-audit', '--no-fund']
+  assert.deepEqual(npmCommand(root, { platform: 'linux', env: {}, exists: () => true, execPath: '/n/node' }), ['npm', args])
+  assert.deepEqual(npmCommand(root, { platform: 'linux', env: { PILCRINO_NPM_CLI: '/fake/npm-cli.js' }, exists: () => true, execPath: '/n/node' }), ['/n/node', ['/fake/npm-cli.js', ...args]])
+  assert.deepEqual(npmCommand(root, { platform: 'win32', env: {}, exists: () => true, execPath: 'C:\\nodejs\\node.exe' }), ['C:\\nodejs\\node.exe', ['C:\\nodejs\\node_modules\\npm\\bin\\npm-cli.js', ...args]])
+  assert.throws(() => npmCommand(root, { platform: 'win32', env: {}, exists: () => false, execPath: 'C:\\nodejs\\node.exe' }), /npm was not found/)
+})
+
+test('ensureInstalled runs the fake npm named by PILCRINO_NPM_CLI under this node', () => {
+  const d = root()
+  const cli = join(d, 'fake-npm-cli.js')
+  writeFileSync(cli, "require('node:fs').mkdirSync('node_modules', { recursive: true })\n")
+  const argv = []
+  const r = ensureInstalled(d, {
+    env: { ...process.env, PILCRINO_NPM_CLI: cli },
+    spawnSync: (cmd, args) => { argv.push([cmd, ...args]); mkdirSync(join(d, 'node_modules'), { recursive: true }); return { status: 0 } },
+  })
+  assert.equal(r.installed, true)
+  assert.deepEqual(argv[0].slice(5), [cli, 'install', '--omit=dev', '--no-audit', '--no-fund'])
+})
+
+test('a lock whose owner is dead but whose npm line is alive is still held', async () => {
+  const d = root()
+  writeFileSync(join(d, '.install.lock'), `${deadPid()}\n${process.pid}`)
+  let slept = 0
+  const t0 = Date.now()
+  await assert.rejects(
+    installAsync(d, { settleMs: 0, platform: 'linux', env: {}, now: () => t0 + slept * 400_000, sleep: async () => { slept++ }, spawn: () => { throw new Error('must not install while npm runs') } }),
+    /another install has held/,
+  )
+  assert.ok(slept >= 1)
+})
+
+test('installAsync records the npm child pid on its own lock while npm runs', async () => {
+  const d = root()
+  let seen = ''
+  const r = await installAsync(d, {
+    settleMs: 0, platform: 'linux', env: {},
+    spawn: () => {
+      const child = new EventEmitter()
+      child.pid = 424242
+      setTimeout(() => { seen = readFileSync(join(d, '.install.lock'), 'utf8'); mkdirSync(join(d, 'node_modules'), { recursive: true }); child.emit('close', 0, null) }, 10)
+      return child
+    },
+  })
+  assert.equal(r.installed, true)
+  assert.equal(seen, `${process.pid}\n424242`)
+  assert.equal(existsSync(join(d, '.install.lock')), false)
+})
+
+test('an aged lock whose npm line is alive is still held (age never overrides a live installer)', async () => {
+  const { utimesSync } = await import('node:fs')
+  const d = root()
+  const lock = join(d, '.install.lock')
+  const dead = deadPid()
+  writeFileSync(lock, `${dead}\n${process.pid}`)
+  const old = new Date(Date.now() - 60 * 60 * 1000)
+  utimesSync(lock, old, old)
+  let slept = 0
+  const t0 = Date.now()
+  await assert.rejects(
+    installAsync(d, { settleMs: 0, platform: 'linux', env: {}, now: () => t0 + slept * 400_000, sleep: async () => { slept++ }, spawn: () => { throw new Error('must not install while npm runs') } }),
+    /another install has held/,
+  )
+  assert.equal(readFileSync(lock, 'utf8'), `${dead}\n${process.pid}`, 'the lock was left alone')
+})
+
+test('an aged lock with a dead owner and no npm line is reclaimed', async () => {
+  const { utimesSync } = await import('node:fs')
+  const d = root()
+  const lock = join(d, '.install.lock')
+  writeFileSync(lock, String(deadPid()))
+  const old = new Date(Date.now() - 60 * 60 * 1000)
+  utimesSync(lock, old, old)
+  const r = await installAsync(d, {
+    settleMs: 0, platform: 'linux', env: {},
+    spawn: () => { const c = new EventEmitter(); setTimeout(() => { mkdirSync(join(d, 'node_modules'), { recursive: true }); c.emit('close', 0, null) }, 5); return c },
+  })
+  assert.equal(r.installed, true)
+})
+
+test('npm-run.mjs names itself on the lock before npm starts, then passes npm\'s exit code through', async () => {
+  const d = root()
+  const lock = join(d, '.install.lock')
+  writeFileSync(lock, String(process.pid))
+  const fake = join(d, 'fake-npm.js')
+  // The fake npm copies the lock as it sees it, so the test can check the wrapper wrote first.
+  writeFileSync(fake, "require('node:fs').copyFileSync(process.argv[2], process.argv[2] + '.seen'); process.exit(Number(process.env.FAKE_EXIT || 0))")
+  const wrapper = join(dirname(fileURLToPath(await import.meta.resolve('../src/deps.mjs'))), 'npm-run.mjs')
+  const r = spawnSync(process.execPath, [wrapper, lock, String(process.pid), process.execPath, fake, lock], { encoding: 'utf8', env: { ...process.env, FAKE_EXIT: '3' } })
+  assert.equal(r.status, 3, r.stderr)
+  const seen = readFileSync(lock + '.seen', 'utf8').split('\n')
+  assert.equal(seen[0], String(process.pid))
+  assert.match(seen[1], /^\d+$/)
+  writeFileSync(lock, String(process.pid)) // a fresh lock, as the installer links one per attempt
+  const missing = spawnSync(process.execPath, [wrapper, lock, String(process.pid), join(d, 'no-such-npm'), 'install'], { encoding: 'utf8' })
+  assert.equal(missing.status, 127)
+})
+
+test('npm-run.mjs never starts npm when the lock is gone, taken by another owner, or unwritable', async () => {
+  const d = root()
+  const lock = join(d, '.install.lock')
+  const fake = join(d, 'fake-npm.js')
+  writeFileSync(fake, "require('node:fs').writeFileSync(process.argv[2] + '.ran', 'yes')")
+  const wrapper = join(dirname(fileURLToPath(await import.meta.resolve('../src/deps.mjs'))), 'npm-run.mjs')
+  const attempt = () => spawnSync(process.execPath, [wrapper, lock, String(process.pid), process.execPath, fake, lock], { encoding: 'utf8' })
+  // Gone.
+  assert.equal(attempt().status, 75)
+  // Taken by another owner.
+  writeFileSync(lock, String(process.pid + 1))
+  assert.equal(attempt().status, 75)
+  assert.equal(existsSync(lock + '.ran'), false)
+  assert.equal(readFileSync(lock, 'utf8'), String(process.pid + 1), 'the successor lock is untouched')
+  // Ours: npm runs.
+  writeFileSync(lock, String(process.pid))
+  assert.equal(attempt().status, 0)
+  assert.equal(existsSync(lock + '.ran'), true)
+})
+
+test('ensureInstalled treats the wrapper\'s lock-lost exit as another installer at work, and waits for its stamp', () => {
+  const d = root()
+  let calls = 0
+  const r = ensureInstalled(d, {
+    platform: 'linux', env: {}, settleMs: 0,
+    sleep: () => { mkdirSync(join(d, 'node_modules'), { recursive: true }); writeFileSync(join(d, 'node_modules', '.pilcrino-installed'), '0.40.0') },
+    // The successor is a live process on every platform (pid 1 does not exist on Windows).
+    spawnSync: () => { calls++; rmSync(join(d, '.install.lock'), { force: true }); writeFileSync(join(d, '.install.lock'), String(process.ppid)); return { status: 75 } },
+  })
+  assert.equal(calls, 1)
+  assert.equal(r.installed, false)
+})
+
+test('installAsync kills an npm it could not register on the lock and treats it as lost', async () => {
+  const d = root()
+  let killed = false
+  const r = await new Promise((resolve, reject) => {
+    let polls = 0
+    installAsync(d, {
+      platform: 'linux', env: {}, settleMs: 0,
+      sleep: async () => { if (polls++ > 0) { mkdirSync(join(d, 'node_modules'), { recursive: true }); writeFileSync(join(d, 'node_modules', '.pilcrino-installed'), '0.40.0') } },
+      spawn: () => {
+        // Another installer (a live process on every platform) took the lock just before the pid could be recorded.
+        writeFileSync(join(d, '.install.lock'), String(process.ppid))
+        const c = new EventEmitter()
+        c.pid = 999
+        c.kill = () => { killed = true }
+        return c
+      },
+    }).then(resolve, reject)
+  })
+  assert.equal(killed, true)
+  assert.equal(r.installed, false)
 })
