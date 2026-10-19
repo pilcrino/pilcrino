@@ -2173,9 +2173,9 @@ problem).
    - Markdown, repo platform: "Your site runs on <Hugo/...>, so each post
      lands in this repository as a file through a pull request; merging
      publishes it when the site rebuilds from GitHub."
-   - Markdown, paste platform: "Each post becomes text plus images that you
-     paste into <Platform> before you approve it; the repository keeps a
-     copy."
+   - Markdown, paste platform: "Each post becomes a markdown file plus
+     images that you put into <Platform> before you approve it; the
+     repository keeps a copy."
    → `publish.adapter`.
    Quick path: ask, the detected option first, counted ("Where posts
    go"). The adapter steps that need the owner afterwards

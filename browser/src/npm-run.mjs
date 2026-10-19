@@ -1,5 +1,5 @@
 // Runs npm for the synchronous installer (`node bin.mjs install`, the CLI
-// commands, the clipboard script), after naming itself on the install lock.
+// commands, the publish scripts), after naming itself on the install lock.
 //
 //   node npm-run.mjs <lock file> <owner pid> <file> <args...>
 //

@@ -290,8 +290,8 @@ You can also just say what you want ("Can you make me a content plan?",
 Every blog needs a GitHub repository, because every post is reviewed as a
 pull request. A site built from that repository publishes when the pull
 request merges; on WordPress you publish the draft in WordPress admin. On a
-paste platform you paste the formatted post Pilcrino copies for you, check it
-there and then say "approve"; merging files the repository copy. A site that
+paste platform you put the post file Pilcrino hands you into the platform,
+check it there and then say "approve"; merging files the repository copy. A site that
 is not live yet is fine: you read the post in the
 pull request (or in its preview, if your site builds one for every pull
 request).
@@ -313,10 +313,10 @@ does not publish. Publishing is your action:
 - a site built from the repository (Astro, Hugo, Next.js, Eleventy): merge the
   pull request;
 - WordPress: click Publish in WordPress admin;
-- Webflow, Ghost, Jekyll and other paste platforms: Pilcrino copies the
-  formatted post to your clipboard before you approve. Paste it in, check it
-  there, say "approve", then merge the pull request so the repository keeps
-  it.
+- Webflow, Ghost, Jekyll and other paste platforms: Pilcrino hands you the
+  post as a markdown file with its images before you approve. Put it in,
+  check it there, say "approve", then merge the pull request so the
+  repository keeps it.
 
 To merge, open the pull request on GitHub, click the green "Merge pull
 request" button, then "Confirm merge". Or, after approving the post in Claude
@@ -581,7 +581,7 @@ repository. A live site built from the repository publishes on merge; when the
 site is not live yet (`publish.site_live: false`) the merge only files the
 post, and nothing is published until the site is online. WordPress gets the
 post as a draft through its REST API, and the owner clicks Publish in
-WordPress admin. On a paste platform the owner pastes the formatted post and
+WordPress admin. On a paste platform the owner puts the post file into the platform and
 checks it there before approving; the merge files the repository copy. A
 per-PR preview deploy is optional and, for Astro, is read from the CI comment
 named by `publish.astro.preview_comment_marker`.
@@ -750,7 +750,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 - The plugin runs on Windows (x64, Claude Code in Windows Terminal with Git for Windows) and Linux (with a desktop session), not only macOS. `blog-setup`'s preflight records the operating system first and gives one install route per system for git, Node, the GitHub CLI, Chrome and, for WordPress blogs, `jq`; installs that need an administrator password are typed by the owner with the `!` prefix on Windows and Linux. "This Mac" becomes "this computer" there, and every reveal (`open`) and quit hint (Cmd+Q) has its Windows and Linux form. The install lock also names the npm child, so an installer killed hard (Windows) still holds the lock while npm writes; CRLF markdown converts like LF.
 - The Pilcrino browser on Windows: npm's first-start install runs under Node itself (Windows' `npm.cmd` cannot be spawned without a shell, and a shell would hide the installer from the shutdown that waits for it); Chrome's processes are listed through PowerShell in UTF-8 with a Windows command-line parser, so a profile under a name with a space or an accent is found; the sign-in window is closed with `taskkill` without `/F` (a clean quit that keeps the sign-ins) instead of a hard kill; a per-user Chrome under `%LOCALAPPDATA%` is found. On Linux, `chromium` and `chromium-browser` are fallbacks after Google Chrome; setup warns that the snap Chromium cannot read the profile.
-- Paste platforms: `post-to-clipboard.mjs` copies rich text on Windows (CF_HTML through Windows PowerShell) and Linux (`wl-copy` under Wayland, else `xclip`); when neither Linux tool is installed, it names the package and prints the HTML instead so nothing is lost.
+- Paste platforms (Webflow, Ghost, Jekyll, anything that takes a file) get the post as a markdown file with its images: the Gate 2 banner names the file and opens the image folder, and the owner puts it in the way the platform takes it. The rich-text clipboard copy and its script (`post-to-clipboard.mjs`) are gone: the copy was macOS only, its Windows port put plain text on the clipboard, and a file converts to whatever the platform needs.
 - WordPress: the Gutenberg converter is Node (`md-to-gutenberg.mjs`, same output as the Python it replaces, proven by captured fixtures), so Windows needs no Python; the two content updates pipe jq into `curl -d @-` instead of a bash process substitution that Windows curl cannot open; the application password goes into the Windows user environment through a hidden PowerShell prompt, or `~/.bashrc` on Linux, with the self-check per system; the keychain stays macOS only.
 - The Reddit thread split in the post workflow runs in Node and removes its capture only after every thread file is written.
 - `layout-check.mjs` imports puppeteer-core through a file URL, which a Windows drive path needs.
