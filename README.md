@@ -245,10 +245,11 @@ files, "Yes, and don't ask again" is safe.
 ![Setup, one question at a time: most questions come with a recommended answer; you answer in your own words or reply default, and each answer is saved into blog-ops/ as you go.](.github/assets/setup.gif)
 
 1. **Start Claude Code and run `/pilcrino:blog-setup`.** Start it in your
-   site's folder if the site is on this Mac; otherwise anywhere. Setup first
-   checks the Mac (Apple's developer tools, Node, the GitHub tool and its
-   sign-in, Chrome) and offers to install what is missing. Then it asks where
-   the blog is: a folder on this Mac, a repository on GitHub (it downloads
+   site's folder if the site is on this computer; otherwise anywhere. Setup
+   first checks the computer (git, Node, the GitHub tool and its sign-in,
+   Chrome) and offers to install what is missing, with the route for your
+   system (Mac, Windows or Linux). Then it asks where the blog is: a folder
+   on this computer, a repository on GitHub (it downloads
    it), or nowhere yet (it creates a GitHub repository with your consent). A
    WordPress, Webflow or other blog that is not built from a repository still
    gets a GitHub repository, because every post is reviewed as a pull request
@@ -633,7 +634,7 @@ https://pilcrino.com/pricing.
 draft, and Webflow, Ghost, Jekyll and other platforms through a file you
 paste in.
 
-**Does it run on Windows or Linux?** Yes, since 0.58.0: Windows 10 and 11 on x64 (Claude Code in Windows Terminal with Git for Windows) and Linux with a desktop session. Windows on Arm is not supported, because the drawn-images renderer has no build for it; WSL is untested.
+**Does it run on Windows or Linux?** Yes: macOS, Windows 10 and 11 on x64 (Claude Code in Windows Terminal with Git for Windows) and Linux with a desktop session, each tested end to end (setup, a post, uninstall) on a fresh machine. Windows on Arm is not supported, because the drawn-images renderer has no build for it; WSL is untested.
 
 **Does it invent statistics?** No. A post cites numbers only from
 `facts.md`, where each one has its source. A claim the writer cannot source
@@ -664,7 +665,7 @@ user settings, or in your shell's settings file on Linux.
 Writing runs through Claude Code on your Claude plan.
 
 **How long does a post take?** About 40 minutes of work ending in a pull
-request. Setup takes 1 to 1.5 hours on a new Mac, installs included, and a
+request. Setup takes 1 to 1.5 hours on a new computer, installs included, and a
 content plan about 30 minutes.
 
 ## Documentation index
@@ -676,7 +677,7 @@ content plan about 30 minutes.
 | [Quickstart](#quickstart) | Setup, a content plan and the first post |
 | [Reviewing and publishing a post](#reviewing-and-publishing-a-post) | Comments, approval, merging and what a merge does |
 | [The Pilcrino browser](#the-pilcrino-browser) | Its own Chrome, sign-ins and the robot check |
-| [Uninstall](#uninstall) | Removing the plugin and its files on your Mac |
+| [Uninstall](#uninstall) | Removing the plugin and its files on your computer |
 | **Skills** | |
 | [`blog-setup`](skills/blog-setup/SKILL.md) | Creates or updates a blog's `blog-ops/` workspace |
 | [`plan-content`](skills/plan-content/SKILL.md) | A researched, scored list of posts |
@@ -748,6 +749,10 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.58.1 - the README says three systems everywhere
+
+- Quickstart step 1, the setup time in the FAQ and the Uninstall index line said "Mac" where the plugin runs on macOS, Windows and Linux alike; the FAQ answer says all three are tested end to end.
 
 ### 0.58.0 - Windows and Linux
 
