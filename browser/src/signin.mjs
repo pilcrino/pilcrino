@@ -1,7 +1,7 @@
 import * as nodeFs from 'node:fs'
 import { spawn as nodeSpawn } from 'node:child_process'
 import { execFileSync } from 'node:child_process'
-import { codedError, commandExecutable, isChromeCommand, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, quitKeys, sleepMs } from './chrome.mjs'
+import { SIGNIN_WINDOW_OPEN, codedError, commandExecutable, discoverIdentity, isChromeCommand, isPlainCommand, isProfileRunning, probeIdentity, profileProcessEntries, quitKeys, sleepMs } from './chrome.mjs'
 import { SIGN_IN_URLS } from './login.mjs'
 
 export const SIGNIN_NEXT = `Sign in, then say you are done and Pilcrino closes that window; or quit it with ${quitKeys()}. Pilcrino restarts the browser on its next call.`
@@ -96,6 +96,41 @@ export function closeOverCdp(wsUrl, { WebSocketImpl = globalThis.WebSocket, time
     ws.onclose = done
     ws.onerror = done
   })
+}
+
+export const QUIT_NOT_RUNNING = 'The Pilcrino browser is not running.'
+export const QUIT_DONE = 'The Pilcrino browser has quit.'
+export const quitTimedOut = (secs) => `The Pilcrino browser did not quit within ${secs} seconds. Quit it with ${quitKeys()}, then try again.`
+
+/**
+ * Quits the Pilcrino Chrome (the one with the remote-control port, found
+ * through DevToolsActivePort or the process list) with CDP `Browser.close`
+ * and waits until no Chrome holds the profile, so the profile folder can be
+ * removed: that Chrome outlives Claude Code, and Windows refuses to delete
+ * files a running Chrome holds. A plain sign-in window on the profile is
+ * reported, not touched (`close-login` is for that). Resolves
+ * `{ quit, detail }` and never rejects.
+ */
+export async function quitBrowser({
+  profile,
+  fs = nodeFs,
+  fetch = globalThis.fetch,
+  closeBrowser = closeOverCdp,
+  discover = discoverIdentity,
+  isProfileRunning: running = isProfileRunning,
+  sleep = sleepMs,
+  now = Date.now,
+  quitTimeoutMs = 10000,
+} = {}) {
+  const wsUrl = (await probeIdentity(profile, { fs, fetch })) ?? (await discover(profile, { fs, fetch }))
+  if (!wsUrl) return running(profile) ? { quit: false, detail: SIGNIN_WINDOW_OPEN } : { quit: true, detail: QUIT_NOT_RUNNING }
+  await closeBrowser(wsUrl)
+  const start = now()
+  while (running(profile)) {
+    if (now() - start >= quitTimeoutMs) return { quit: false, detail: quitTimedOut(quitTimeoutMs / 1000) }
+    await sleep(250)
+  }
+  return { quit: true, detail: QUIT_DONE }
 }
 
 /** Google first (the other sites' Google sign-in buttons need it), then the rest in the order asked. */

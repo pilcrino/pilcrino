@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import { EventEmitter } from 'node:events'
 import assert from 'node:assert/strict'
-import { closeOverCdp, openSignIn, signInOrder, SIGNIN_NEXT } from '../src/signin.mjs'
+import { closeOverCdp, openSignIn, signInOrder, SIGNIN_NEXT, quitBrowser, QUIT_DONE, QUIT_NOT_RUNNING } from '../src/signin.mjs'
 import { quitKeys } from '../src/chrome.mjs'
 import { createSession } from '../src/session.mjs'
 
@@ -287,4 +287,37 @@ test('platformQuit off Windows sends SIGTERM', async () => {
   const sent = []
   platformQuit('linux', { kill: (pid, sig) => sent.push([pid, sig]), exec: () => { throw new Error('no taskkill here') } })(7)
   assert.deepEqual(sent, [[7, 'SIGTERM']])
+})
+
+test('quitBrowser: closes the Pilcrino Chrome over CDP and waits until nothing holds the profile', async () => {
+  const fs = { existsSync: () => true, readFileSync: () => '9100\n/devtools/browser/q\n' }
+  const fetch = async () => ({ ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:9100/devtools/browser/q' }) })
+  const closed = []
+  let polls = 0
+  const r = await quitBrowser({ profile: '/p', fs, fetch, closeBrowser: async (ws) => { closed.push(ws) }, isProfileRunning: () => ++polls < 3, sleep: async () => {} })
+  assert.deepEqual(closed, ['ws://127.0.0.1:9100/devtools/browser/q'])
+  assert.deepEqual(r, { quit: true, detail: QUIT_DONE })
+})
+
+test('quitBrowser: a Chrome found only from the process list is quit too; nothing running is quit true; a plain window is reported', async () => {
+  const fs = { existsSync: () => false, readFileSync: () => { throw new Error('ENOENT') } }
+  const fetch = async () => { throw new Error('ECONNREFUSED') }
+  const closed = []
+  let running = true
+  const r = await quitBrowser({ profile: '/p', fs, fetch, discover: async () => 'ws://127.0.0.1:9200/devtools/browser/d', closeBrowser: async (ws) => { closed.push(ws); running = false }, isProfileRunning: () => running, sleep: async () => {} })
+  assert.deepEqual(closed, ['ws://127.0.0.1:9200/devtools/browser/d'])
+  assert.equal(r.quit, true)
+  assert.deepEqual(await quitBrowser({ profile: '/p', fs, fetch, discover: async () => null, isProfileRunning: () => false }), { quit: true, detail: QUIT_NOT_RUNNING })
+  const plain = await quitBrowser({ profile: '/p', fs, fetch, discover: async () => null, isProfileRunning: () => true })
+  assert.equal(plain.quit, false)
+  assert.match(plain.detail, /sign-in window/)
+})
+
+test('quitBrowser: a Chrome that never quits is reported within the bound', async () => {
+  const fs = { existsSync: () => true, readFileSync: () => '9100\n/devtools/browser/q\n' }
+  const fetch = async () => ({ ok: true, json: async () => ({ webSocketDebuggerUrl: 'ws://127.0.0.1:9100/devtools/browser/q' }) })
+  let t = 0
+  const r = await quitBrowser({ profile: '/p', fs, fetch, closeBrowser: async () => {}, isProfileRunning: () => true, sleep: async () => {}, now: () => (t += 4000) })
+  assert.equal(r.quit, false)
+  assert.match(r.detail, /did not quit within 10 seconds/)
 })

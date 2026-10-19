@@ -363,18 +363,21 @@ automatically.
 ## Uninstall
 
 Quit Claude Code first (a running session recreates some of these files).
-Then, in Terminal:
+Then, in Terminal (on Windows, in Git Bash: `~` is your user folder, so
+`~/.pilcrino/browser` is `C:\Users\<you>\.pilcrino\browser`):
 
 ```bash
+node ~/.claude/plugins/cache/pilcrino/pilcrino/*/browser/bin.mjs quit   # the Pilcrino browser keeps running after Claude Code quits
 claude plugin uninstall pilcrino@pilcrino
 claude plugin marketplace remove pilcrino
+rm -rf ~/.claude/plugins/cache/pilcrino                                  # the plugin's files; uninstall leaves them
 rm -rf ~/.claude/plugins/data/pilcrino-pilcrino
 rm -rf ~/.pilcrino/browser
-rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser   # macOS; ~/.cache/claude-cli-nodejs on Linux, %LOCALAPPDATA%\claude-cli-nodejs on Windows
+rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser   # macOS; ~/.cache/claude-cli-nodejs on Linux, ~/AppData/Local/claude-cli-nodejs on Windows
 ```
 
-On Windows run these in Git Bash (`~` is your user folder, so
-`~/.pilcrino/browser` is `C:\Users\<you>\.pilcrino\browser`).
+The first line matters on Windows: while the Pilcrino browser runs, Windows
+refuses to delete its profile ("Device or resource busy").
 
 `~/.pilcrino/browser` is the Pilcrino browser's signed-in Chrome profile
 (about 1.3 GB). If you want those Google, Reddit and X sessions ended rather
@@ -750,6 +753,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 - The plugin runs on Windows (x64, Claude Code in Windows Terminal with Git for Windows) and Linux (with a desktop session), not only macOS. `blog-setup`'s preflight records the operating system first and gives one install route per system for git, Node, the GitHub CLI, Chrome and, for WordPress blogs, `jq`; installs that need an administrator password are typed by the owner with the `!` prefix on Windows and Linux. "This Mac" becomes "this computer" there, and every reveal (`open`) and quit hint (Cmd+Q) has its Windows and Linux form. The install lock also names the npm child, so an installer killed hard (Windows) still holds the lock while npm writes; CRLF markdown converts like LF.
 - The Pilcrino browser on Windows: npm's first-start install runs under Node itself (Windows' `npm.cmd` cannot be spawned without a shell, and a shell would hide the installer from the shutdown that waits for it); Chrome's processes are listed through PowerShell in UTF-8 with a Windows command-line parser, so a profile under a name with a space or an accent is found; the sign-in window is closed with `taskkill` without `/F` (a clean quit that keeps the sign-ins) instead of a hard kill; a per-user Chrome under `%LOCALAPPDATA%` is found. On Linux, `chromium` and `chromium-browser` are fallbacks after Google Chrome; setup warns that the snap Chromium cannot read the profile.
+- Uninstall: `bin.mjs quit` quits the Pilcrino browser (it outlives Claude Code, and Windows cannot delete its profile while it runs), and the list names the plugin cache folder that `claude plugin uninstall` leaves behind on every system.
 - Paste platforms (Webflow, Ghost, Jekyll, anything that takes a file) get the post as a markdown file with its images: the Gate 2 banner names the file and opens the image folder, and the owner puts it in the way the platform takes it. The rich-text clipboard copy and its script (`post-to-clipboard.mjs`) are gone: the copy was macOS only, its Windows port put plain text on the clipboard, and a file converts to whatever the platform needs.
 - WordPress: the Gutenberg converter is Node (`md-to-gutenberg.mjs`, same output as the Python it replaces, proven by captured fixtures), so Windows needs no Python; the two content updates pipe jq into `curl -d @-` instead of a bash process substitution that Windows curl cannot open; the application password goes into the Windows user environment through a hidden PowerShell prompt, or `~/.bashrc` on Linux, with the self-check per system; the keychain stays macOS only.
 - The Reddit thread split in the post workflow runs in Node and removes its capture only after every thread file is written.
