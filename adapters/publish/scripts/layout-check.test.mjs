@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import zlib from 'node:zlib'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { parseArgs, describeFindings, checkLayout, settleLazyContent, DEFAULT_WIDTHS } from './layout-check.mjs'
@@ -189,9 +190,23 @@ test('a lazy image far below the fold on a smooth-scrolling page is loaded befor
   } finally { server.closeAllConnections?.(); server.close() }
 })
 
-// A 1536x1024 image (the Remotion render size), as a data URL, so natural
-// width and height are real and no file is served.
-const WIDE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024"><rect width="1536" height="1024" fill="#888"/></svg>')}`
+// A raster image of the Remotion render size, as a data URL: natural width and
+// height are real, no file is served, and (unlike an SVG) a box of another
+// shape really does distort the picture.
+function pngDataUrl(width, height) {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(body))
+    return Buffer.concat([len, body, crc])
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 0
+  const row = Buffer.alloc(1 + width, 0x80); row[0] = 0
+  const idat = zlib.deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))])
+  return `data:image/png;base64,${png.toString('base64')}`
+}
+const WIDE = pngDataUrl(1536, 1024)
 
 test('an image whose box keeps its height attribute while max-width shrinks it is a stretched finding; height:auto fixes it', needsBrowser, async () => {
   // The fault that shipped on Gripelens: Astro writes width and height on
@@ -213,13 +228,37 @@ test('an image whose box keeps its height attribute while max-width shrinks it i
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('a cropped (object-fit) image, a hidden image and an image that did not load are not stretched findings', needsBrowser, async () => {
+test('a stretched image with no alt text and a % in its URL is still a finding, named by its file, and does not abort the check', needsBrowser, async () => {
   const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
   try {
-    const body = `<img src="${WIDE}" class="cover" alt="Cropped on purpose">`
-      + `<img src="${WIDE}" width="1536" height="1024" class="hidden" alt="Not shown">`
+    writeFileSync(join(dir, 'chart 100%.png'), Buffer.from(WIDE.split(',')[1], 'base64'))
+    const img = `<img src="chart%20100%25.png?v=1" width="1536" height="1024" alt="">`
+    const r = await checkLayout({ url: fixture(dir, 'noalt.html', page('.post-main img{max-width:100%}', img)), widths: [1440] })
+    assert.deepEqual(r.findings.map((f) => [f.kind, f.text, f.rendered]), [['stretched', 'chart 100%.png', '720x1024']], JSON.stringify(r.findings))
+    // A URL that does not decode is reported as it is, never thrown.
+    const raw = await checkLayout({ url: fixture(dir, 'rawurl.html', page('.post-main img{max-width:100%}', `<img src="${WIDE}#bad%" width="1536" height="1024" alt="">`)), widths: [1440] })
+    assert.equal(raw.findings.length, 1, JSON.stringify(raw.findings))
+    assert.equal(raw.findings[0].kind, 'stretched')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('cropped, padded, bordered, rotated, hidden, unloaded and SVG images are not stretched findings', needsBrowser, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+  try {
+    const half = pngDataUrl(600, 300)
+    const viewBox = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>')}`
+    const body = `<img src="${half}" class="cover" alt="Cropped on purpose">`
+      + `<img src="${half}" class="pad" alt="Padded, picture itself 300x150">`
+      + `<img src="${half}" class="border" alt="Bordered, picture itself 300x150">`
+      + `<img src="${half}" class="rot" alt="Rotated, not stretched">`
+      + `<img src="${half}" width="600" height="300" class="hidden" alt="Not shown">`
+      + `<img src="${half}" class="vhidden" alt="Invisible">`
       + `<img src="/missing.png" width="1536" height="1024" alt="Never loaded">`
-    const r = await checkLayout({ url: fixture(dir, 'ok.html', page('.cover{width:100%;height:200px;object-fit:cover} .hidden{display:none} .post-main img{max-width:100%}', body)), widths: [1440] })
+      + `<img src="${viewBox}" class="square" alt="An SVG keeps its own shape inside a square box">`
+    const css = '.post-main img{display:block;max-width:100%} .cover{width:100%;height:200px;object-fit:cover}'
+      + ' .pad{width:300px;height:150px;padding:20px;box-sizing:content-box} .border{width:300px;height:150px;border:10px solid red;box-sizing:content-box}'
+      + ' .rot{width:300px;height:150px;transform:rotate(15deg)} .hidden{display:none} .vhidden{width:300px;height:300px;visibility:hidden} .square{width:300px;height:300px}'
+    const r = await checkLayout({ url: fixture(dir, 'ok.html', page(css, body)), widths: [1440] })
     assert.deepEqual(r.findings, [], JSON.stringify(r.findings))
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })

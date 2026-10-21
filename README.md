@@ -751,7 +751,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ### 0.58.2 - The layout check catches stretched images
 
-- `layout-check.mjs` compares every image in the post with its file and reports one drawn at a different shape (`kind: stretched`, with the rendered and natural sizes and the distortion in percent), at both widths. It found nothing on 2026-10-20 when a blog's stylesheet kept Astro's `height` attribute under `max-width: 100%` and every in-post image rendered squashed: the image files were fine, so the image review passed, and the boxes did not overflow, so the layout check passed. Images cropped on purpose (`object-fit` other than `fill`), hidden ones and ones that did not load are not compared. Every finding now carries a `kind` (`overflow`, `scroll`, `stretched`); the fields of the first two are unchanged.
+- `layout-check.mjs` compares every image in the post with its file and reports one drawn at a different shape (`kind: stretched`, with the rendered and natural sizes and the distortion in percent), at both widths. It found nothing on 2026-10-20 when a blog's stylesheet kept Astro's `height` attribute under `max-width: 100%` and every in-post image rendered squashed: the image files were fine, so the image review passed, and the boxes did not overflow, so the layout check passed. The picture's own box is compared (padding, borders and transforms do not count); images cropped on purpose (`object-fit` other than `fill`), invisible ones, ones that did not load and SVGs (which keep their own shape inside any box) are not compared. Every finding now carries a `kind` (`overflow`, `scroll`, `stretched`); the fields of the first two are unchanged.
 
 ### 0.58.0 - Windows and Linux
 

@@ -109,9 +109,13 @@ export function parseArgs(argv) {
  * image, the stylesheet's `max-width: 100%` narrows the box, and without
  * `height: auto` the box keeps its full height, so every picture is squashed
  * sideways. The image file is fine, so no image review sees it; only the
- * rendered page shows it. An image with `object-fit` other than `fill` is
- * cropped or letterboxed on purpose and is not compared; an image with no
- * natural size (not loaded, or an SVG without one) cannot be. Returns plain
+ * rendered page shows it. The box compared is the content box (the client
+ * box less padding), so a border or padding around the picture does not
+ * count, and nor does a transform, which the client box ignores. Not
+ * compared: an image with `object-fit` other than `fill` (cropped or
+ * letterboxed on purpose), an invisible one, one with no natural size (not
+ * loaded), and an SVG, which keeps its own shape inside any box through
+ * `preserveAspectRatio` and so cannot be judged from the box. Returns plain
  * data only.
  */
 export function pageProbe(selector, tolerance, ratioTolerance) {
@@ -155,15 +159,24 @@ export function pageProbe(selector, tolerance, ratioTolerance) {
   }
   const out = findings.map(({ node, ...f }) => ({ kind: 'overflow', ...f }))
   const px = (n) => Math.round(n)
+  const isSvg = (src) => /^data:image\/svg\+xml[;,]/i.test(src) || /\.svgz?([?#]|$)/i.test(src.split(/[?#]/)[0])
+  const fileName = (src) => {
+    const last = src.split(/[?#]/)[0].split('/').pop() || ''
+    try { return decodeURIComponent(last) } catch { return last }
+  }
   for (const img of scope.querySelectorAll('img')) {
     if (!img.naturalWidth || !img.naturalHeight) continue
-    if (getComputedStyle(img).objectFit !== 'fill') continue
-    const r = img.getBoundingClientRect()
-    if (r.width === 0 || r.height === 0) continue
-    const off = (r.width / r.height) / (img.naturalWidth / img.naturalHeight) - 1
+    const src = img.currentSrc || img.src || ''
+    if (isSvg(src)) continue
+    const style = getComputedStyle(img)
+    if (style.objectFit !== 'fill' || style.visibility !== 'visible' || style.display === 'none') continue
+    const w = img.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    const h = img.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+    if (!(w > 0) || !(h > 0)) continue
+    const off = (w / h) / (img.naturalWidth / img.naturalHeight) - 1
     if (Math.abs(off) <= ratioTolerance) continue
-    const name = (img.alt || '').replace(/\s+/g, ' ').trim() || decodeURIComponent((img.currentSrc || img.src).split('?')[0].split('/').pop() || '').slice(0, 80)
-    out.push({ kind: 'stretched', element: 'img', text: name.slice(0, 80), rendered: `${px(r.width)}x${px(r.height)}`, natural: `${img.naturalWidth}x${img.naturalHeight}`, distortion: Math.round(Math.abs(off) * 100) })
+    const name = ((img.alt || '').replace(/\s+/g, ' ').trim() || fileName(src)).slice(0, 80)
+    out.push({ kind: 'stretched', element: 'img', text: name, rendered: `${px(w)}x${px(h)}`, natural: `${img.naturalWidth}x${img.naturalHeight}`, distortion: Math.round(Math.abs(off) * 100) })
   }
   const scroll = Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)
   return { article: how, findings: out, scroll, title: document.title }
