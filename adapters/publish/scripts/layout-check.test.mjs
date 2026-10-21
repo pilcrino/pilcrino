@@ -26,6 +26,9 @@ test('describeFindings: one plain line per finding', () => {
     'at 1440px <table> "Claim as found" extends 147px past the article',
     'at 390px the page scrolls sideways by 40px',
   ])
+  assert.deepEqual(describeFindings({ findings: [
+    { width: 1440, kind: 'stretched', element: 'img', text: 'The dashboard', rendered: '720x1024', natural: '1536x1024', distortion: 53 },
+  ] }), ['at 1440px <img> "The dashboard" is drawn at 720x1024, a 1536x1024 image: squashed or stretched by 53%'])
 })
 
 // The browser-backed cases need Chrome and puppeteer-core (browser/node_modules,
@@ -184,4 +187,39 @@ test('a lazy image far below the fold on a smooth-scrolling page is loaded befor
     const r = await checkLayout({ url, widths: [1440], settleMs: 2500 })
     assert.deepEqual(r.findings.map((f) => [f.width, f.element]), [[1440, 'img']], JSON.stringify(r.findings))
   } finally { server.closeAllConnections?.(); server.close() }
+})
+
+// A 1536x1024 image (the Remotion render size), as a data URL, so natural
+// width and height are real and no file is served.
+const WIDE = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1536" height="1024"><rect width="1536" height="1024" fill="#888"/></svg>')}`
+
+test('an image whose box keeps its height attribute while max-width shrinks it is a stretched finding; height:auto fixes it', needsBrowser, async () => {
+  // The fault that shipped on Gripelens: Astro writes width and height on
+  // every image, the site's `max-width: 100%` narrows the box, and without
+  // `height: auto` the box stays 1024px tall at every width.
+  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+  try {
+    const img = `<img src="${WIDE}" width="1536" height="1024" alt="The dashboard">`
+    const bad = await checkLayout({ url: fixture(dir, 'stretched.html', page('.post-main img{max-width:100%}', img)) })
+    assert.equal(bad.ok, false)
+    assert.deepEqual(bad.findings.map((f) => [f.width, f.kind, f.element, f.text, f.natural]), [
+      [1440, 'stretched', 'img', 'The dashboard', '1536x1024'],
+      [390, 'stretched', 'img', 'The dashboard', '1536x1024'],
+    ], JSON.stringify(bad.findings))
+    assert.equal(bad.findings[0].rendered, '720x1024')
+    assert.ok(bad.findings[0].distortion >= 50 && bad.findings[1].distortion > bad.findings[0].distortion, JSON.stringify(bad.findings))
+    const good = await checkLayout({ url: fixture(dir, 'fixed.html', page('.post-main img{max-width:100%;height:auto}', img)) })
+    assert.deepEqual(good.findings, [])
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('a cropped (object-fit) image, a hidden image and an image that did not load are not stretched findings', needsBrowser, async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+  try {
+    const body = `<img src="${WIDE}" class="cover" alt="Cropped on purpose">`
+      + `<img src="${WIDE}" width="1536" height="1024" class="hidden" alt="Not shown">`
+      + `<img src="/missing.png" width="1536" height="1024" alt="Never loaded">`
+    const r = await checkLayout({ url: fixture(dir, 'ok.html', page('.cover{width:100%;height:200px;object-fit:cover} .hidden{display:none} .post-main img{max-width:100%}', body)), widths: [1440] })
+    assert.deepEqual(r.findings, [], JSON.stringify(r.findings))
+  } finally { rmSync(dir, { recursive: true, force: true }) }
 })

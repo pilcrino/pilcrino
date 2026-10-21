@@ -749,6 +749,10 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ## Changelog
 
+### 0.58.2 - The layout check catches stretched images
+
+- `layout-check.mjs` compares every image in the post with its file and reports one drawn at a different shape (`kind: stretched`, with the rendered and natural sizes and the distortion in percent), at both widths. It found nothing on 2026-10-20 when a blog's stylesheet kept Astro's `height` attribute under `max-width: 100%` and every in-post image rendered squashed: the image files were fine, so the image review passed, and the boxes did not overflow, so the layout check passed. Images cropped on purpose (`object-fit` other than `fill`), hidden ones and ones that did not load are not compared. Every finding now carries a `kind` (`overflow`, `scroll`, `stretched`); the fields of the first two are unchanged.
+
 ### 0.58.0 - Windows and Linux
 
 - The plugin runs on Windows (x64, Claude Code in Windows Terminal with Git for Windows) and Linux (with a desktop session), not only macOS. `blog-setup`'s preflight records the operating system first and gives one install route per system for git, Node, the GitHub CLI, Chrome and, for WordPress blogs, `jq`; installs that need an administrator password are typed by the owner with the `!` prefix on Windows and Linux. "This Mac" becomes "this computer" there, and every reveal (`open`) and quit hint (Cmd+Q) has its Windows and Linux form. The install lock also names the npm child, so an installer killed hard (Windows) still holds the lock while npm writes; CRLF markdown converts like LF.
@@ -918,7 +922,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ### 0.44.0 - layout check on the rendered post
 
-- `adapters/publish/scripts/layout-check.mjs --url <page>` opens the page in a throwaway headless Chrome at 1440px and 390px and reports every element that extends past its own container, plus a page that scrolls sideways. JSON out, exit 1 on findings, no model involved. It reproduces the fault that shipped on 2026-10-07: a table 147px wider than its column, under the table of contents, which the build passed and nobody measured.
+- `adapters/publish/scripts/layout-check.mjs --url <page>` opens the page in a throwaway headless Chrome at 1440px and 390px and reports every element that extends past its own container, a page that scrolls sideways, and every image drawn at a different shape than its file. JSON out, exit 1 on findings, no model involved. It reproduces two faults that shipped: on 2026-10-07 a table 147px wider than its column, under the table of contents, which the build passed and nobody measured; on 2026-10-20 every image on a blog squashed sideways, because the stylesheet kept the generator's `height` attribute while `max-width: 100%` narrowed the box, which the image review (it reads the files, which were fine) and the layout check (it measured only overflow) both passed.
 - The Gate 2 banner carries a `Layout:` line for every post: the `astro-git-pr` adapter runs the check on the staging-deploy URL (§Staging step 9) and the PR monitor runs it once when that URL first appears, commenting the findings on the PR (§Each firing step 2a); `wordpress-rest` runs it on the draft preview and says "not checked" when the preview needs a signed-in browser.
 - `tests/lint.sh` runs the publish adapter scripts' tests too, and prints a failing test log instead of swallowing it.
 
