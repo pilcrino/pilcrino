@@ -4,6 +4,7 @@ import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { createRequire } from 'node:module'
+import zlib from 'node:zlib'
 import { createServer } from 'node:http'
 import { pathToFileURL } from 'node:url'
 import { parseArgs, describeFindings, checkLayout, settleLazyContent, DEFAULT_WIDTHS } from './layout-check.mjs'
@@ -26,6 +27,9 @@ test('describeFindings: one plain line per finding', () => {
     'at 1440px <table> "Claim as found" extends 147px past the article',
     'at 390px the page scrolls sideways by 40px',
   ])
+  assert.deepEqual(describeFindings({ findings: [
+    { width: 1440, kind: 'stretched', element: 'img', text: 'The dashboard', rendered: '720x1024', natural: '1536x1024', distortion: 53 },
+  ] }), ['at 1440px <img> "The dashboard" is drawn at 720x1024, a 1536x1024 image: squashed or stretched by 53%'])
 })
 
 // The browser-backed cases need Chrome and puppeteer-core (browser/node_modules,
@@ -183,5 +187,100 @@ test('a lazy image far below the fold on a smooth-scrolling page is loaded befor
     const url = `http://127.0.0.1:${server.address().port}/blog/p/`
     const r = await checkLayout({ url, widths: [1440], settleMs: 2500 })
     assert.deepEqual(r.findings.map((f) => [f.width, f.element]), [[1440, 'img']], JSON.stringify(r.findings))
+  } finally { server.closeAllConnections?.(); server.close() }
+})
+
+// A raster image of the Remotion render size, as a data URL: natural width and
+// height are real, no file is served, and (unlike an SVG) a box of another
+// shape really does distort the picture.
+function pngDataUrl(width, height) {
+  const chunk = (type, data) => {
+    const body = Buffer.concat([Buffer.from(type, 'latin1'), data])
+    const len = Buffer.alloc(4); len.writeUInt32BE(data.length)
+    const crc = Buffer.alloc(4); crc.writeUInt32BE(zlib.crc32(body))
+    return Buffer.concat([len, body, crc])
+  }
+  const ihdr = Buffer.alloc(13); ihdr.writeUInt32BE(width, 0); ihdr.writeUInt32BE(height, 4); ihdr[8] = 8; ihdr[9] = 0
+  const row = Buffer.alloc(1 + width, 0x80); row[0] = 0
+  const idat = zlib.deflateSync(Buffer.concat(Array.from({ length: height }, () => row)))
+  const png = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), chunk('IHDR', ihdr), chunk('IDAT', idat), chunk('IEND', Buffer.alloc(0))])
+  return `data:image/png;base64,${png.toString('base64')}`
+}
+const WIDE = pngDataUrl(1536, 1024)
+
+test('an image whose box keeps its height attribute while max-width shrinks it is a stretched finding; height:auto fixes it', needsBrowser, async () => {
+  // The fault that shipped on Gripelens: Astro writes width and height on
+  // every image, the site's `max-width: 100%` narrows the box, and without
+  // `height: auto` the box stays 1024px tall at every width.
+  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+  try {
+    const img = `<img src="${WIDE}" width="1536" height="1024" alt="The dashboard">`
+    const bad = await checkLayout({ url: fixture(dir, 'stretched.html', page('.post-main img{max-width:100%}', img)) })
+    assert.equal(bad.ok, false)
+    assert.deepEqual(bad.findings.map((f) => [f.width, f.kind, f.element, f.text, f.natural]), [
+      [1440, 'stretched', 'img', 'The dashboard', '1536x1024'],
+      [390, 'stretched', 'img', 'The dashboard', '1536x1024'],
+    ], JSON.stringify(bad.findings))
+    assert.equal(bad.findings[0].rendered, '720x1024')
+    assert.ok(bad.findings[0].distortion >= 50 && bad.findings[1].distortion > bad.findings[0].distortion, JSON.stringify(bad.findings))
+    const good = await checkLayout({ url: fixture(dir, 'fixed.html', page('.post-main img{max-width:100%;height:auto}', img)) })
+    assert.deepEqual(good.findings, [])
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+// Serves the fixture page at /blog/p/ and, for everything else, the image
+// its path asks for: `*.png` (or any path with `png` in its query) answers the
+// wide PNG, `/image?id=<name>` answers a 600x300 viewBox SVG with the right
+// MIME type and no extension anywhere in the URL.
+function imageServer(html) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>'
+  const png = Buffer.from(WIDE.split(',')[1], 'base64')
+  return createServer((req, res) => {
+    if (req.url.startsWith('/blog/')) { res.writeHead(200, { 'content-type': 'text/html' }); return res.end(html) }
+    if (req.url.startsWith('/image?')) { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end(svg) }
+    res.writeHead(200, { 'content-type': 'image/png' }); res.end(png)
+  })
+}
+
+test('a stretched image with no alt text and a URL that does not decode is still a finding, named by its raw file name, and does not abort the check', needsBrowser, async () => {
+  // `chart%FF.png` is not a valid escape, so decodeURIComponent throws on it;
+  // the finding must still come out, with the segment as it is.
+  const img = '<img src="/chart%FF.png" width="1536" height="1024" alt=""><img src="/chart%20100%25.png" width="1536" height="1024" alt="">'
+  const server = imageServer(page('.post-main img{max-width:100%}', img))
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const r = await checkLayout({ url: `http://127.0.0.1:${server.address().port}/blog/p/`, widths: [1440] })
+    assert.deepEqual(r.findings.map((f) => [f.kind, f.text, f.rendered]), [
+      ['stretched', 'chart%FF.png', '720x1024'],
+      ['stretched', 'chart 100%.png', '720x1024'],
+    ], JSON.stringify(r.findings))
+  } finally { server.closeAllConnections?.(); server.close() }
+})
+
+test('cropped, padded, bordered, rotated, hidden, unloaded, tiny and SVG images are not stretched findings', needsBrowser, async () => {
+  const half = pngDataUrl(600, 300)
+  const body = `<img src="${half}" class="cover" alt="Cropped on purpose">`
+    + `<img src="${half}" class="pad" alt="Padded, picture itself 300x150">`
+    + `<img src="${half}" class="border" alt="Bordered, picture itself 300x150">`
+    + `<img src="${half}" class="rot" alt="Rotated, not stretched">`
+    + `<img src="${half}" width="600" height="300" class="hidden" alt="Not shown">`
+    + `<img src="${half}" class="vhidden" alt="Invisible">`
+    + `<img src="${half}" class="tiny" alt="21 by 10.5, which Chrome reports as 21 by 11">`
+    + `<img src="/nowhere/missing.gif" width="1536" height="1024" alt="Never loaded">`
+    + `<img src="/image?id=diagram" class="square" alt="An SVG keeps its own shape inside a square box, with no .svg in its URL">`
+    + `<img src="/image?file=diagram.svg" class="square" alt="Same, with an extension in the query">`
+  const css = '.post-main img{display:block;max-width:100%} .cover{width:100%;height:200px;object-fit:cover}'
+    + ' .pad{width:300px;height:150px;padding:20px;box-sizing:content-box} .border{width:300px;height:150px;border:10px solid red;box-sizing:content-box}'
+    + ' .rot{width:300px;height:150px;transform:rotate(15deg)} .hidden{display:none} .vhidden{width:300px;height:300px;visibility:hidden}'
+    + ' .tiny{width:21px;height:auto;display:inline} .square{width:300px;height:300px}'
+  const server = createServer((req, res) => {
+    if (req.url.startsWith('/image?')) { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>') }
+    if (req.url.startsWith('/nowhere/')) { res.writeHead(404); return res.end() }
+    res.writeHead(200, { 'content-type': 'text/html' }); res.end(page(css, body))
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
+  try {
+    const r = await checkLayout({ url: `http://127.0.0.1:${server.address().port}/blog/p/`, widths: [1440] })
+    assert.deepEqual(r.findings, [], JSON.stringify(r.findings))
   } finally { server.closeAllConnections?.(); server.close() }
 })

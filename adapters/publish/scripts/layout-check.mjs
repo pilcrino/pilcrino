@@ -6,11 +6,18 @@
 // Opens the page in a throwaway headless Chrome (the same executable the
 // Pilcrino browser uses: PILCRINO_CHROME, else the platform default), once per
 // width, finds the article and reports every element inside it that extends
-// past the article's right edge, plus a page that scrolls sideways. Prints one
-// JSON object to stdout:
+// past the article's right edge, a page that scrolls sideways, and every
+// image drawn at a different shape than its file. Prints one JSON object to
+// stdout:
 //
 //   { "ok": true|false, "url", "finalUrl", "title", "widths": [..],
-//     "article": "<how it was found>", "findings": [ { "width", "element", "text", "overflow" } ] }
+//     "article": "<how it was found>", "findings": [ ... ] }
+//
+// Each finding has `width` (the viewport it was measured at), `kind`,
+// `element` and `text`, plus per kind:
+//   kind "overflow":  { "overflow": <px past the container> }
+//   kind "scroll":    { "overflow": <px the page scrolls sideways> }, element "page"
+//   kind "stretched": { "rendered": "WxH", "natural": "WxH", "distortion": <percent> }
 //
 // `finalUrl` and `title` let the caller see what was actually measured: a
 // login or error page is a clean page too, and a redirect to one must not
@@ -21,8 +28,9 @@
 //
 // Deterministic by design: no model looks at anything. It catches the class of
 // fault a stylesheet or a wide table introduces (a table under the sidebar, an
-// image or code block wider than the column, a long URL that will not break),
-// which a build passes and a screenshot reviewer may or may not mention.
+// image or code block wider than the column, a long URL that will not break,
+// an image squashed by a stylesheet that keeps its height attribute), which a
+// build passes and a screenshot reviewer may or may not mention.
 import { createRequire } from 'node:module'
 import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -47,6 +55,14 @@ async function loadChromeFinder() {
 export const DEFAULT_WIDTHS = [1440, 390]
 /** Sub-pixel rounding and a 1px border are not overflow. */
 export const TOLERANCE_PX = 2
+/**
+ * An image drawn at a shape this far (as a fraction) from its file's shape is
+ * stretched. The fault this catches is 50% and more. A box that is within one
+ * pixel of its file's shape is never stretched either: the client box is
+ * reported in whole pixels, and a 21px icon laid out at 21x10.5 reads as 21x11,
+ * which is 5% by ratio and nothing by eye.
+ */
+export const RATIO_TOLERANCE = 0.02
 
 export function parseArgs(argv) {
   const out = { url: '', widths: DEFAULT_WIDTHS, article: '', timeout: 30000 }
@@ -86,9 +102,28 @@ export function parseArgs(argv) {
  * bursts out of the 720px text column is still "inside" the article. It is
  * never inside its container. Containers that scroll or clip their content
  * (`overflow-x: auto|scroll|hidden|clip`) are allowed to hold wider children:
- * that is the intended way to show a wide code block. Returns plain data only.
+ * that is the intended way to show a wide code block.
+ *
+ * Then every image in the scope is compared with its file: a box whose
+ * width-to-height ratio is off the image's natural ratio by more than
+ * `ratioTolerance` is a `stretched` finding. This is the fault that shipped
+ * on 2026-10-20: the site generator writes `width` and `height` on every
+ * image, the stylesheet's `max-width: 100%` narrows the box, and without
+ * `height: auto` the box keeps its full height, so every picture is squashed
+ * sideways. The image file is fine, so no image review sees it; only the
+ * rendered page shows it. The box compared is the content box (the client
+ * box less padding), so a border or padding around the picture does not
+ * count, and nor does a transform, which the client box ignores. Not
+ * compared: an image with `object-fit` other than `fill` (cropped or
+ * letterboxed on purpose), an invisible one, one with no natural size (not
+ * loaded), and an SVG, which keeps its own shape inside any box through
+ * `preserveAspectRatio` and so cannot be judged from the box. An SVG is known
+ * by its data URL, its file extension, or the `content-type` its response
+ * carried (`types`, url to MIME type, collected by the caller from the
+ * network: an SVG served from `/image?id=diagram` has no extension to go by).
+ * Returns plain data only.
  */
-export function pageProbe(selector, tolerance) {
+export function pageProbe(selector, tolerance, ratioTolerance, types = {}) {
   const scope = (selector && document.querySelector(selector)) || document.querySelector('article') || document.querySelector('main') || document.body
   const how = selector && scope !== document.body && scope.matches(selector) ? `selector ${selector}` : scope.tagName.toLowerCase()
   const clips = (el) => /^(auto|scroll|hidden|clip)$/.test(getComputedStyle(el).overflowX)
@@ -127,8 +162,31 @@ export function pageProbe(selector, tolerance) {
     // Content wider than the box it is in, and nothing clipping it.
     if (!clips(el) && el.scrollWidth - el.clientWidth > tolerance && el.clientWidth > 0) add(el, snippet(el), el.scrollWidth - el.clientWidth)
   }
+  const out = findings.map(({ node, ...f }) => ({ kind: 'overflow', ...f }))
+  const px = (n) => Math.round(n)
+  const isSvg = (src) => /^data:image\/svg\+xml[;,]/i.test(src) || /\.svgz?$/i.test(src.split(/[?#]/)[0]) || /^image\/svg\+xml/i.test(types[src] || types[src.split('#')[0]] || '')
+  const fileName = (src) => {
+    const last = src.split(/[?#]/)[0].split('/').pop() || ''
+    try { return decodeURIComponent(last) } catch { return last }
+  }
+  for (const img of scope.querySelectorAll('img')) {
+    if (!img.naturalWidth || !img.naturalHeight) continue
+    const src = img.currentSrc || img.src || ''
+    if (isSvg(src)) continue
+    const style = getComputedStyle(img)
+    if (style.objectFit !== 'fill' || style.visibility !== 'visible' || style.display === 'none') continue
+    const w = img.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight)
+    const h = img.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom)
+    if (!(w > 0) || !(h > 0)) continue
+    const off = (w / h) / (img.naturalWidth / img.naturalHeight) - 1
+    if (Math.abs(off) <= ratioTolerance) continue
+    // Within a pixel of the right shape on either axis is rounding, not stretching.
+    if (Math.abs(h - w * img.naturalHeight / img.naturalWidth) <= 1 || Math.abs(w - h * img.naturalWidth / img.naturalHeight) <= 1) continue
+    const name = ((img.alt || '').replace(/\s+/g, ' ').trim() || fileName(src)).slice(0, 80)
+    out.push({ kind: 'stretched', element: 'img', text: name, rendered: `${px(w)}x${px(h)}`, natural: `${img.naturalWidth}x${img.naturalHeight}`, distortion: Math.round(Math.abs(off) * 100) })
+  }
   const scroll = Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth)
-  return { article: how, findings: findings.map(({ node, ...f }) => f), scroll, title: document.title }
+  return { article: how, findings: out, scroll, title: document.title }
 }
 
 async function loadPuppeteer() {
@@ -185,6 +243,14 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
   try {
     browser = await pp.launch({ executablePath: exe, headless: true, pipe: true, userDataDir: profile, args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'] })
     const page = await browser.newPage()
+    // Every response's MIME type by url (and by the url that redirected to
+    // it), so the probe can tell an SVG with no extension in its address.
+    const types = {}
+    page.on('response', (res) => {
+      const type = res.headers()['content-type'] || ''
+      types[res.url()] = type
+      for (const r of res.request().redirectChain()) types[r.url()] = type
+    })
     for (const width of widths) {
       await page.setViewport({ width, height: 900 })
       const response = await page.goto(url, { waitUntil: 'networkidle0', timeout })
@@ -192,11 +258,11 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
       if (status >= 400) throw new Error(`the page answered HTTP ${status}`)
       finalUrl = page.url()
       await settleLazyContent(page, settleMs)
-      const r = await page.evaluate(pageProbe, article, TOLERANCE_PX)
+      const r = await page.evaluate(pageProbe, article, TOLERANCE_PX, RATIO_TOLERANCE, types)
       how = r.article
       title = r.title
       for (const f of r.findings) findings.push({ width, ...f })
-      if (r.scroll > TOLERANCE_PX) findings.push({ width, element: 'page', text: 'the page scrolls sideways', overflow: Math.round(r.scroll) })
+      if (r.scroll > TOLERANCE_PX) findings.push({ width, kind: 'scroll', element: 'page', text: 'the page scrolls sideways', overflow: Math.round(r.scroll) })
     }
   } finally {
     process.off('SIGTERM', stop)
@@ -209,9 +275,11 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
 
 /** One line per finding, for banners and logs. */
 export function describeFindings(result) {
-  return result.findings.map((f) => f.element === 'page'
-    ? `at ${f.width}px the page scrolls sideways by ${f.overflow}px`
-    : `at ${f.width}px <${f.element}> "${f.text}" extends ${f.overflow}px past the article`)
+  return result.findings.map((f) => f.kind === 'stretched'
+    ? `at ${f.width}px <${f.element}> "${f.text}" is drawn at ${f.rendered}, a ${f.natural} image: squashed or stretched by ${f.distortion}%`
+    : f.element === 'page'
+      ? `at ${f.width}px the page scrolls sideways by ${f.overflow}px`
+      : `at ${f.width}px <${f.element}> "${f.text}" extends ${f.overflow}px past the article`)
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
