@@ -228,37 +228,59 @@ test('an image whose box keeps its height attribute while max-width shrinks it i
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 
-test('a stretched image with no alt text and a % in its URL is still a finding, named by its file, and does not abort the check', needsBrowser, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+// Serves the fixture page at /blog/p/ and, for everything else, the image
+// its path asks for: `*.png` (or any path with `png` in its query) answers the
+// wide PNG, `/image?id=<name>` answers a 600x300 viewBox SVG with the right
+// MIME type and no extension anywhere in the URL.
+function imageServer(html) {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>'
+  const png = Buffer.from(WIDE.split(',')[1], 'base64')
+  return createServer((req, res) => {
+    if (req.url.startsWith('/blog/')) { res.writeHead(200, { 'content-type': 'text/html' }); return res.end(html) }
+    if (req.url.startsWith('/image?')) { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end(svg) }
+    res.writeHead(200, { 'content-type': 'image/png' }); res.end(png)
+  })
+}
+
+test('a stretched image with no alt text and a URL that does not decode is still a finding, named by its raw file name, and does not abort the check', needsBrowser, async () => {
+  // `chart%FF.png` is not a valid escape, so decodeURIComponent throws on it;
+  // the finding must still come out, with the segment as it is.
+  const img = '<img src="/chart%FF.png" width="1536" height="1024" alt=""><img src="/chart%20100%25.png" width="1536" height="1024" alt="">'
+  const server = imageServer(page('.post-main img{max-width:100%}', img))
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
   try {
-    writeFileSync(join(dir, 'chart 100%.png'), Buffer.from(WIDE.split(',')[1], 'base64'))
-    const img = `<img src="chart%20100%25.png?v=1" width="1536" height="1024" alt="">`
-    const r = await checkLayout({ url: fixture(dir, 'noalt.html', page('.post-main img{max-width:100%}', img)), widths: [1440] })
-    assert.deepEqual(r.findings.map((f) => [f.kind, f.text, f.rendered]), [['stretched', 'chart 100%.png', '720x1024']], JSON.stringify(r.findings))
-    // A URL that does not decode is reported as it is, never thrown.
-    const raw = await checkLayout({ url: fixture(dir, 'rawurl.html', page('.post-main img{max-width:100%}', `<img src="${WIDE}#bad%" width="1536" height="1024" alt="">`)), widths: [1440] })
-    assert.equal(raw.findings.length, 1, JSON.stringify(raw.findings))
-    assert.equal(raw.findings[0].kind, 'stretched')
-  } finally { rmSync(dir, { recursive: true, force: true }) }
+    const r = await checkLayout({ url: `http://127.0.0.1:${server.address().port}/blog/p/`, widths: [1440] })
+    assert.deepEqual(r.findings.map((f) => [f.kind, f.text, f.rendered]), [
+      ['stretched', 'chart%FF.png', '720x1024'],
+      ['stretched', 'chart 100%.png', '720x1024'],
+    ], JSON.stringify(r.findings))
+  } finally { server.closeAllConnections?.(); server.close() }
 })
 
-test('cropped, padded, bordered, rotated, hidden, unloaded and SVG images are not stretched findings', needsBrowser, async () => {
-  const dir = mkdtempSync(join(tmpdir(), 'layout-check-'))
+test('cropped, padded, bordered, rotated, hidden, unloaded, tiny and SVG images are not stretched findings', needsBrowser, async () => {
+  const half = pngDataUrl(600, 300)
+  const body = `<img src="${half}" class="cover" alt="Cropped on purpose">`
+    + `<img src="${half}" class="pad" alt="Padded, picture itself 300x150">`
+    + `<img src="${half}" class="border" alt="Bordered, picture itself 300x150">`
+    + `<img src="${half}" class="rot" alt="Rotated, not stretched">`
+    + `<img src="${half}" width="600" height="300" class="hidden" alt="Not shown">`
+    + `<img src="${half}" class="vhidden" alt="Invisible">`
+    + `<img src="${half}" class="tiny" alt="21 by 10.5, which Chrome reports as 21 by 11">`
+    + `<img src="/nowhere/missing.gif" width="1536" height="1024" alt="Never loaded">`
+    + `<img src="/image?id=diagram" class="square" alt="An SVG keeps its own shape inside a square box, with no .svg in its URL">`
+    + `<img src="/image?file=diagram.svg" class="square" alt="Same, with an extension in the query">`
+  const css = '.post-main img{display:block;max-width:100%} .cover{width:100%;height:200px;object-fit:cover}'
+    + ' .pad{width:300px;height:150px;padding:20px;box-sizing:content-box} .border{width:300px;height:150px;border:10px solid red;box-sizing:content-box}'
+    + ' .rot{width:300px;height:150px;transform:rotate(15deg)} .hidden{display:none} .vhidden{width:300px;height:300px;visibility:hidden}'
+    + ' .tiny{width:21px;height:auto;display:inline} .square{width:300px;height:300px}'
+  const server = createServer((req, res) => {
+    if (req.url.startsWith('/image?')) { res.writeHead(200, { 'content-type': 'image/svg+xml' }); return res.end('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>') }
+    if (req.url.startsWith('/nowhere/')) { res.writeHead(404); return res.end() }
+    res.writeHead(200, { 'content-type': 'text/html' }); res.end(page(css, body))
+  })
+  await new Promise((r) => server.listen(0, '127.0.0.1', r))
   try {
-    const half = pngDataUrl(600, 300)
-    const viewBox = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 300"><rect width="600" height="300"/></svg>')}`
-    const body = `<img src="${half}" class="cover" alt="Cropped on purpose">`
-      + `<img src="${half}" class="pad" alt="Padded, picture itself 300x150">`
-      + `<img src="${half}" class="border" alt="Bordered, picture itself 300x150">`
-      + `<img src="${half}" class="rot" alt="Rotated, not stretched">`
-      + `<img src="${half}" width="600" height="300" class="hidden" alt="Not shown">`
-      + `<img src="${half}" class="vhidden" alt="Invisible">`
-      + `<img src="/missing.png" width="1536" height="1024" alt="Never loaded">`
-      + `<img src="${viewBox}" class="square" alt="An SVG keeps its own shape inside a square box">`
-    const css = '.post-main img{display:block;max-width:100%} .cover{width:100%;height:200px;object-fit:cover}'
-      + ' .pad{width:300px;height:150px;padding:20px;box-sizing:content-box} .border{width:300px;height:150px;border:10px solid red;box-sizing:content-box}'
-      + ' .rot{width:300px;height:150px;transform:rotate(15deg)} .hidden{display:none} .vhidden{width:300px;height:300px;visibility:hidden} .square{width:300px;height:300px}'
-    const r = await checkLayout({ url: fixture(dir, 'ok.html', page(css, body)), widths: [1440] })
+    const r = await checkLayout({ url: `http://127.0.0.1:${server.address().port}/blog/p/`, widths: [1440] })
     assert.deepEqual(r.findings, [], JSON.stringify(r.findings))
-  } finally { rmSync(dir, { recursive: true, force: true }) }
+  } finally { server.closeAllConnections?.(); server.close() }
 })

@@ -57,8 +57,10 @@ export const DEFAULT_WIDTHS = [1440, 390]
 export const TOLERANCE_PX = 2
 /**
  * An image drawn at a shape this far (as a fraction) from its file's shape is
- * stretched. Rounding a 720px-wide box to whole pixels moves the ratio by well
- * under 1%; the fault this catches is 50% and more.
+ * stretched. The fault this catches is 50% and more. A box that is within one
+ * pixel of its file's shape is never stretched either: the client box is
+ * reported in whole pixels, and a 21px icon laid out at 21x10.5 reads as 21x11,
+ * which is 5% by ratio and nothing by eye.
  */
 export const RATIO_TOLERANCE = 0.02
 
@@ -115,10 +117,13 @@ export function parseArgs(argv) {
  * compared: an image with `object-fit` other than `fill` (cropped or
  * letterboxed on purpose), an invisible one, one with no natural size (not
  * loaded), and an SVG, which keeps its own shape inside any box through
- * `preserveAspectRatio` and so cannot be judged from the box. Returns plain
- * data only.
+ * `preserveAspectRatio` and so cannot be judged from the box. An SVG is known
+ * by its data URL, its file extension, or the `content-type` its response
+ * carried (`types`, url to MIME type, collected by the caller from the
+ * network: an SVG served from `/image?id=diagram` has no extension to go by).
+ * Returns plain data only.
  */
-export function pageProbe(selector, tolerance, ratioTolerance) {
+export function pageProbe(selector, tolerance, ratioTolerance, types = {}) {
   const scope = (selector && document.querySelector(selector)) || document.querySelector('article') || document.querySelector('main') || document.body
   const how = selector && scope !== document.body && scope.matches(selector) ? `selector ${selector}` : scope.tagName.toLowerCase()
   const clips = (el) => /^(auto|scroll|hidden|clip)$/.test(getComputedStyle(el).overflowX)
@@ -159,7 +164,7 @@ export function pageProbe(selector, tolerance, ratioTolerance) {
   }
   const out = findings.map(({ node, ...f }) => ({ kind: 'overflow', ...f }))
   const px = (n) => Math.round(n)
-  const isSvg = (src) => /^data:image\/svg\+xml[;,]/i.test(src) || /\.svgz?([?#]|$)/i.test(src.split(/[?#]/)[0])
+  const isSvg = (src) => /^data:image\/svg\+xml[;,]/i.test(src) || /\.svgz?$/i.test(src.split(/[?#]/)[0]) || /^image\/svg\+xml/i.test(types[src] || types[src.split('#')[0]] || '')
   const fileName = (src) => {
     const last = src.split(/[?#]/)[0].split('/').pop() || ''
     try { return decodeURIComponent(last) } catch { return last }
@@ -175,6 +180,8 @@ export function pageProbe(selector, tolerance, ratioTolerance) {
     if (!(w > 0) || !(h > 0)) continue
     const off = (w / h) / (img.naturalWidth / img.naturalHeight) - 1
     if (Math.abs(off) <= ratioTolerance) continue
+    // Within a pixel of the right shape on either axis is rounding, not stretching.
+    if (Math.abs(h - w * img.naturalHeight / img.naturalWidth) <= 1 || Math.abs(w - h * img.naturalWidth / img.naturalHeight) <= 1) continue
     const name = ((img.alt || '').replace(/\s+/g, ' ').trim() || fileName(src)).slice(0, 80)
     out.push({ kind: 'stretched', element: 'img', text: name, rendered: `${px(w)}x${px(h)}`, natural: `${img.naturalWidth}x${img.naturalHeight}`, distortion: Math.round(Math.abs(off) * 100) })
   }
@@ -236,6 +243,14 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
   try {
     browser = await pp.launch({ executablePath: exe, headless: true, pipe: true, userDataDir: profile, args: ['--no-first-run', '--no-default-browser-check', '--hide-scrollbars'] })
     const page = await browser.newPage()
+    // Every response's MIME type by url (and by the url that redirected to
+    // it), so the probe can tell an SVG with no extension in its address.
+    const types = {}
+    page.on('response', (res) => {
+      const type = res.headers()['content-type'] || ''
+      types[res.url()] = type
+      for (const r of res.request().redirectChain()) types[r.url()] = type
+    })
     for (const width of widths) {
       await page.setViewport({ width, height: 900 })
       const response = await page.goto(url, { waitUntil: 'networkidle0', timeout })
@@ -243,7 +258,7 @@ export async function checkLayout({ url, widths = DEFAULT_WIDTHS, article = '', 
       if (status >= 400) throw new Error(`the page answered HTTP ${status}`)
       finalUrl = page.url()
       await settleLazyContent(page, settleMs)
-      const r = await page.evaluate(pageProbe, article, TOLERANCE_PX, RATIO_TOLERANCE)
+      const r = await page.evaluate(pageProbe, article, TOLERANCE_PX, RATIO_TOLERANCE, types)
       how = r.article
       title = r.title
       for (const f of r.findings) findings.push({ width, ...f })
