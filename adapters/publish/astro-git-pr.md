@@ -215,10 +215,10 @@ Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets
 
 While the PR is open (`pr-monitor.json` `status: open`), every addressed review comment (from the PR-comment monitor cron under `review.pr_monitor: true`, a change asked for in the session, or a live console comment) is a target-state edit applied the same way:
 
-1. Resolve the worktree from `pr-monitor.json`'s `worktree` field; if it no longer exists on disk, recreate it from the branch, falling back to the remote branch if the local one is also gone.
+1. Resolve the worktree from `pr-monitor.json`'s `worktree` field; if it no longer exists on disk, recreate it from the branch, falling back to the remote branch if the local one is also gone (SKILL.md Step 15.2 **Worktree first.**: check the branch, and stop rather than create a plain folder).
 2. Make the change by editing the file under `$worktree/{content_dir}/` (or `$worktree/{assets_dir}/`), re-derived from the comment's intent so the edit is idempotent (re-processing the same comment produces the same target state, never a duplicate change).
 3. `git -C "$worktree" add <path>`; commit only if something is staged (`git -C "$worktree" diff --cached --quiet || git -C "$worktree" commit -m "<one-line summary>"`); `git -C "$worktree" push` (re-triggers the site's staging deploy).
-4. Reply on the review surface carrying the marker `<!-- handled:<channel>:<id> -->` so the at-most-once dedup invariant holds (full polling + reply mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/pr-monitor.md`).
+4. Reply on the review surface carrying the marker `<!-- handled:<channel>:<id> -->` so the at-most-once dedup invariant holds (full polling + reply mechanics: `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/pr-monitor.md`). A change asked for in the session (SKILL.md Step 15.2, monitor off) answers no comment: no reply on the PR and no `handled:` marker; the result is reported in chat.
 
 All post-file edits during this phase target paths under `$worktree/`, never the operator's main working tree.
 

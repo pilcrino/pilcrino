@@ -183,4 +183,16 @@ for f in adapters/publish/astro-git-pr.md adapters/publish/markdown.md; do
   grep -n 'CronDelete\|monitor cron' "$f" | grep -v 'pr_monitor' | grep -q . && { echo "ANATOMY FAIL: $f: unconditional cron step" >&2; fail=1; }
 done
 
+# 0.59.0 Task 3: the in-session Gate 2 loop with the monitor off
+need skills/blog-post-workflow/SKILL.md '**Monitor off (`review.pr_monitor` false or absent).**'
+need skills/blog-post-workflow/SKILL.md '**PR state before each reply.**'
+need skills/blog-post-workflow/SKILL.md "I can't reach GitHub right now, so I haven't changed anything"
+need skills/blog-post-workflow/SKILL.md '**Worktree first.**'
+need skills/blog-post-workflow/SKILL.md 'never `mkdir` the worktree path'
+need skills/blog-post-workflow/SKILL.md '**Staging re-check (monitor off).**'
+need skills/blog-post-workflow/SKILL.md 'staging deploy failed'
+need adapters/publish/wordpress-rest.md 'The post is live in WordPress, so I left it alone; make this change in WordPress.'
+need adapters/publish/astro-git-pr.md 'no reply on the PR and no `handled:` marker'
+need skills/blog-post-workflow/SKILL.md 'An approve that arrives while a wait runs is acted on after the re-check.'
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1

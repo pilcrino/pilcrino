@@ -235,6 +235,7 @@ Every addressed review comment (from the git PR, or the console) re-syncs the SA
 
 There is one path, the PR path. (A no-PR "console-gate path" used to be described here; it is gone with the Gate 2 mode it belonged to, per `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition.) The staging cleanup already removed the main-tree copy (`astro-git-pr.md` §Staging step 6h), so edit `$worktree/{content_dir}/<slug>.md`, the worktree copy, per `adapters/publish/astro-git-pr.md` §On review-loop edit, then commit+push in the worktree there. Only THEN re-convert from that same worktree copy and re-sync the WordPress draft by its stored `wp_post_id` (steps 1-2 below).
 
+0. **Live-post guard (a change asked for in the session, SKILL.md Step 15.2 monitor off).** Before any edit, read the post's status the way `pr-monitor.md` §Each firing step 2 does (`GET $WP_BASE/wp-json/wp/v2/posts/<wp_post_id>?_fields=status,link`). `publish`: the owner already published it in wp-admin and may have edited it there; a re-sync would overwrite those edits and set the post back to draft. Change nothing, here or on the branch, and reply: "The post is live in WordPress, so I left it alone; make this change in WordPress." Any other status: continue.
 1. Re-run §Staging steps 3-4 against the copy just edited above (re-convert to Gutenberg block markup, then re-run step 4's hash-aware skip-before-upload: a file whose `sha256` still matches its `wp_media_ids[]` entry is skipped; a regenerated file under the same name has a new hash, so it re-uploads and its entry's `id`/`source_url`/`sha256` are updated and references repointed, per step 4).
 2. Update the existing post by its stored ID:
    ```bash
@@ -245,7 +246,7 @@ There is one path, the PR path. (A no-PR "console-gate path" used to be describe
      -d '{"slug":"<slug>","title":<title>,"status":"draft","excerpt":<excerpt>,"content":<blocks>,"featured_media":<id>,"categories":[<category_id>]}'
    ```
    Same body shape as create — including `tags`, `author`, and `categories` (§Staging step 5's category resolution) — just POSTed to `/posts/<id>` instead of `/posts`. `status` stays `draft` — this step never changes it. `categories` is set here on EVERY re-sync, not just the first create, so a category correction made after the draft already exists still reaches WordPress and the post never drifts back to "Uncategorized".
-3. Reply on the review surface exactly as `adapters/publish/astro-git-pr.md` §On review-loop edit describes (marker-based dedup), additionally noting the WordPress preview was re-synced.
+3. For a PR comment, reply on the review surface exactly as `adapters/publish/astro-git-pr.md` §On review-loop edit describes (marker-based dedup), additionally noting the WordPress preview was re-synced.
 
 ## On Gate 2 approval
 
