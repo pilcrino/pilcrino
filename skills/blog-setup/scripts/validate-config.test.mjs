@@ -195,6 +195,23 @@ test('a review block with an unknown key fails check 11 in plain words', () => {
   assert.match(r.out, /review\.strictness is not a setting Pilcrino knows/)
 })
 
+test('review.pr_monitor true passes check 11', () => {
+  const r = run(repo(ASTRO.replace('review:\n  plan_approval: ask', 'review:\n  plan_approval: ask\n  pr_monitor: true')))
+  assert.equal(r.status, 0, r.out)
+})
+
+test('review.pr_monitor false passes check 11', () => {
+  const r = run(repo(ASTRO.replace('review:\n  plan_approval: ask', 'review:\n  plan_approval: ask\n  pr_monitor: false')))
+  assert.equal(r.status, 0, r.out)
+})
+
+test('review.pr_monitor as a word fails check 11 in plain words', () => {
+  const r = run(repo(ASTRO.replace('review:\n  plan_approval: ask', 'review:\n  plan_approval: ask\n  pr_monitor: yes please')))
+  assert.equal(r.status, 1)
+  assert.deepEqual(failing(r.out), [11])
+  assert.match(r.out, /review\.pr_monitor must be true or false/)
+})
+
 test('Remotion on without the .gitattributes line fails check 14; a missing project folder fails 3', () => {
   const r = run(repo(ASTRO, { gitattributes: '# nothing here\n' }))
   assert.deepEqual(failing(r.out), [14])

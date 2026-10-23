@@ -158,6 +158,10 @@ review:                       # OPTIONAL block
                               #   summary and approves it before drafting starts;
                               #   auto: the plan reviewer's approval is enough.
                               #   Autopilot ignores it (the console gates)
+  pr_monitor: false           # OPTIONAL boolean, default false. true: after Gate 2 a
+                              #   cron watches the post's pull request and acts on
+                              #   comments there; false: Gate 2 waits in the session.
+                              #   Autopilot ignores it (the console gates)
 
 research:
 
@@ -246,6 +250,16 @@ inputs.
 approves each post's plan before drafting (`ask`) or the plan reviewer's
 approval suffices (`auto`). The workflow reads it at its plan gate; autopilot
 ignores it.
+
+**`review.pr_monitor`** (`true` | `false`, default `false`): whether a cron
+watches each post's pull request after Gate 2. `true`: the PR-comment monitor
+(`references/pr-monitor.md`) runs every ~15 minutes, answers comments and
+reviews on the pull request and finalizes on a merge with proof of approval.
+`false` or absent: no cron; Gate 2 waits for the owner's reply in the session,
+GitHub comments and reviews are not read, and the owner's own merge on GitHub
+counts as approval (SKILL.md Step 15.2). Read at each Gate 2 and resume, and
+by each monitor firing (which stops itself when it finds `false`). Autopilot
+ignores it: console-gated runs never start the monitor.
 
 **`git.push_without_asking`** (boolean, default `false`): the owner's standing
 consent, recorded at setup, for the workflow to push its own commits to the base
@@ -346,7 +360,8 @@ validation step (`blog-setup`) both check:
 11. Documented optional blocks and keys carry the documented types. A `console`
     block, if present, contains only the keys documented above with the
     documented types. Likewise: a `review` block, if present, contains only
-    `plan_approval`, one of `ask` / `auto`; `publish.site_live` and
+    `plan_approval`, one of `ask` / `auto`, and `pr_monitor`, a boolean;
+    `publish.site_live` and
     `git.push_without_asking`, if present, are booleans;
     `publish.astro.draft_mechanism` is a non-empty string (`none` allowed);
     `publish.markdown.draft_key`, if present, is the template's draft key or
