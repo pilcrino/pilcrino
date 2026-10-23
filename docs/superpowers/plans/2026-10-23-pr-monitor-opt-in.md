@@ -33,7 +33,7 @@
 
 ### Task 0: Commit the reviewed spec
 
-- [ ] **Step 1:** `git -C /Users/slav/work/pilcrino/.worktrees/pr-monitor-opt-in add docs/superpowers && git commit -m "docs: PR monitor spec after three review rounds, and its plan"` (with the Co-Authored-By line). Do not push: the owner decides what happens to draft PR #26.
+- [ ] **Step 1:** `git add docs/superpowers && git commit -m "docs: PR monitor spec after three review rounds, and its plan"` (with the Co-Authored-By line). Do not push: the owner decides what happens to draft PR #26.
 
 ### Task 1: The config key
 
@@ -218,7 +218,7 @@
 
 ### Task 7: Acceptance run on a throwaway blog
 
-Text anchors prove the words are there, not that Claude follows them. This task runs the real flow. Use a throwaway GitHub repo with an Astro blog set up by `/pilcrino:blog-setup` from this branch (`claude --plugin-dir /Users/slav/work/pilcrino/.worktrees/pr-monitor-opt-in`), never a live blog, never `~/.pilcrino`.
+Text anchors prove the words are there, not that Claude follows them. This task runs the real flow. Use a throwaway GitHub repo with an Astro blog set up by `/pilcrino:blog-setup` from this branch (`claude --plugin-dir <this worktree>`), never a live blog, never `~/.pilcrino`.
 
 - [ ] **Case A, default off:** run a short post to Gate 2. Pass: no `CronCreate` in the transcript, the banner says `tell me here what to change`, a chat change is pushed with no PR comment, `approve` finalizes in-session, and the archive is in `_archive/<slug>/` with no nested folder.
 - [ ] **Case B, owner merge then resume:** second post to Gate 2, merge on GitHub, end the session, `resume <slug>` in a fresh one. Pass: finalize with no banner, merge-date check ran, archive pulled and restored, raw captures present.
