@@ -195,4 +195,12 @@ need adapters/publish/wordpress-rest.md 'The post is live in WordPress, so I lef
 need adapters/publish/astro-git-pr.md 'no reply on the PR and no `handled:` marker'
 need skills/blog-post-workflow/SKILL.md 'An approve that arrives while a wait runs is acted on after the re-check.'
 
+# 0.59.0 Task 4: an owner merge counts as approval with the monitor off
+need skills/blog-post-workflow/SKILL.md '**Owner merge (monitor off).**'
+need skills/blog-post-workflow/SKILL.md 'gh pr view <pr_number> -R <repo> --json mergedBy -q .mergedBy.login'
+need skills/blog-post-workflow/SKILL.md 'gh api user -q .login'
+need skills/blog-post-workflow/SKILL.md 'merged the pull request. Say "approve" here and I'"'"'ll finish the post.'
+need skills/blog-post-workflow/SKILL.md 'PR MERGED by the owner, `review.pr_monitor` off'
+need skills/blog-post-workflow/SKILL.md '**Finalize first (monitor off).**'
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1
