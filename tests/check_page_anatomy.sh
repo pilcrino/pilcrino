@@ -171,4 +171,16 @@ need skills/review-blog-post/SKILL.md 'intent `review`'
 need agents/plan-reviewer.md '`comparison` or `review`'
 need skills/blog-post-workflow/SKILL.md 'pageType'
 
+# 0.59.0: PR monitor opt-in (spec docs/superpowers/specs/2026-10-23-pr-monitor-opt-in-design.md)
+need skills/blog-post-workflow/SKILL.md 'Start the PR-comment monitor cron only when `review.pr_monitor: true`'
+absent skills/blog-post-workflow/SKILL.md 'always start the PR-comment monitor cron'
+absent personas/editor.md 'starting the Gate-2 monitor cron are unconditional'
+need personas/editor.md 'tell me here what to change and I address it'
+need skills/blog-post-workflow/SKILL.md 'A change to `review.pr_monitor` takes effect at the next Gate 2 or resume'
+need skills/blog-post-workflow/references/pr-monitor.md 'Runs only when `review.pr_monitor: true`'
+# every cron step in the adapters is conditional on the setting
+for f in adapters/publish/astro-git-pr.md adapters/publish/markdown.md; do
+  grep -n 'CronDelete\|monitor cron' "$f" | grep -v 'pr_monitor' | grep -q . && { echo "ANATOMY FAIL: $f: unconditional cron step" >&2; fail=1; }
+done
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1

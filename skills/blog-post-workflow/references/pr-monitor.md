@@ -1,6 +1,6 @@
 # PR-comment monitor routine
 
-Self-contained routine the blog-post-workflow PR-monitor cron runs while a post's PR is open — every ~15 minutes at first, backing off to 30 and then 60 minutes when the PR sits idle, and snapping back to 15 on any reviewer activity (§Adaptive cadence below). Driven entirely by `{drafts_dir}/<slug>/pr-monitor.json` + the live PR, so a cron firing in a fresh session needs no prior context. Read the state file first; everything else derives from it (`repo`, `worktree`, `branch`, `pr_number`, `mode`, and — when the active publish adapter is `wordpress-rest` — `wp_post_id`).
+Runs only when `review.pr_monitor: true` (opt-in, off by default; with it off, Step 15.1 starts no cron). Self-contained routine the blog-post-workflow PR-monitor cron runs while a post's PR is open — every ~15 minutes at first, backing off to 30 and then 60 minutes when the PR sits idle, and snapping back to 15 on any reviewer activity (§Adaptive cadence below). Driven entirely by `{drafts_dir}/<slug>/pr-monitor.json` + the live PR, so a cron firing in a fresh session needs no prior context. Read the state file first; everything else derives from it (`repo`, `worktree`, `branch`, `pr_number`, `mode`, and — when the active publish adapter is `wordpress-rest` — `wp_post_id`).
 
 ## Each firing
 

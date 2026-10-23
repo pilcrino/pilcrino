@@ -213,7 +213,7 @@ Let `SLUG=<slug>`, `POST="$REPO/{content_dir}/$SLUG.md"`, `ASSETS="$REPO/{assets
 
 ## On review-loop edit
 
-While the PR is open (`pr-monitor.json` `status: open`), every addressed review comment (from the PR-comment monitor cron, or a live console comment) is a target-state edit applied the same way:
+While the PR is open (`pr-monitor.json` `status: open`), every addressed review comment (from the PR-comment monitor cron under `review.pr_monitor: true`, a change asked for in the session, or a live console comment) is a target-state edit applied the same way:
 
 1. Resolve the worktree from `pr-monitor.json`'s `worktree` field; if it no longer exists on disk, recreate it from the branch, falling back to the remote branch if the local one is also gone.
 2. Make the change by editing the file under `$worktree/{content_dir}/` (or `$worktree/{assets_dir}/`), re-derived from the comment's intent so the edit is idempotent (re-processing the same comment produces the same target state, never a duplicate change).
@@ -226,7 +226,7 @@ All post-file edits during this phase target paths under `$worktree/`, never the
 
 The post is already publish-ready at this point (draft mechanism stripped at staging) and committed/pushed on `$BRANCH` via the worktree. **This is bookkeeping only: it never merges. The owner merges the PR, on GitHub or by asking Pilcrino in the session afterwards (SKILL.md Step 15.6); the merge itself is what deploys.** Ordering is load-bearing: the source checklist completion and the `mv` to the archive both happen LAST, only after the archive is safely pushed, so a crash mid-finalize leaves `{drafts_dir}/<slug>/` non-terminal (with `pr-monitor.json` still `status: open`) and a resume re-runs this idempotently.
 
-1. Stop the PR-comment monitor cron (`CronDelete`).
+1. Stop the PR-comment monitor cron (`CronDelete`) when one was started (`review.pr_monitor: true`); otherwise skip this step.
 2. **Re-sync the archive into the SAME PR, in the worktree copy only** (this path may already exist from §Staging step 6c's early, non-terminal snapshot, expected; this step is what makes it final): `mkdir -p "$WT/{drafts_dir}/_archive/<slug>"`, re-copy the CURRENT contents of `{drafts_dir}/<slug>/` in (`cp -R "{drafts_dir}/<slug>/." "$WT/{drafts_dir}/_archive/<slug>/"`, avoids dir nesting, overwrites the staging-time snapshot with anything that changed since, e.g. Gate 2 "request changes" revisions to `outline.md` / `images.md` / `action-items.md`), then apply §Staging step 6c's two removals (the `research/_raw/*.json` captures and `_backup/`; the selection notes stay), drop the `README.md` copy of `images.md` into `$WT/{assets_dir}/<slug>/` if absent. Edit ONLY the worktree copies of `checklist.md` (→ `status=complete`, `current_stage=complete`, `gate_pending=none`) and `pr-monitor.json` (→ `status: done`) to their final state, do NOT touch the SOURCE copies yet (they stay non-terminal until step 3, so a crash before the push leaves a recoverable, non-terminal state). **This step, not §Staging step 6c, is what makes the PR's archive copy final**, the staging-time copy was a completeness courtesy for reviewers, never the terminal record, so committing it early never weakens the crash-recoverable ordering below: the archive push must still land before the SOURCE `status=done`/`mv` in step 3, exactly as before this doc had a staging-time copy at all. Then:
    ```bash
    git -C "$WT" add "{drafts_dir}/_archive/<slug>" "{assets_dir}/<slug>/README.md"
