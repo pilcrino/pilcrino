@@ -203,4 +203,14 @@ need skills/blog-post-workflow/SKILL.md 'merged the pull request. Say "approve" 
 need skills/blog-post-workflow/SKILL.md 'PR MERGED by the owner, `review.pr_monitor` off'
 need skills/blog-post-workflow/SKILL.md '**Finalize first (monitor off).**'
 
+# 0.59.0 Task 5: the archive never nests or blocks a pull
+need skills/blog-post-workflow/SKILL.md '**Retire the source.**'
+need skills/blog-post-workflow/SKILL.md 'scripts/archive-draft.mjs" retire'
+need skills/blog-post-workflow/SKILL.md 'scripts/archive-draft.mjs" pull'
+need adapters/publish/astro-git-pr.md 'scripts/archive-draft.mjs" retire'
+need skills/blog-post-workflow/SKILL.md '**Local archive in the way.**'
+absent skills/blog-post-workflow/SKILL.md 'Step 15.3 PR finish from the `mv`'
+absent skills/blog-post-workflow/SKILL.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
+absent adapters/publish/astro-git-pr.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1
