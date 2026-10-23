@@ -140,6 +140,18 @@ test('pull blocked by another file exits 4 and lists it', () => {
   assert.equal(read(work, `${ARCHIVE}/checklist.md`), 'final')
 })
 
+test('pull restores an archive left aside by an interrupted earlier run', () => {
+  gitSetup()
+  mergeUpstream({ [`${ARCHIVE}/checklist.md`]: 'early' })
+  put(work, { [`${ARCHIVE}.aside-2026-10-23T00-00-00-000Z/checklist.md`]: 'final', [`${ARCHIVE}.aside-2026-10-23T00-00-00-000Z/_backup/post.md`]: 'owner' })
+  sh(work, ['pull', '-q', '--ff-only', 'origin', 'main'])
+  const r = pullWithArchive({ repo: work, archive: ARCHIVE, base: 'main' })
+  assert.deepEqual(r, { pulled: true, archiveRestored: true, changed: [`${ARCHIVE}/checklist.md`] })
+  assert.equal(read(work, `${ARCHIVE}/checklist.md`), 'final')
+  assert.equal(read(work, `${ARCHIVE}/_backup/post.md`), 'owner')
+  assert.deepEqual(readdirSync(join(work, 'blog-ops/drafts/_archive')), ['s'])
+})
+
 test('ExitError carries its exit code', () => {
   assert.equal(new ExitError(3, 'x').code, 3)
 })

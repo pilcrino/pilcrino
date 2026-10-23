@@ -220,4 +220,12 @@ need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `fals
 need README.md '### 0.59.0 - The pull request monitor is opt-in'
 need .claude-plugin/plugin.json '"version": "0.59.0"'
 
+# 0.59.0 review round 1: off-mode routing, the bounded wait, PR state after it
+need skills/blog-post-workflow/SKILL.md 'only with `review.pr_monitor: true`, `pr-monitor.json` already has `status: approved`'
+need skills/blog-post-workflow/SKILL.md 'Same, but the PR was MERGED by someone else'
+need skills/blog-post-workflow/SKILL.md '`publish.adapter: wordpress-rest`, `{drafts_dir}/<slug>/pr-monitor.json` has `mode: pr` + `status` not terminal, `review.pr_monitor` off'
+need skills/blog-post-workflow/SKILL.md 'timeout:600000,killSignal:"SIGKILL"'
+absent skills/blog-post-workflow/SKILL.md "alarm 600; exec @ARGV"
+need skills/blog-post-workflow/SKILL.md 'and again right before any push made for it'
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1

@@ -9,7 +9,7 @@
 // Spec: docs/superpowers/specs/2026-10-23-pr-monitor-opt-in-design.md
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
-import { dirname, join, relative, resolve } from 'node:path'
+import { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export class ExitError extends Error {
@@ -92,8 +92,24 @@ export function pullWithArchive({ repo, archive, base }) {
   if (branch !== base) throw new ExitError(3, `${repo} is on ${branch || 'no branch'}, not ${base}; switch to ${base} first`)
   const archiveAbs = resolve(repo, archive)
   const archiveRel = relative(resolve(repo), archiveAbs)
+  // An earlier run stopped after setting the archive aside: that copy is the
+  // final archive, so it is restored over whatever this run pulls.
+  const prefix = `${basename(archiveAbs)}.aside-`
+  const leftovers = existsSync(dirname(archiveAbs))
+    ? readdirSync(dirname(archiveAbs)).filter((n) => n.startsWith(prefix)).sort().map((n) => join(dirname(archiveAbs), n))
+    : []
+  const restoreLeftovers = () => {
+    for (const l of leftovers) {
+      mkdirSync(archiveAbs, { recursive: true })
+      mergeOver(l, archiveAbs, `restoring the local archive from ${l}`)
+    }
+    return leftovers.length > 0
+  }
   const first = git(['pull', '--ff-only', 'origin', base], repo)
-  if (first.ok) return { pulled: true, archiveRestored: false, changed: changedTracked(repo, archiveRel) }
+  if (first.ok) {
+    const restored = restoreLeftovers()
+    return { pulled: true, archiveRestored: restored, changed: changedTracked(repo, archiveRel) }
+  }
 
   const blocked = blockedPaths(first.out + first.err)
   if (!blocked.length) throw new ExitError(1, first.err.trim() || first.out.trim())
@@ -109,6 +125,7 @@ export function pullWithArchive({ repo, archive, base }) {
   }
   mkdirSync(archiveAbs, { recursive: true })
   mergeOver(aside, archiveAbs, `restoring the local archive from ${aside}`)
+  restoreLeftovers()
   return { pulled: true, archiveRestored: true, changed: changedTracked(repo, archiveRel) }
 }
 
