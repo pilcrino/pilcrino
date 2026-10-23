@@ -9,7 +9,7 @@
 // Spec: docs/superpowers/specs/2026-10-23-pr-monitor-opt-in-design.md
 import { spawnSync } from 'node:child_process'
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs'
-import { basename, dirname, join, relative, resolve } from 'node:path'
+import path, { basename, dirname, join, relative, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 export class ExitError extends Error {
@@ -87,11 +87,17 @@ function changedTracked(repo, archiveRel) {
   return git(['diff', '--name-only', '--', archiveRel], repo).out.split('\n').filter(Boolean)
 }
 
+// The archive's path inside the repo, with the forward slashes git prints on
+// every platform (path.relative gives backslashes on Windows).
+export function repoRelative(repo, abs, p = path) {
+  return p.relative(p.resolve(repo), abs).split(p.sep).join('/')
+}
+
 export function pullWithArchive({ repo, archive, base }) {
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD'], repo).out.trim()
   if (branch !== base) throw new ExitError(3, `${repo} is on ${branch || 'no branch'}, not ${base}; switch to ${base} first`)
   const archiveAbs = resolve(repo, archive)
-  const archiveRel = relative(resolve(repo), archiveAbs)
+  const archiveRel = repoRelative(repo, archiveAbs)
   // An earlier run stopped after setting the archive aside: that copy is the
   // final archive, so it is restored over whatever this run pulls.
   const prefix = `${basename(archiveAbs)}.aside-`

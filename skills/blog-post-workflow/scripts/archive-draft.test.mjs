@@ -5,7 +5,8 @@ import { existsSync, mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdi
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { retire, pullWithArchive, ExitError } from './archive-draft.mjs'
+import { win32 } from 'node:path'
+import { retire, pullWithArchive, repoRelative, ExitError } from './archive-draft.mjs'
 
 const SCRIPT = fileURLToPath(new URL('./archive-draft.mjs', import.meta.url))
 const ARCHIVE = 'blog-ops/drafts/_archive/s'
@@ -150,6 +151,11 @@ test('pull restores an archive left aside by an interrupted earlier run', () => 
   assert.equal(read(work, `${ARCHIVE}/checklist.md`), 'final')
   assert.equal(read(work, `${ARCHIVE}/_backup/post.md`), 'owner')
   assert.deepEqual(readdirSync(join(work, 'blog-ops/drafts/_archive')), ['s'])
+})
+
+test('repoRelative gives the forward-slash path git prints, also on Windows', () => {
+  assert.equal(repoRelative('D:\\a\\repo', 'D:\\a\\repo\\blog-ops\\drafts\\_archive\\s', win32), 'blog-ops/drafts/_archive/s')
+  assert.equal(repoRelative('/r', '/r/blog-ops/drafts/_archive/s'), 'blog-ops/drafts/_archive/s')
 })
 
 test('ExitError carries its exit code', () => {
