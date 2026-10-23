@@ -228,4 +228,9 @@ need skills/blog-post-workflow/SKILL.md 'timeout:600000,killSignal:"SIGKILL"'
 absent skills/blog-post-workflow/SKILL.md "alarm 600; exec @ARGV"
 need skills/blog-post-workflow/SKILL.md 'and again right before any push made for it'
 
+# 0.59.0 review round 2: a post published in wp-admin is routed before any merge prompt
+wp=$(grep -n '^| `finalize` | `gate_2_final` | `publish.adapter: wordpress-rest`' skills/blog-post-workflow/SKILL.md | head -1 | cut -d: -f1)
+owner=$(grep -n 'PR MERGED by the owner, `review.pr_monitor` off' skills/blog-post-workflow/SKILL.md | head -1 | cut -d: -f1)
+[ -n "$wp" ] && [ -n "$owner" ] && [ "$wp" -lt "$owner" ] || { echo "ANATOMY FAIL: SKILL.md: the WordPress published row must come before the owner-merge rows" >&2; fail=1; }
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1
