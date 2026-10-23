@@ -302,12 +302,17 @@ request).
 
 Every post ends as a pull request on GitHub (a WordPress post also appears as
 a draft in WordPress admin, with a preview link). Read it there. To ask for
-changes, comment on the pull request, or tell Pilcrino in Claude Code; while
-Claude Code stays open, a watcher checks the pull request every 15 minutes
-(less often when nothing happens), makes the changes and replies.
+changes, tell Pilcrino in Claude Code. By default Pilcrino does not read
+comments on GitHub. Set `review.pr_monitor: true` in `blog-ops/config.yaml`
+(setup asks on the detailed path) and, while Claude Code stays open, a
+watcher checks the pull request every 15 minutes (less often when nothing
+happens), makes the changes asked for in comments and replies.
 
 When the post is right, approve it: if you work alone, tell Pilcrino
-"approve" in Claude Code; an approval on GitHub is recorded too. Approving
+"approve" in Claude Code. With the watcher off, merging the pull request
+yourself also counts as approval, and Pilcrino finishes the post the next
+time you resume it. With the watcher on, an approval on GitHub is recorded
+too. Approving
 does not publish. Publishing is your action:
 
 - a site built from the repository (Astro, Hugo, Next.js, Eleventy): merge the
@@ -407,7 +412,7 @@ review-and-revise loop, humanization pass, marker auto-resolution
 (`[VERIFY:]`, `[EXTERNAL_LINK_NEEDED:]`, `[INTERNAL_LINK_NEEDED:]`), image
 plan, image generation (`[IMAGE:]` slots, one adapter per strategy),
 action-items compile, staging into the target platform, Gate 2 human review
-(a GitHub PR, watched by the skill's PR-comment cron), finalize and archive.
+(a GitHub PR, watched by the skill's PR-comment cron when `review.pr_monitor: true`), finalize and archive.
 Side skills cover setup (`blog-setup`), content planning (`plan-content`),
 competitor research, review-blog-post, humanize-text, suggest-images,
 generate-images, repurpose-blog-post, LinkedIn posting and a post-run
@@ -748,6 +753,13 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.59.0 - The pull request monitor is opt-in
+
+- New setting `review.pr_monitor` (true or false, default false). Off, Gate 2 no longer starts a cron: the session shows the banner and waits for approve, a change, pause or "merge it" in Claude Code, and nothing reads or answers comments or reviews on GitHub. On, the PR-comment monitor runs as before; a firing that finds the setting turned off deletes its own cron. Detailed setup asks about it; quick setup leaves it off.
+- With the monitor off, the session checks the pull request before acting on each reply (a merged or closed pull request is never pushed to, and an unreachable GitHub changes nothing), recreates a missing review folder before writing (and stops rather than create a plain folder), and waits up to 10 minutes for the staging deploy before showing the preview and layout lines, re-checking at the next reply when it is not ready.
+- With the monitor off, the owner's own merge on GitHub counts as approval (the merger's login must match the signed-in GitHub account): `resume <slug>` and `published <slug>` finish the post. A merge by anyone else asks for "approve" first. A WordPress post published in wp-admin is finished by `published <slug>` even while its pull request is open, and a change asked for after that is not synced (it would overwrite the live post).
+- New `skills/blog-post-workflow/scripts/archive-draft.mjs`: `retire` moves a post's drafts folder into its archive and merges into an archive that already exists (a merged pull request's early snapshot) instead of nesting it; `pull` pulls the base branch when the local archive is in the way, then copies it back. Both keep the local-only page captures and `_backup/`. Finalize, its crash recovery and `published <slug>` use them.
 
 ### 0.58.2 - The layout check catches stretched images
 

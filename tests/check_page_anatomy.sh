@@ -76,7 +76,6 @@ need skills/blog-post-workflow/SKILL.md 'on return append `agent_done` first'
 [ "$(grep -c 'Wait for return, idle: no tool calls until the subagent returns' personas/editor.md)" -ge 3 ] || { echo "ANATOMY FAIL: editor.md: fewer than 3 dispatches carry the idle note" >&2; fail=1; }
 
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.58.2"'
 
 # 0.56.0: merge on request, and the closing message says how to merge
 need skills/blog-post-workflow/SKILL.md '#### Step 15.6, Merge on request'
@@ -170,5 +169,68 @@ need templates/outline.md 'comparison | review'
 need skills/review-blog-post/SKILL.md 'intent `review`'
 need agents/plan-reviewer.md '`comparison` or `review`'
 need skills/blog-post-workflow/SKILL.md 'pageType'
+
+# 0.59.0: PR monitor opt-in (spec docs/superpowers/specs/2026-10-23-pr-monitor-opt-in-design.md)
+need skills/blog-post-workflow/SKILL.md 'Start the PR-comment monitor cron only when `review.pr_monitor: true`'
+absent skills/blog-post-workflow/SKILL.md 'always start the PR-comment monitor cron'
+absent personas/editor.md 'starting the Gate-2 monitor cron are unconditional'
+need personas/editor.md 'tell me here what to change and I address it'
+need skills/blog-post-workflow/SKILL.md 'A change to `review.pr_monitor` takes effect at the next Gate 2 or resume'
+need skills/blog-post-workflow/references/pr-monitor.md 'Runs only when `review.pr_monitor: true`'
+# every cron step in the adapters is conditional on the setting
+for f in adapters/publish/astro-git-pr.md adapters/publish/markdown.md; do
+  grep -n 'CronDelete\|monitor cron' "$f" | grep -v 'pr_monitor' | grep -q . && { echo "ANATOMY FAIL: $f: unconditional cron step" >&2; fail=1; }
+done
+
+# 0.59.0 Task 3: the in-session Gate 2 loop with the monitor off
+need skills/blog-post-workflow/SKILL.md '**Monitor off (`review.pr_monitor` false or absent).**'
+need skills/blog-post-workflow/SKILL.md '**PR state before each reply.**'
+need skills/blog-post-workflow/SKILL.md "I can't reach GitHub right now, so I haven't changed anything"
+need skills/blog-post-workflow/SKILL.md '**Worktree first.**'
+need skills/blog-post-workflow/SKILL.md 'never `mkdir` the worktree path'
+need skills/blog-post-workflow/SKILL.md '**Staging re-check (monitor off).**'
+need skills/blog-post-workflow/SKILL.md 'staging deploy failed'
+need adapters/publish/wordpress-rest.md 'The post is live in WordPress, so I left it alone; make this change in WordPress.'
+need adapters/publish/astro-git-pr.md 'no reply on the PR and no `handled:` marker'
+need skills/blog-post-workflow/SKILL.md 'An approve that arrives while a wait runs is acted on after the re-check.'
+
+# 0.59.0 Task 4: an owner merge counts as approval with the monitor off
+need skills/blog-post-workflow/SKILL.md '**Owner merge (monitor off).**'
+need skills/blog-post-workflow/SKILL.md 'gh pr view <pr_number> -R <repo> --json mergedBy -q .mergedBy.login'
+need skills/blog-post-workflow/SKILL.md 'gh api user -q .login'
+need skills/blog-post-workflow/SKILL.md 'merged the pull request. Say "approve" here and I'"'"'ll finish the post.'
+need skills/blog-post-workflow/SKILL.md 'PR MERGED by the owner, `review.pr_monitor` off'
+need skills/blog-post-workflow/SKILL.md '**Finalize first (monitor off).**'
+
+# 0.59.0 Task 5: the archive never nests or blocks a pull
+need skills/blog-post-workflow/SKILL.md '**Retire the source.**'
+need skills/blog-post-workflow/SKILL.md 'scripts/archive-draft.mjs" retire'
+need skills/blog-post-workflow/SKILL.md 'scripts/archive-draft.mjs" pull'
+need adapters/publish/astro-git-pr.md 'scripts/archive-draft.mjs" retire'
+need skills/blog-post-workflow/SKILL.md '**Local archive in the way.**'
+absent skills/blog-post-workflow/SKILL.md 'Step 15.3 PR finish from the `mv`'
+absent skills/blog-post-workflow/SKILL.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
+absent adapters/publish/astro-git-pr.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
+
+# 0.59.0 Task 6: monitor self-stop, setup question, version
+need skills/blog-post-workflow/references/pr-monitor.md 'When `review.pr_monitor` is now `false`, `CronDelete` this cron and exit.'
+need skills/blog-setup/SKILL.md '### Three standing decisions (every blog)'
+need skills/blog-setup/SKILL.md 'Watching the pull request → `review.pr_monitor`'
+need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `false`'
+need README.md '### 0.59.0 - The pull request monitor is opt-in'
+need .claude-plugin/plugin.json '"version": "0.59.0"'
+
+# 0.59.0 review round 1: off-mode routing, the bounded wait, PR state after it
+need skills/blog-post-workflow/SKILL.md 'only with `review.pr_monitor: true`, `pr-monitor.json` already has `status: approved`'
+need skills/blog-post-workflow/SKILL.md 'Same, but the PR was MERGED by someone else'
+need skills/blog-post-workflow/SKILL.md '`publish.adapter: wordpress-rest`, `{drafts_dir}/<slug>/pr-monitor.json` has `mode: pr` + `status` not terminal, `review.pr_monitor` off'
+need skills/blog-post-workflow/SKILL.md 'timeout:600000,killSignal:"SIGKILL"'
+absent skills/blog-post-workflow/SKILL.md "alarm 600; exec @ARGV"
+need skills/blog-post-workflow/SKILL.md 'and again right before any push made for it'
+
+# 0.59.0 review round 2: a post published in wp-admin is routed before any merge prompt
+wp=$(grep -n '^| `finalize` | `gate_2_final` | `publish.adapter: wordpress-rest`' skills/blog-post-workflow/SKILL.md | head -1 | cut -d: -f1)
+owner=$(grep -n 'PR MERGED by the owner, `review.pr_monitor` off' skills/blog-post-workflow/SKILL.md | head -1 | cut -d: -f1)
+[ -n "$wp" ] && [ -n "$owner" ] && [ "$wp" -lt "$owner" ] || { echo "ANATOMY FAIL: SKILL.md: the WordPress published row must come before the owner-merge rows" >&2; fail=1; }
 
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1

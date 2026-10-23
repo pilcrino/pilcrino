@@ -174,7 +174,7 @@ export function runChecks(cfg, { repo, fs = { existsSync, readFileSync, statSync
   const draftMech = get(cfg, 'publish.astro.draft_mechanism')
   check(11, 'Optional settings have the expected values', [
     ...(cfg.console !== undefined ? (isObj(cfg.console) ? typeErrors(cfg.console, CONSOLE_KEYS, 'console.') : ['console must be a group of settings']) : []),
-    ...(review !== undefined ? (isObj(review) ? typeErrors(review, { plan_approval: ['ask', 'auto'] }, 'review.') : ['review must be a group of settings']) : []),
+    ...(review !== undefined ? (isObj(review) ? typeErrors(review, { plan_approval: ['ask', 'auto'], pr_monitor: 'boolean' }, 'review.') : ['review must be a group of settings']) : []),
     siteLive !== undefined && typeof siteLive !== 'boolean' && 'publish.site_live must be true or false',
     pwa !== undefined && typeof pwa !== 'boolean' && 'git.push_without_asking must be true or false',
     adapter === 'astro-git-pr' && draftMech !== undefined && !nonEmpty(draftMech) && 'publish.astro.draft_mechanism must be a non-empty line (or none)',
