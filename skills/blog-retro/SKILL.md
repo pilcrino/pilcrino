@@ -46,7 +46,7 @@ Pull all THREE sources; each may be empty depending on the path the run took.
 
 1. **Live conversation** (the primary source, always available: this skill only ever runs in the working session where the post was produced). Review THIS session's history for: where the human corrected you, re-explained, or overrode a decision; gate rejections (plan-review, blog-review) and their reasons; anything the workflow did wrong and had to redo; repeated friction.
 
-2. **PR review feedback** (primary for the default async PR path, where the corrections happened on GitHub via the cron, NOT in this conversation). Read `{drafts_dir}/_archive/<slug>/pr-monitor.json`. If it has `mode: pr` and a `pr_number`, fetch the human (non-bot) feedback bodies from all three channels (`<repo>` = the `repo` field):
+2. **PR review feedback** (primary only when the PR monitor ran, `review.pr_monitor: true`, where the corrections happened on GitHub via the cron, NOT in this conversation; with the monitor off, the default, corrections happen in this conversation, so source 1 is primary and this one is reinforcement). Read `{drafts_dir}/_archive/<slug>/pr-monitor.json`. If it has `mode: pr` and a `pr_number`, fetch the human (non-bot) feedback bodies from all three channels (`<repo>` = the `repo` field):
    - Issue comments: `gh api repos/<repo>/issues/<pr_number>/comments --paginate`
    - Inline diff comments: `gh api repos/<repo>/pulls/<pr_number>/comments --paginate`
    - Review-summary bodies: `gh api repos/<repo>/pulls/<pr_number>/reviews --paginate`

@@ -2848,7 +2848,7 @@ git:
   base_branch: <branch>
 ```
 
-(`review.plan_approval` and `git.push_without_asking` are added in Phase 6.)
+(`review.plan_approval`, `review.pr_monitor` and `git.push_without_asking` are added in Phase 6.)
 
 ### Site conventions (deferred from Phase 1.5)
 
@@ -2939,9 +2939,9 @@ This phase always runs in full on every invocation (no skip option — it's
 cheap and it's the whole point of the wizard). Owner's name for this part:
 "Final checks."
 
-### Two standing decisions (every blog)
+### Three standing decisions (every blog)
 
-Ask these two, one per message, as menus, and merge the answers into
+Ask these, one per message, as menus, and merge the answers into
 `config.yaml` (whole-file rewrite, Global rule 4). Read each back in one
 sentence.
 
@@ -2958,7 +2958,18 @@ sentence.
    Quick path: omit, `ask` when `review.plan_approval` is absent; when
    the key is already on file (a resumed run, an earlier correction),
    keep its value. Shown in the summary; a correction there is kept.
-2. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
+2. **Watching the pull request → `review.pr_monitor`.** "After a post
+   is ready, Pilcrino opens a pull request and waits for you to approve it
+   here. It can also check that pull request every 15 minutes or so and act
+   on comments people leave there. Do you want that?"
+   - "No, I'll approve here" (default) → `false`. Read back: "Pilcrino
+     waits for you in the session; comments on GitHub are not read."
+   - "Yes, watch the pull request" → `true`. Read back: "Pilcrino checks
+     the pull request on a timer and answers comments there."
+   Quick path: omit (off when `review.pr_monitor` is absent); when the key
+   is already on file, keep its value. Shown in the summary as "Watching
+   the pull request: no" (or yes); a correction there is kept.
+3. **Pushing Pilcrino's own files → `git.push_without_asking`.** "Pilcrino
    keeps its files on your repository's main branch: these setup files,
    competitor fact sheets, and the content plan. Besides the setup commit
    we're about to make, may it push those files to main later without
@@ -2974,6 +2985,7 @@ sentence.
 ```yaml
 review:
   plan_approval: <ask | auto>
+  pr_monitor: <true | false>    # omitted on the quick path unless corrected
 
 git:
   branch_prefix: <as before>
@@ -3035,7 +3047,7 @@ are merged without a further step", which the owner can change there).
 
 ### The summary before the commit (both paths)
 
-Every decision and default is on file by now (the two standing decisions
+Every decision and default is on file by now (the three standing decisions
 and custom instructions above are asked before this, on both paths; the
 quick path omits them as their lines say). Before any check runs and
 before the commit, print what setup is about to save, as a bulleted list
@@ -3050,7 +3062,7 @@ few words), your product (the feature list in full, with its sources, and
 the positioning rule, when the product module is on), competitors, images
 (kinds, colours and fonts in words), where posts go (adapter, site live or
 not, the posts' address shape `https://<host><route prefix><slug>` and
-whether it ends with a slash), research sources, plan approval, pushing,
+whether it ends with a slash), research sources, plan approval, watching the pull request, pushing,
 categories (when site-conventions was drafted).
 Mark each value by its origin: "(from your site)", "(from your
 repository)", "(standard)", or nothing for an answer the owner typed.
@@ -3069,7 +3081,7 @@ Then `AskUserQuestion`: "Save this" / "Change something".
   depends on them: images changed → rewrite `theme.ts` and re-render the
   test image (Phase 4 steps 6 and 7); route prefix or trailing slash changed → rewrite `config.yaml`'s `blog:`
   block and §Permalinks in `site-conventions.md` when that file exists;
-  plan approval or pushing changed → rewrite the `review:` or `git:` block
+  plan approval, watching the pull request or pushing changed → rewrite the `review:` or `git:` block
   (a correction here is final: nothing after the summary writes those
   keys again).
 - Print the summary again and ask again. Loop until "Save this".
@@ -3110,7 +3122,7 @@ this file; the owner sees the script's lines, not this table.
 | 8 | `browser.executable`, if present, is an absolute path | ✅/❌ |
 | 9 | `blog.trailing_slash` present and a boolean | ✅/❌ |
 | 10 | `console.publish_policy: auto` → `publish.adapter` is `astro-git-pr` (`wordpress-rest` and `markdown` are gated only) (N/A, ✅ by vacuity, if no `console:` block yet) | ✅/❌ |
-| 11 | Documented optional keys carry their documented types: a `console:` block, if present, contains only documented keys with documented types; a `review:` block, if present, holds only `plan_approval` as `ask` or `auto`; `publish.site_live` and `git.push_without_asking`, if present, are booleans; `publish.astro.draft_mechanism` is a non-empty string (`none` allowed); `publish.markdown.draft_key`, if present, is the template's draft key or `none`; `publish.markdown.cover_key`, if present, is one top-level key (no dot); `publish.wordpress.permalink_structure` and `app_password_keychain`, if present, are non-empty strings | ✅/❌ |
+| 11 | Documented optional keys carry their documented types: a `console:` block, if present, contains only documented keys with documented types; a `review:` block, if present, holds only `plan_approval` as `ask` or `auto` and `pr_monitor` as a boolean; `publish.site_live` and `git.push_without_asking`, if present, are booleans; `publish.astro.draft_mechanism` is a non-empty string (`none` allowed); `publish.markdown.draft_key`, if present, is the template's draft key or `none`; `publish.markdown.cover_key`, if present, is one top-level key (no dot); `publish.wordpress.permalink_structure` and `app_password_keychain`, if present, are non-empty strings | ✅/❌ |
 | 12 | `competitors.profile_dir`, if set, is a repo-relative path that exists on disk when `modules.competitors` is true (N/A, ✅ by vacuity, if unset — the default applies) | ✅/❌ |
 | 13 | `social.linkedin`, if present, has a non-empty string `company_id` (N/A, ✅ by vacuity, if `social.linkedin` is absent — this phase doesn't offer a wizard step for it, add it by hand) | ✅/❌ |
 | 14 | `remotion` ∈ `images.enabled` → repo-root `.gitattributes` marks `<images.remotion.project_dir>/src/Root.tsx` as `merge=union` (N/A, ✅ by vacuity, if `remotion` is not enabled) | ✅/❌ |
@@ -3341,9 +3353,9 @@ detailed path, before any yes adds a block:
 
 | Adapter | Base T | Made of |
 |---|---|---|
-| astro-git-pr | 54 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 4 |
-| wordpress-rest | 52 | as above with publishing 5 (folders, address, username) |
-| markdown | 53 | as above with publishing 6 (folders, platform, image serving) |
+| astro-git-pr | 55 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 5 |
+| wordpress-rest | 53 | as above with publishing 5 (folders, address, username) |
+| markdown | 54 | as above with publishing 6 (folders, platform, image serving) |
 
 The table is the existing-blog case. Recompute T from the branch
 actually taken, at the moment it is taken: a brand-new blog answers only

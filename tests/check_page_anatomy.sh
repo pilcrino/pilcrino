@@ -76,7 +76,6 @@ need skills/blog-post-workflow/SKILL.md 'on return append `agent_done` first'
 [ "$(grep -c 'Wait for return, idle: no tool calls until the subagent returns' personas/editor.md)" -ge 3 ] || { echo "ANATOMY FAIL: editor.md: fewer than 3 dispatches carry the idle note" >&2; fail=1; }
 
 # Task 6: version and docs
-need .claude-plugin/plugin.json '"version": "0.58.2"'
 
 # 0.56.0: merge on request, and the closing message says how to merge
 need skills/blog-post-workflow/SKILL.md '#### Step 15.6, Merge on request'
@@ -212,5 +211,13 @@ need skills/blog-post-workflow/SKILL.md '**Local archive in the way.**'
 absent skills/blog-post-workflow/SKILL.md 'Step 15.3 PR finish from the `mv`'
 absent skills/blog-post-workflow/SKILL.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
 absent adapters/publish/astro-git-pr.md 'then `mv {drafts_dir}/<slug>/` → `{drafts_dir}/_archive/<slug>/` in the main tree'
+
+# 0.59.0 Task 6: monitor self-stop, setup question, version
+need skills/blog-post-workflow/references/pr-monitor.md 'When `review.pr_monitor` is now `false`, `CronDelete` this cron and exit.'
+need skills/blog-setup/SKILL.md '### Three standing decisions (every blog)'
+need skills/blog-setup/SKILL.md 'Watching the pull request → `review.pr_monitor`'
+need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `false`'
+need README.md '### 0.59.0 - The pull request monitor is opt-in'
+need .claude-plugin/plugin.json '"version": "0.59.0"'
 
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1
