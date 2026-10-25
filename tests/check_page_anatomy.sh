@@ -218,7 +218,7 @@ need skills/blog-setup/SKILL.md '### Three standing decisions (every blog)'
 need skills/blog-setup/SKILL.md 'Watching the pull request → `review.pr_monitor`'
 need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `false`'
 need README.md '### 0.59.0 - The pull request monitor is opt-in'
-need .claude-plugin/plugin.json '"version": "0.59.0"'
+need .claude-plugin/plugin.json '"version": "0.59.1"'
 
 # 0.59.0 review round 1: off-mode routing, the bounded wait, PR state after it
 need skills/blog-post-workflow/SKILL.md 'only with `review.pr_monitor: true`, `pr-monitor.json` already has `status: approved`'
