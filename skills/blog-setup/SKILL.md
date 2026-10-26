@@ -2102,6 +2102,104 @@ Owner's name for this part: "Where your posts go." The word "adapter" is
 never said to the owner; the three adapters are described by what happens
 to a post.
 
+### Interview: where your posts go (every blog)
+
+The first question of Phase 5, on every blog. By default each post is a
+markdown file with its images in this repository, delivered as a pull
+request, and nothing else happens to it ("files", below). Publishing to
+the site is a beta: it works and is less tested. "Beta" is only a label:
+no warning, no extra confirmation.
+
+First run the detection of "Interview: adapter choice" step 1 below,
+without asking anything, only to name the site in option 2. Then ask, as
+a menu, files first:
+
+1. "Files in a pull request (recommended)": "Each post is a markdown file
+   with its images, in `blog-ops/posts/` in your repository. Merging the
+   pull request files it there; you put it on your site yourself."
+2. "Publish to my site (beta)": "WordPress (as drafts you publish), or a
+   site built from this repository with Astro, Hugo, Next.js or
+   Eleventy."
+
+Quick path: ask, both paths. Counted ("Where posts go").
+
+When detection found a supported site, option 2's label names it:
+"Publish to your Astro site (beta)", "Publish to your Hugo site (beta)"
+(likewise Next.js and Eleventy), "Create drafts in your WordPress
+(beta)". When it found nothing supported (Jekyll, Ghost, Webflow or
+another hosted CMS, an empty repository), option 2 keeps the general
+label and description above, so the menu always has two options.
+Detection never picks the beta for the owner.
+
+- Files → "If files" below, then the `git:` block. Nothing between them
+  runs.
+- A label that named the detected site → that adapter (`astro-git-pr`,
+  `wordpress-rest`, or `markdown` with `hugo`, `nextjs` or `eleventy`).
+  "Interview: adapter choice" is not asked again: continue at "Interview:
+  how the site goes live", then the chosen adapter's section.
+- The general label → "Interview: how the site goes live", then
+  "Interview: adapter choice" as a menu of the beta platforms only,
+  counted on both paths (on the quick path it is a conditional
+  question: "One more than I said").
+
+Beta chosen: everything from "Interview: how the site goes live" to the
+`git:` block is the beta, unchanged except where it says so.
+
+### If files
+
+Write, through the whole-file rewrite (Global rule 4):
+
+```yaml
+publish:
+  adapter: markdown
+  markdown:
+    content_dir: blog-ops/posts
+    assets_dir: blog-ops/posts/images
+    platform: <generic | ghost | jekyll>     # the format, below
+    frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
+```
+
+No `image_url_prefix` (images are referenced relative to the post, as
+`markdown-generic.md` §Cover path computation says), no
+`publish.site_live`, no `cover_key`, `frontmatter_keys` or `draft_key`.
+Why `blog-ops/posts/`: Astro, Hugo and Next.js never read it, while the
+site's own posts folder would publish a file in a shape the site never
+agreed to, and a top-level `posts/` is read by many Next.js starters.
+Jekyll and Eleventy do read it: "Keep Pilcrino's files off the site"
+below handles that.
+
+1. State the folders in one line, never ask: "Posts go in
+   `blog-ops/posts/`, with their images in `blog-ops/posts/images/`."
+   Run `mkdir -p blog-ops/posts/images` (an action, not counted).
+   Quick path: derive, both paths.
+2. **Format.** Which platform's field names the file uses, as a menu:
+   - "Not sure, keep it plain" (first, the default) → `generic`: `title`,
+     `description`, `date`, `tags`, `author`, `image`.
+   - "Ghost" → `ghost`: Ghost's own names (`excerpt`, `published_at`,
+     `feature_image`), and the review step walks you through pasting it.
+   - "Jekyll" → `jekyll`: `layout: post` and `image`, the
+     `YYYY-MM-DD-<slug>.md` filename reminder and the paste steps.
+   Quick path: derive. `jekyll` when the Jekyll test of "Keep Pilcrino's
+   files off the site" matches, otherwise `generic`; never `ghost` (setup
+   cannot detect a Ghost site). The summary says "Post format: plain
+   markdown" (or Jekyll's). Hugo, Astro, Next.js and Eleventy are never
+   formats here: their field names come with publishing to that site,
+   the beta.
+3. **A repository that is a site** (Astro, Hugo, Next.js, Eleventy or
+   Jekyll detected): say once: "Your site won't show these posts; merging
+   only files them in `blog-ops/posts/`. To have Pilcrino publish to your
+   site, run setup again and choose the beta."
+4. **Approval policy.** When `console.publish_policy` is `auto` (only an
+   `astro-git-pr` blog can have it, invariant 10), set it to `gated` in
+   the same rewrite, keep the rest of the `console:` block, and say:
+   "Every post now waits for your approval."
+
+Skipped in files mode: "Interview: how the site goes live" and its
+deployment evidence, "Interview: adapter choice", the adapter sections,
+"Site conventions", and the `jq` check (Phase 0a check 6 runs only for
+WordPress). "Keep Pilcrino's files off the site", the `git:` block and
+the GitHub precondition still run.
+
 ### Interview: how the site goes live (every adapter)
 
 Ask this first, before the adapter, as a menu: "Is your blog online now,
@@ -2153,11 +2251,8 @@ sentence again if the owner picks another):
 - WordPress: "Approving a post leaves it as a draft in your WordPress;
   you click Publish in WordPress. Merging the pull request only files the
   text in the repository." (The same sentence, live or not.)
-- A platform you paste into (Jekyll, Webflow, Ghost, Squarespace, another
-  hosted CMS): "You paste each post into <Platform> before you approve it; merging
-  the pull request only files it in the repository." (The same sentence,
-  live or not.)
-Never tell a WordPress or paste-platform owner that merging publishes.
+Never tell a WordPress owner that merging publishes. (Jekyll, Ghost,
+Webflow and other paste platforms are files mode now, "If files".)
 Then, when the site is built by Hugo, Astro, Jekyll or another generator,
 add: "Pilcrino does not need to build your site on this Mac, so <Hugo/Astro> does not
 need to be installed here" (do not report a missing `hugo` binary as a
@@ -2168,12 +2263,15 @@ problem).
 1. Detect first, then confirm. Read the repo root (and `site_dir` when a
    subfolder holds the site): `astro.config.*` or an `astro` dependency in
    `package.json` → `astro-git-pr`; `hugo.toml`/`config.toml` with Hugo
-   keys, `_config.yml` (Jekyll), a `next` dependency, `.eleventy.js` →
-   `markdown` with that platform; a WordPress address from Phase 1
-   (`/wp-json` answers) or the owner said WordPress → `wordpress-rest`;
-   Webflow, Squarespace, Ghost or another hosted CMS → `markdown` with
-   `generic` (or `ghost`). Then confirm as a menu with the detected choice
-   first, each option in owner words:
+   keys, a `next` dependency, `.eleventy.js` → `markdown` with that
+   platform; a WordPress address from Phase 1 (`/wp-json` answers) or the
+   owner said WordPress → `wordpress-rest`. A Jekyll site (`_config.yml`),
+   Webflow, Squarespace, Ghost or another hosted CMS is not a beta
+   platform: detection reports nothing supported, and "Interview: where
+   your posts go" keeps its general label. Asked only after the general
+   beta label ("Interview: where your posts go"); a label that named the
+   site has already chosen. Then confirm as a menu with the detected
+   choice first, each option in owner words:
    - Astro: "Your site runs on Astro, so each post lands in it as a file
      through a GitHub pull request; merging publishes it (when the site is
      live)."
@@ -2182,12 +2280,9 @@ problem).
    - Markdown, repo platform: "Your site runs on <Hugo/...>, so each post
      lands in this repository as a file through a pull request; merging
      publishes it when the site rebuilds from GitHub."
-   - Markdown, paste platform: "Each post becomes a markdown file plus
-     images that you put into <Platform> before you approve it; the
-     repository keeps a copy."
    → `publish.adapter`.
-   Quick path: ask, the detected option first, counted ("Where posts
-   go"). The adapter steps that need the owner afterwards
+   Quick path: ask, the detected option first, counted as a conditional
+   question (the first question, "Where posts go", is already counted). The adapter steps that need the owner afterwards
    (the WordPress password dialog, the Astro format edit consent) are
    actions, done as today and not counted; the WordPress username is a
    counted question.
@@ -2650,6 +2745,11 @@ above.
 
 ### If `markdown`
 
+The beta's markdown sites: `hugo`, `nextjs`, `eleventy`, and `astro`
+where the owner picks the markdown route over `astro-git-pr`. The
+platform docs below still describe `jekyll`, `ghost` and `generic`, which
+only files mode writes now ("If files"); the beta never offers them.
+
 2. `content_dir` (default `posts`; for Hugo the existing posts folder,
    `content/posts` or `content/blog`, whichever exists): the folder in this
    repo where each post lands as `<slug>.md`. To the owner: "Posts go in
@@ -2842,7 +2942,7 @@ publish:
     permalink_structure: <value>    # as read from the site; omit when unknown
     default_status: draft
     apply_inbound_links_live: false
-  markdown:         # only if adapter = markdown
+  markdown:         # only if adapter = markdown; files mode writes the "If files" block instead
     content_dir: <path>
     assets_dir: <path>
     image_url_prefix: <prefix>      # omit when images are relative

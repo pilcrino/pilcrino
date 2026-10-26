@@ -24,6 +24,17 @@ has_phrase "$SETUP" 'https://github.com/signup'
 has_phrase "$SETUP" 'As I said at the start, Pilcrino needs a GitHub repository for this blog'
 
 # Task 3: Phase 5 opens with files or beta
+has_phrase "$SETUP" '### Interview: where your posts go (every blog)'
+has_phrase "$SETUP" '### If files'
+has_phrase "$SETUP" 'Files in a pull request (recommended)'
+has_phrase "$SETUP" 'Publish to my site (beta)'
+has_phrase "$SETUP" 'WordPress (as drafts you publish), or a site built from this repository with Astro, Hugo, Next.js or Eleventy'
+has_phrase "$SETUP" 'content_dir: blog-ops/posts'
+has_phrase "$SETUP" 'assets_dir: blog-ops/posts/images'
+has_phrase "$SETUP" 'Not sure, keep it plain'
+has_phrase "$SETUP" "Your site won't show these posts; merging only files them in"
+has_phrase "$SETUP" 'Every post now waits for your approval.'
+lacks_phrase "$SETUP" 'Webflow, Squarespace, Ghost or another hosted CMS → `markdown` with `generic`'
 
 # Task 4: keep blog-ops/ out of Jekyll and Eleventy builds
 
