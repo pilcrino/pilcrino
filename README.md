@@ -755,6 +755,12 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ## Changelog
 
+### 0.59.2 - plan-content stops at Google's check
+
+- `plan-content` no longer skips Google when Google shows its unusual-traffic check. A test run had finished with no Google pages and scored every post without a search result page. Now the page script reports the check, the Pilcrino browser brings that tab to the front, and an interactive run stops at once and asks the owner to pass it, then retries that search in a new tab and finishes the Google round. It never moves on to Reddit or X with Google searches left, unless the owner says to.
+- Autopilot waits a minute and retries once in a new tab; if Google still blocks, the run fails with `blocked` instead of carrying on with Reddit and X.
+- The first message of an interactive run says "This takes about 30 minutes." It no longer promises to ask no questions.
+
 ### 0.59.1 - The README says three systems everywhere
 
 - Quickstart step 1, the setup time in the FAQ and the Uninstall index line said "Mac" where the plugin runs on macOS, Windows and Linux alike; the FAQ answer says all three are tested end to end.

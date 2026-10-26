@@ -218,7 +218,20 @@ need skills/blog-setup/SKILL.md '### Three standing decisions (every blog)'
 need skills/blog-setup/SKILL.md 'Watching the pull request → `review.pr_monitor`'
 need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `false`'
 need README.md '### 0.59.0 - The pull request monitor is opt-in'
-need .claude-plugin/plugin.json '"version": "0.59.1"'
+need .claude-plugin/plugin.json '"version": "0.59.2"'
+
+# 0.59.2: plan-content stops at Google's check instead of skipping Google
+need skills/plan-content/SKILL.md "return { blocked: 'unusual_traffic'"
+need skills/plan-content/SKILL.md 'Interactive: stop at once, with no wait.'
+need skills/plan-content/SKILL.md 'Google is asking for a check. Pass it in the Pilcrino browser window that is open, then tell me to carry on.'
+need skills/plan-content/SKILL.md 'Then retry the blocked query in the new tab'
+need skills/plan-content/SKILL.md 'Do not move on to Reddit or X while a Google query is left.'
+need skills/plan-content/SKILL.md 'if it persists, the run fails with `blocked`'
+absent skills/plan-content/SKILL.md 'continue with Reddit and X'
+absent skills/plan-content/SKILL.md 'go on with Reddit and X'
+absent skills/plan-content/SKILL.md 'fewer than half of the Google queries'
+absent skills/plan-content/SKILL.md 'asks no questions while it runs'
+need README.md '### 0.59.2 - plan-content stops at Google'"'"'s check'
 
 # 0.59.0 review round 1: off-mode routing, the bounded wait, PR state after it
 need skills/blog-post-workflow/SKILL.md 'only with `review.pr_monitor: true`, `pr-monitor.json` already has `status: approved`'
