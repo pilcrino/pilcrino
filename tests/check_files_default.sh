@@ -76,5 +76,10 @@ lacks_phrase "$WORKFLOW" '"Publish it" on WordPress or a paste platform is not a
 lacks_phrase "$WORKFLOW" 'A paste platform (`markdown` with `jekyll`, `ghost`, `generic`)'
 
 # Task 8: README, version and changelog
+grep -q '"version": "0.60.0"' .claude-plugin/plugin.json || say ".claude-plugin/plugin.json version is not 0.60.0"
+has_phrase README.md '### 0.60.0 - '
+has_phrase README.md 'a markdown file and its images'
+has_phrase README.md '(beta)'
+has_phrase README.md 'GitHub account'
 
 exit $fail

@@ -28,8 +28,10 @@ Blog posts for your product's blog, written inside Claude Code.
 - **Images in your style.** Drawn images use your blog's colours and fonts
   and show your own product, no stock art. AI illustrations and screenshots
   are optional.
-- **Published as a pull request.** You read it and approve it. It never
-  merges on its own.
+- **Delivered as a pull request.** Each post arrives as a markdown file and
+  its images in your GitHub repository. You read it, approve it and merge
+  it; it never merges on its own. Publishing straight to your site is in
+  beta.
 
 ![How a post is made: you ask, then research, plan, draft and review; the reviewer sends a claim with no source back to the writer, approves the fix, and the post is polished, illustrated and opened as a pull request you approve and merge.](.github/assets/how-a-post-is-made.gif)
 
@@ -45,11 +47,12 @@ and [Install](#install) walk through it. Then run `/pilcrino:blog-setup`
 (see [Quickstart](#quickstart)).
 
 Pilcrino writes how-to guides, best-of lists, "alternatives to" posts and
-comparisons of your product with its competitors. It works with sites built
-from a GitHub repository (Astro, Hugo, Next.js, Eleventy and other markdown
-sites), creates drafts in WordPress, and hands you a file to paste in for
-Webflow, Ghost, Jekyll and other platforms. Research and writing run on your
-Claude plan in a long Claude Code session.
+comparisons of your product with its competitors. By default each post
+arrives as a pull request with a markdown file and its images, ready to put
+on any platform. Publishing to the site itself is in beta: drafts in
+WordPress, or a site built from the repository with Astro, Hugo, Next.js or
+Eleventy. Research and writing run on your Claude plan in a long Claude
+Code session.
 
 ## What it does
 
@@ -146,8 +149,10 @@ account leaks.
 It runs on macOS, Windows 10 or 11 (x64) and Linux (Debian, Ubuntu and
 Fedora are the ones with install commands in setup; a desktop session is
 needed for the browser). Pilcrino does not host or deploy your blog; it
-only adds posts to it. Every blog needs a GitHub repository, because every
-post is reviewed as a pull request. A site that is not live yet is fine.
+only adds posts to it. You need a GitHub account (a free one works): every
+post is a pull request in a GitHub repository for your blog, which setup
+creates if you have none. A site that is not live yet is fine, and so is no
+site at all.
 
 Software, installed once:
 
@@ -160,7 +165,7 @@ Software, installed once:
 - Node 22.13 or newer; 24 is fine. On Windows the x64 build, also on an Arm
   PC (the drawn-images renderer has no Windows on Arm build).
 - GitHub CLI (`gh`), signed in to your GitHub account.
-- `jq`, only for a WordPress blog.
+- `jq`, only for WordPress publishing (beta).
 
 Setup checks all of these on its first run and gives the one install route
 for your system for anything missing.
@@ -170,7 +175,7 @@ Accounts:
 - GitHub, for the repository your posts go into.
 - Google, for research. Pilcrino searches signed in.
 - Reddit and X, only if you turn those research sources on in setup.
-- WordPress: an application password (in WordPress admin, Users, Profile,
+- WordPress, only for WordPress publishing (beta): an application password (in WordPress admin, Users, Profile,
   Application Passwords). Pilcrino creates drafts with it and never publishes.
   Setup asks for it once through a hidden prompt and stores it in your
   Mac's keychain, or in your user settings on Windows, or in your shell's
@@ -244,7 +249,8 @@ files, "Yes, and don't ask again" is safe.
 
 ![Setup, one question at a time: most questions come with a recommended answer; you answer in your own words or reply default, and each answer is saved into blog-ops/ as you go.](.github/assets/setup.gif)
 
-1. **Start Claude Code and run `/pilcrino:blog-setup`.** Start it in your
+1. **Start Claude Code and run `/pilcrino:blog-setup`.** You need a GitHub
+   account (a free one works). Start it in your
    site's folder if the site is on this computer; otherwise anywhere. Setup
    first checks the computer (git, Node, the GitHub tool and its sign-in,
    Chrome) and offers to install what is missing, with the route for your
@@ -261,9 +267,11 @@ files, "Yes, and don't ask again" is safe.
    recommended answer as the first choice, and takes the rest from your
    site and repository; detailed setup asks every question. Everything it
    derived is shown to you before it is saved. Setup saves as it goes, so
-   you can stop and run it again later to continue. It reads your site
-   (which fields your posts can carry, whether there is a draft switch,
-   how the site goes live) and asks before changing anything in it. It
+   you can stop and run it again later to continue. One question decides
+   where posts go: files in a pull request (the default), or publishing to
+   your site (beta). Only the beta reads your site (which fields your
+   posts can carry, whether there is a draft switch, how the site goes
+   live), and setup asks before changing anything in it. It
    opens the sign-in window for the Pilcrino browser once (see below).
    Setup writes a `blog-ops/` folder
    in your repository (plus a `tools/remotion/` image project when you turn
@@ -289,13 +297,12 @@ You can also just say what you want ("Can you make me a content plan?",
 "Write a how-to about ...") and Claude Code picks the right skill.
 
 Every blog needs a GitHub repository, because every post is reviewed as a
-pull request. A site built from that repository publishes when the pull
-request merges; on WordPress you publish the draft in WordPress admin. On a
-paste platform you put the post file Pilcrino hands you into the platform,
-check it there and then say "approve"; merging files the repository copy. A site that
-is not live yet is fine: you read the post in the
-pull request (or in its preview, if your site builds one for every pull
-request).
+pull request. By default the post is a markdown file with its images in
+`blog-ops/posts/`: merging files it there, and you copy it to your site
+however you like. With publishing (beta), a site built from the repository
+publishes when the pull request merges, and on WordPress you publish the
+draft in WordPress admin. You read the post in the pull request (or in its
+preview, if your site builds one for every pull request).
 
 ## Reviewing and publishing a post
 
@@ -316,13 +323,13 @@ time you resume it. With the watcher on, an approval on GitHub is recorded
 too. Approving
 does not publish. Publishing is your action:
 
-- a site built from the repository (Astro, Hugo, Next.js, Eleventy): merge the
-  pull request;
-- WordPress: click Publish in WordPress admin;
-- Webflow, Ghost, Jekyll and other paste platforms: Pilcrino hands you the
-  post as a markdown file with its images before you approve. Put it in,
-  check it there, say "approve", then merge the pull request so the
-  repository keeps it.
+- files (the default): merge the pull request. The post is then filed in
+  `blog-ops/posts/` and counts as published in your content plan; copy the
+  file and its images to your site however you like. With the Ghost or
+  Jekyll format, put it into that platform before you approve;
+- a site built from the repository (Astro, Hugo, Next.js, Eleventy; beta):
+  merge the pull request;
+- WordPress (beta): click Publish in WordPress admin.
 
 To merge, open the pull request on GitHub, click the green "Merge pull
 request" button, then "Confirm merge". Or, after approving the post in Claude
@@ -585,7 +592,14 @@ each slot to its adapter in `adapters/images/`:
 
 ### Publish adapters
 
-Every adapter publishes through a pull request, so every blog needs a GitHub
+**Files mode (default).** Setup writes `publish.adapter: markdown` with
+`platform: generic` (or `ghost`, `jekyll`), `content_dir: blog-ops/posts`
+and `assets_dir: blog-ops/posts/images`: a folder no site reads (setup adds
+an ignore line for Jekyll and Eleventy, which would). The merge files the
+post and never publishes it; for `generic` the merge counts as the post's
+publish. See `skills/blog-setup/SKILL.md` "If files".
+
+**Publishing (beta).** Every adapter publishes through a pull request, so every blog needs a GitHub
 repository. A live site built from the repository publishes on merge; when the
 site is not live yet (`publish.site_live: false`) the merge only files the
 post, and nothing is published until the site is online. WordPress gets the
@@ -634,10 +648,11 @@ and you get a pull request to read, not a block of text.
 plan you already pay for. The Pilcrino app is separate and paid: see
 https://pilcrino.com/pricing.
 
-**Which platforms does it publish to?** Sites built from a GitHub repository
-(Astro, Hugo, Next.js, Eleventy and other markdown sites), WordPress as a
-draft, and Webflow, Ghost, Jekyll and other platforms through a file you
-paste in.
+**Which platforms does it publish to?** By default none: each post is a
+markdown file with its images that you can put on any platform (Ghost and
+Jekyll formats are offered). Publishing is in beta for WordPress (as a
+draft) and for sites built from a GitHub repository with Astro, Hugo,
+Next.js or Eleventy.
 
 **Does it run on Windows or Linux?** Yes: macOS, Windows 10 and 11 on x64 (Claude Code in Windows Terminal with Git for Windows) and Linux with a desktop session, each tested end to end (setup, a post, uninstall) on a fresh machine. Windows on Arm is not supported, because the drawn-images renderer has no build for it; WSL is untested.
 
@@ -754,6 +769,13 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.60.0 - Posts are files by default; site publishing is beta
+
+- Setup's "where your posts go" asks one question. The default puts each post, a markdown file with its images, in `blog-ops/posts/` through a pull request; merging files it, and for plain markdown the merge counts as published. Publishing to WordPress, Astro, Hugo, Next.js or Eleventy is offered as beta, unchanged.
+- Setup keeps `blog-ops/` out of Jekyll and Eleventy builds with one ignore line, asked once, for every blog.
+- Setup says before its first check that a GitHub account is needed, and a completed quick setup can come back to change where posts go.
+- Plain markdown posts no longer ask for a paste into a platform; Ghost and Jekyll keep their paste steps.
 
 ### 0.59.1 - The README says three systems everywhere
 
