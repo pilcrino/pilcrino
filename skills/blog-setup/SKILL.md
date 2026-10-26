@@ -2098,6 +2098,11 @@ interview itself. Only once `site-conventions.md` exists (or the check
 above finds it genuinely isn't required) does "keep as-is" mean "nothing
 left to do in Phase 5."
 
+"Keep Pilcrino's files off the site" below is the same kind of exception:
+it runs outside Phase 5's resume gate, on both paths, including the quick
+path's silent keep, whenever its test matches and neither the ignore
+entry nor a recorded decline exists.
+
 Owner's name for this part: "Where your posts go." The word "adapter" is
 never said to the owner; the three adapters are described by what happens
 to a post.
@@ -2131,8 +2136,8 @@ another hosted CMS, an empty repository), option 2 keeps the general
 label and description above, so the menu always has two options.
 Detection never picks the beta for the owner.
 
-- Files → "If files" below, then the `git:` block. Nothing between them
-  runs.
+- Files → "If files" below, then "Keep Pilcrino's files off the site",
+  then the `git:` block. Nothing else between them runs.
 - A label that named the detected site → that adapter (`astro-git-pr`,
   `wordpress-rest`, or `markdown` with `hugo`, `nextjs` or `eleventy`).
   "Interview: adapter choice" is not asked again: continue at "Interview:
@@ -2143,7 +2148,9 @@ Detection never picks the beta for the owner.
   question: "One more than I said").
 
 Beta chosen: everything from "Interview: how the site goes live" to the
-`git:` block is the beta, unchanged except where it says so.
+`git:` block is the beta, unchanged except where it says so. "Keep
+Pilcrino's files off the site" runs for the beta too, right after the
+chosen adapter's section and before the `git:` block.
 
 ### If files
 
@@ -2199,6 +2206,60 @@ deployment evidence, "Interview: adapter choice", the adapter sections,
 "Site conventions", and the `jq` check (Phase 0a check 6 runs only for
 WordPress). "Keep Pilcrino's files off the site", the `git:` block and
 the GitHub precondition still run.
+
+### Keep Pilcrino's files off the site (every blog)
+
+Runs for every blog, files or beta, and runs outside Phase 5's resume
+gate: on a resumed or re-run setup where Phase 5 is kept as it is (Global
+rule 3's "keep as-is", or the quick path keeping finished phases without
+asking), this step still runs whenever the repository matches a test
+below and neither the ignore entry nor a recorded decline exists. An
+existing Jekyll or Eleventy blog gets the fix this way.
+
+Jekyll, and Eleventy when it builds from the repository root, publish
+every file in the repository they are not told to skip: markdown becomes
+pages, and every other file (`blog-ops/config.yaml`, research captures,
+the profile docs) is copied to the site as it is. A merged files-mode post
+would also appear at an address like `/blog-ops/posts/<slug>.html`.
+
+**The tests.**
+- **Jekyll:** a `_config.yml` at the site root, or a GitHub Pages site
+  built by Jekyll: `gh api repos/<owner>/<repo>/pages` reports
+  `build_type: legacy` and the repository has no `.nojekyll` at the root
+  of the folder Pages serves.
+- **Eleventy:** any Eleventy config file at the repository root
+  (`.eleventy.js`, `eleventy.config.js`, `eleventy.config.mjs`,
+  `eleventy.config.cjs`) or an `@11ty/eleventy` dependency in
+  `package.json` (Eleventy runs with no config file at all). It matches
+  only when the input folder contains `blog-ops/`: the input is the
+  config's `dir.input`, else an `--input` flag in a `package.json`
+  script, else `.` (the repository root).
+
+**The edit.**
+- **Jekyll:** add `blog-ops` to the `exclude` list in `_config.yml`. When
+  the file has an `exclude` list, append the one entry. When it has none,
+  write the list with Jekyll's defaults first (`.sass-cache/`,
+  `.jekyll-cache/`, `gemfiles/`, `Gemfile`, `Gemfile.lock`,
+  `node_modules/`, `vendor/bundle/`, `vendor/cache/`, `vendor/gems/`,
+  `vendor/ruby/`) and `blog-ops` last: Jekyll 3, which GitHub Pages runs,
+  replaces the default list with yours, and Jekyll 4 adds yours to it, so
+  this list is right for both. A Pages site with no `_config.yml`: create
+  one holding only that `exclude` list.
+- **Eleventy:** add the line `blog-ops/` to `.eleventyignore` at the
+  repository root, creating the file when there is none. Creating it does
+  not stop Eleventy from also honouring `.gitignore`.
+
+Ask with consent, in one sentence: "Your site publishes every file in the
+repository it is not told to skip, Pilcrino's own notes and settings
+included. Shall I add one line to `<file>` so it skips the `blog-ops`
+folder?" Quick path: action, both paths. On yes, make the edit and record
+the file in Global rule 2's paths list as a site file, so Phase 6 commits
+it and lists it under `## Site files edited by setup`. On no, say once:
+"Then merged posts will also appear on your site at an address under
+/blog-ops/." and record `Site ignore line: declined <date>` in
+`{profile_dir}/setup-notes.md` (above the site-files section). Setup does
+not block on a decline, and while that line exists no later run asks
+again unless the owner asks for it.
 
 ### Interview: how the site goes live (every adapter)
 
@@ -2263,8 +2324,9 @@ problem).
 1. Detect first, then confirm. Read the repo root (and `site_dir` when a
    subfolder holds the site): `astro.config.*` or an `astro` dependency in
    `package.json` → `astro-git-pr`; `hugo.toml`/`config.toml` with Hugo
-   keys, a `next` dependency, `.eleventy.js` → `markdown` with that
-   platform; a WordPress address from Phase 1 (`/wp-json` answers) or the
+   keys, a `next` dependency, an Eleventy site (any config file or the
+   dependency, as "Keep Pilcrino's files off the site" tests) → `markdown`
+   with that platform; a WordPress address from Phase 1 (`/wp-json` answers) or the
    owner said WordPress → `wordpress-rest`. A Jekyll site (`_config.yml`),
    Webflow, Squarespace, Ghost or another hosted CMS is not a beta
    platform: detection reports nothing supported, and "Interview: where

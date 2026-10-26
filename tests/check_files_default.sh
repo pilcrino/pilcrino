@@ -37,6 +37,16 @@ has_phrase "$SETUP" 'Every post now waits for your approval.'
 lacks_phrase "$SETUP" 'Webflow, Squarespace, Ghost or another hosted CMS → `markdown` with `generic`'
 
 # Task 4: keep blog-ops/ out of Jekyll and Eleventy builds
+has_phrase "$SETUP" "### Keep Pilcrino's files off the site (every blog)"
+has_phrase "$SETUP" 'eleventy.config.mjs'
+has_phrase "$SETUP" 'eleventy.config.cjs'
+has_phrase "$SETUP" '@11ty/eleventy'
+has_phrase "$SETUP" '.eleventyignore'
+has_phrase "$SETUP" 'build_type: legacy'
+has_phrase "$SETUP" '.nojekyll'
+has_phrase "$SETUP" 'Your site publishes every file in the repository it is not told to skip'
+has_phrase "$SETUP" 'Then merged posts will also appear on your site at an address under /blog-ops/.'
+has_phrase "$SETUP" "runs outside Phase 5's resume gate"
 
 # Task 5: re-runs, counting and the skill description
 
