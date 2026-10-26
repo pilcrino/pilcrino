@@ -568,6 +568,46 @@ console:
 research:
 ```
 
+### Example: files mode (default)
+
+What setup writes by default (`skills/blog-setup/SKILL.md` "If files"): each post is a markdown file with its images in `blog-ops/posts/`, delivered as a pull request. The merge files it and never publishes it; for `generic` the merge counts as the post's publish (SKILL.md Step 15.5). No `site_live`, no `image_url_prefix`.
+
+```yaml
+blog:
+  name: "Billing Notes"
+  url: https://billingnotes.example
+  language: en
+  route_prefix: /notes/
+  trailing_slash: false
+
+modules:
+  reddit_research: false
+  x_research: false
+  product: false
+  competitors: false
+  repurpose: false
+
+images:
+  enabled: [ai-prompt]
+
+publish:
+  adapter: markdown
+  markdown:
+    content_dir: blog-ops/posts
+    assets_dir: blog-ops/posts/images
+    platform: generic
+    frontmatter_template: adapters/publish/frontmatter/markdown-generic.md
+
+git:
+  branch_prefix: blog/
+  base_branch: main
+
+console:
+  publish_policy: gated
+
+research:
+```
+
 ## Go-live is always human (invariant, not configurable)
 
 No config key, invocation argument, or standing instruction can authorize going live. The workflow and every publish adapter stop at a draft/PR state; the human performs the publish action (merging the PR, or clicking Publish in WP admin). "Update status to published" in an invocation refers to the content-calendar Status column, never the live post. See `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` §How to invoke (Go-live guard), `${CLAUDE_PLUGIN_ROOT}/personas/editor.md` §Gate 2, and each adapter's `## On Gate 2 approval`.

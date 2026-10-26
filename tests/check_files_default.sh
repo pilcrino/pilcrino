@@ -65,6 +65,15 @@ has_phrase "$ADAPTER" 'If you publish the post somewhere, copy the file and its 
 has_phrase "$ADAPTER" 'Files mode'
 
 # Task 7: the workflow, generic wording and published on merge
+has_phrase "$WORKFLOW" 'The post is merged and filed in `blog-ops/posts/<slug>.md`.'
+has_phrase "$WORKFLOW" "After you merge, run /pilcrino:blog-post-workflow published <slug> and I'll mark it published in your content plan."
+has_phrase "$WORKFLOW" 'for `generic`, the merge is the publish'
+has_phrase "$WORKFLOW" 'standalone blogs only: continue straight into Step 16.5'
+has_phrase "$SCHEMA" '### Example: files mode (default)'
+lacks_phrase "$WORKFLOW" 'a `markdown` paste platform (`jekyll`, `ghost`, `generic`) always says'
+lacks_phrase "$WORKFLOW" 'A markdown paste platform starts the merge line with'
+lacks_phrase "$WORKFLOW" '"Publish it" on WordPress or a paste platform is not a merge request'
+lacks_phrase "$WORKFLOW" 'A paste platform (`markdown` with `jekyll`, `ghost`, `generic`)'
 
 # Task 8: README, version and changelog
 

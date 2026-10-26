@@ -448,7 +448,7 @@ Outline: approved by editor at end of Stage 2 (no human gate)
 Review:  verdict `approve` (iteration <N> of 3 max)
 Humanize: PASSED preservation check
 Preview:  <review-surface url> + staging <preview url> (read the staged post before approving)
-Merging:  <publish.site_live true: "Merging the pull request publishes the post." | false: "Merging files the post in your repository; the site is not live yet." | absent: the adapter's wording | wordpress-rest: "Merging keeps the repository copy; the post goes live when you click Publish in WordPress." | markdown paste platform: "Merging files the post in your repository; <Platform> has it only once you paste it in.">
+Merging:  <publish.site_live true: "Merging the pull request publishes the post." | false: "Merging files the post in your repository; the site is not live yet." | absent: the adapter's wording | wordpress-rest: "Merging keeps the repository copy; the post goes live when you click Publish in WordPress." | markdown generic: "Merging files the post in your repository." | markdown ghost or jekyll: "Merging files the post in your repository; <Platform> has it only once you paste it in.">
 <only when an in-post image is still missing on a site that is not live: "<image> is not made yet; the post shows a short note in its place. Save it as <path> and tell me, and I'll put it in the pull request.">
 
 Images:     <N> slots (1 featured + <N-1> in-post), plan at {drafts_dir}/<slug>/images.md
