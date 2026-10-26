@@ -54,9 +54,9 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    signed-out required sites and stop with the sign-in instruction instead
    (sign in, then quit that window with Cmd+Q).
    A Google block later in the run (unusual-traffic check or `/sorry`) is
-   retried once after two consecutive 30000 ms `wait` calls (Step 4); if it persists, keep the
-   captured pages and go on with Reddit and X, failing with `blocked` only
-   when fewer than half of the Google queries were captured. A Reddit thread whose capture fails is skipped; the run fails
+   retried once in a new tab after two consecutive 30000 ms `wait` calls
+   (Step 4); if it persists, the run fails with `blocked`. Google is never
+   skipped. A Reddit thread whose capture fails is skipped; the run fails
    with `blocked` only when the captured text shows "prove your humanity" or
    a login wall, or when more than half of the selected threads failed
    (Step 5).
@@ -132,14 +132,15 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
 ## Inputs
 
 **First message of an interactive run** (standalone and registered, not
-autopilot), before any tool call: "This takes about 30 minutes and asks no
-questions while it runs." When the description below is missing, that same
-message asks for it, and the run starts once the owner answers.
+autopilot), before any tool call: "This takes about 30 minutes." When the
+description below is missing, that same message asks for it, and the run
+starts once the owner answers.
 
 1. **Product or service description.** In order of preference: `{profile_dir}/product.md`
    plus `blog.md` and `audience.md` when `blog-ops/` exists; a file the owner names;
    inline text. If none exists, ask for one paragraph: what it is, who buys it, what
-   it costs, what makes it different. That is the only question this skill asks.
+   it costs, what makes it different. Besides this, the skill stops to ask only
+   when Google shows its check (Step 4).
 2. **Idea.** The argument text after `/plan-content`, or the request's `idea`.
    Empty means batch mode.
 3. **Blog name.** From `blog.md`, else the product name.
@@ -339,11 +340,13 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
   tabId: <tabId>
   outFile: {raw}/<round>-<n>.json
   script: |
+    if (/(^|\.)google\.[a-z.]+$/.test(location.hostname) && (/unusual traffic/i.test(document.body.innerText) || location.pathname.startsWith('/sorry'))) return { blocked: 'unusual_traffic', url: location.href, query: new URLSearchParams(location.search).get('q') };
     return { url: location.href, title: document.title, text: document.body.innerText.substring(0, 20000), links: Array.from(document.querySelectorAll('a[href]')).slice(0, 200).map(a => ({ href: a.href, text: a.innerText.trim().substring(0, 120) })) }
 ```
 
-Then `Read` the file. Close each tab with `tabs` `action: close` (one call per
-`tabId`) when Step 6 ends.
+Then `Read` the file. Close each tab this run still owns with `tabs`
+`action: close` (one call per `tabId`) when Step 6 ends; a tab the browser
+released on Google's check (Step 4) is not closed.
 
 ## Step 3: Build the query bank
 
@@ -371,14 +374,30 @@ captured `text` is a consent dialog ("Before you continue"), tell the owner to
 clear it in the browser, then retry once (autopilot: retry once, then
 `blocked`).
 
-Wait 4000 to 6000 ms between Google navigates (Step 2). On the first captured
-Google page whose `text` shows the unusual-traffic check or whose `url` contains
-`/sorry`: call `wait` with 30000 ms twice in a row (one `wait` is capped at
-30000 ms), then retry that query once. If it is still
-blocked, stop the Google round, keep every page captured so far, and continue
-with Reddit and X. Interactive: tell the owner the round was cut short.
-Autopilot: continue, and fail with `blocked` only if fewer than half of the
-Google queries were captured.
+Wait 4000 to 6000 ms between Google navigates (Step 2).
+
+**Google's check.** Google research is the core of the plan and is never
+skipped. A Google capture is blocked when its result says `blocked: true` (the
+page script returned `{"blocked": ...}` on the unusual-traffic check or a
+`/sorry` page). The browser has then left that tab open on the check, titled
+"Pilcrino: pass the check", brought its window to the front and stopped owning
+it: open one new tab (`tabs` `action: open`) and use it in place of the old one
+for the rest of the run, until another block replaces it the same way. Never
+call `close` or anything else on a released tab; it stays for the owner. Keep
+every page captured so far.
+This applies to every Google search in the run, Step 5's `site:reddit.com`
+searches included.
+- Interactive: stop at once, with no wait. Tell the owner, word for word:
+  `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then tell me to carry on.`
+  and wait for the reply. Then retry the blocked query in the new tab and go on
+  with the rest of the bank from there. Blocked again: ask again the same way.
+  Do not move on to Reddit or X while a Google query is left. Only the owner
+  can end the Google round early, by saying so; the Step 9 report then says how
+  many of the Google queries were captured.
+- Autopilot: in the new tab call `wait` with 30000 ms twice in a row (one `wait`
+  is capped at 30000 ms), then retry that query once. Still blocked: fail with
+  `blocked` and the detail `Google is asking for a check. Pass it in the
+  Pilcrino browser window that is open, then run the research again.`
 
 Write `{strategy dir}/research/<date>-serp.md` (add `-2`, `-3` if the name is
 taken), one H2 per query, in the entry format from `references/queries.md`. Log
@@ -720,6 +739,7 @@ note, not moved behind posts that need nothing.
 - [ ] Standalone, module on: an idea naming a competitor with no profile is added as `planned` with a `Profile first: <name>, <name>` line after its `Mention:` line, and the report says it waits for the fact sheets and that the post workflow offers to research them
 - [ ] Registered: an idea naming a competitor with no profile is reported with the add command (`/pilcrino:research-competitor <name>`), not added
 - [ ] Autopilot, module on: the `competitors` array holds every chosen and skipped competitor and every name the ideas use, up to 30
-- [ ] Browser tabs closed
-- [ ] Interactive run: the first message said "This takes about 30 minutes and asks no questions while it runs"
+- [ ] Browser tabs this run still owns closed (a tab released on Google's check stays open)
+- [ ] Interactive run: the first message said "This takes about 30 minutes."
+- [ ] Every Google query in the bank captured, or the owner said to end the Google round; a Google check stopped the run and asked the owner (autopilot: failed with `blocked`)
 - [ ] Chat report under 25 lines, one "write these first" order (the plan's), plain words (fact sheet, no "cap"), owner-named and research-added competitors told apart, and standalone it ends with the plan file path
