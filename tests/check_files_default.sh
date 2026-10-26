@@ -19,6 +19,9 @@ WORKFLOW=skills/blog-post-workflow/SKILL.md
 SCHEMA=skills/blog-post-workflow/references/config-schema.md
 
 # Task 2: setup says up front that GitHub is required
+has_phrase "$SETUP" 'you need a GitHub account (a free one works)'
+has_phrase "$SETUP" 'https://github.com/signup'
+has_phrase "$SETUP" 'As I said at the start, Pilcrino needs a GitHub repository for this blog'
 
 # Task 3: Phase 5 opens with files or beta
 

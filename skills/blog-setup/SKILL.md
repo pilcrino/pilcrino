@@ -319,8 +319,14 @@ resolves to."
 
 Runs once, before Phase 1, on every invocation (resumed or fresh). To the
 owner this is "Checking this Mac" (or "this computer", Global rule 9), then
-"Finding your blog". Open with one sentence: "Before any questions, I'll
-check that this Mac has what Pilcrino needs, then find your blog."
+"Finding your blog". Open with this message, before the first check, so
+an owner learns what Pilcrino needs before anything fails: "Pilcrino keeps
+your posts and its settings in a GitHub repository, and opens every post
+as a pull request for you to review. So you need a GitHub account (a free
+one works), and this Mac needs git and GitHub's command line tool; I'll
+install those with you if they're missing. Before any questions, I'll
+check this Mac, then find your blog." (On Windows and Linux, "this
+computer", Global rule 9.)
 
 ### 0a. Preflight: the tools, in this order
 
@@ -472,7 +478,9 @@ Pilcrino may run it.
      gh auth login -h github.com -p https -w </dev/null > "$GH_LOG" 2>&1
      ```
      Then read the log after a few seconds (`grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}' "$GH_LOG"`)
-     and tell the owner: "Next, sign in to GitHub from this Mac. Open
+     and tell the owner, first, once: "No GitHub account yet? Create one at
+     https://github.com/signup, then come back here." Then: "Next, sign in
+     to GitHub from this Mac. Open
      https://github.com/login/device in your browser, sign in to GitHub if
      asked, enter the code <code>, click Continue, then Authorize. Tell me
      when the page says it is done." On the reply, run `gh auth status`
@@ -563,7 +571,8 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
    the Ananke theme, no posts yet"; "an Astro site"; "empty").
 3. **"Nowhere yet, or it is on WordPress / Webflow / another platform
    that hosts it for me."** First the one-sentence reason, then a question:
-   "Pilcrino still needs a GitHub repository for this blog: every post is
+   "As I said at the start, Pilcrino needs a GitHub repository for this
+   blog: every post is
    reviewed there as a pull request before it goes anywhere, and the
    repository keeps your posts and Pilcrino's settings. Do you already have
    one for this blog, maybe one someone made for you?" Yes: continue as
