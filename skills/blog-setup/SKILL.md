@@ -1,6 +1,6 @@
 ---
 name: blog-setup
-description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). Reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain, scaffolds the Remotion image project, probes the publish adapter's auth once, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
+description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). By default each post is a markdown file with its images, delivered as a pull request; publishing to the site (beta) is opt-in, for WordPress, Astro, Hugo, Next.js and Eleventy, and only the beta reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain and probes the publish adapter's auth once. Keeps Pilcrino's files out of Jekyll and Eleventy builds, scaffolds the Remotion image project, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
 ---
 
@@ -290,7 +290,11 @@ resolves to."
     Quick path: T = 10 for the ten always-asked questions, in order: name,
     address, about, readers, credibility, product yes/no, competitors,
     where posts go, pushing consent, the commit question; +1 for
-    WordPress (username). A conditional question (the product's address,
+    WordPress (username). "Where posts go" is "Interview: where your
+    posts go": files mode adds nothing more (the format is derived, never
+    asked on the quick path), and a beta label that named the detected
+    site adds nothing either; the general beta label's adapter menu is a
+    conditional question. A conditional question (the product's address,
     route prefix, site live, author name, product identity fallback,
     image serving fallback, the Astro template choice when the schema
     matches neither supported shape) raises T by one when it arises, said
@@ -675,10 +679,20 @@ folder.
 - Either exists → this is a resume/update run. Read what's there, work out
   which phases already have their files (config.yaml keys present; which
   profile docs exist), append the resume time (Global rule 8), read
-  `Path:` from `setup-notes.md` (Global rule 10). `Path: quick`: say "I
+  `Path:` from `setup-notes.md` (Global rule 10). `Path: quick`, with
+  some phase still without its files (an interrupted setup): say "I
   found your earlier answers; I'll continue from <the first part without
   files>" and proceed to Phase 1 on the quick path, keeping finished
-  phases without asking. Otherwise tell
+  phases without asking. `Path: quick` with every phase's files present
+  (a completed setup): ask once, as a menu, "Your setup is complete. What
+  would you like to change?": "Where your posts go" / "Go through
+  everything" / "Nothing, just check it". "Where your posts go" runs
+  Phase 5 as "update" (its first question again, pre-filled with what is
+  on file), then Phase 6's validation, summary and commit; every other
+  phase is kept. "Go through everything" runs every phase with the
+  detailed path's keep / update / start-over menus. "Nothing, just check
+  it" runs Phase 6's validator and reports. Each choice still runs "Keep
+  Pilcrino's files off the site" when its test matches. Otherwise tell
   the owner in their words: "I found an earlier setup for this blog here.
   I'll go through each part (what the blog is about, how it sounds, your
   sources and product, images, where posts go) and for each one you can
@@ -2083,6 +2097,20 @@ as-is" is an informed choice rather than a guess:
   `existing_blog: true` with no `site-research.md` ever written, and still
   owes this file); recommended otherwise. Check both conditions and report
   a mismatch explicitly rather than staying silent.
+
+Name what is on file in owner words first: "Posts are files in
+`blog-ops/posts/`" (files mode; "in `<content_dir>`" when an older setup
+used another folder), "Posts go to your WordPress as drafts (beta)",
+"Posts are published to your Astro site (beta)" (likewise Hugo, Next.js,
+Eleventy). "Keep as-is" keeps whatever is there, any adapter: an existing
+WordPress, Astro or Hugo blog is never moved to files. "Update" asks
+"Interview: where your posts go" again, with what is on file as the
+first option. An existing `markdown` blog with `platform: generic`,
+`ghost` or `jekyll` and a `content_dir` other than `blog-ops/posts`
+(earlier setups used `posts/`) keeps its folders, on "keep as-is" and on
+"update" alike: its posts live there and the inbound-link search over
+`{content_dir}` must keep finding them. Only a fresh setup or "start
+over" writes `blog-ops/posts`.
 
 Phrase it like: "publish config exists (auth probe: FAILED on last run;
 site-conventions.md: MISSING — required for this adapter): keep as-is /
@@ -3527,6 +3555,12 @@ detailed path, before any yes adds a block:
 | astro-git-pr | 55 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 5 |
 | wordpress-rest | 53 | as above with publishing 5 (folders, address, username) |
 | markdown | 54 | as above with publishing 6 (folders, platform, image serving) |
+| files | 50 | as above with publishing 2 (where posts go, format) |
+
+"Where posts go" (the first Phase 5 question) replaces the adapter
+confirm on the beta rows above when its label named the detected site,
+so those rows are unchanged; when the general beta label leads to the
+adapter menu, add 1.
 
 The table is the existing-blog case. Recompute T from the branch
 actually taken, at the moment it is taken: a brand-new blog answers only

@@ -49,6 +49,13 @@ has_phrase "$SETUP" 'Then merged posts will also appear on your site at an addre
 has_phrase "$SETUP" "runs outside Phase 5's resume gate"
 
 # Task 5: re-runs, counting and the skill description
+has_phrase "$SETUP" 'Your setup is complete. What would you like to change?'
+has_phrase "$SETUP" '| files | 50 |'
+has_phrase "$SETUP" 'Posts are files in `blog-ops/posts/`'
+has_phrase "$SETUP" 'Posts go to your WordPress as drafts (beta)'
+has_phrase "$SETUP" 'keeps its folders, on "keep as-is" and on "update" alike'
+desc=$(sed -n 3p "$SETUP")
+{ printf '%s' "$desc" | grep -qi 'by default' && printf '%s' "$desc" | grep -qF '(beta)'; } || say "$SETUP description must say files by default and name the beta"
 
 # Task 6: the markdown adapter's generic wording
 
