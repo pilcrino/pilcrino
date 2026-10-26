@@ -58,6 +58,11 @@ desc=$(sed -n 3p "$SETUP")
 { printf '%s' "$desc" | grep -qi 'by default' && printf '%s' "$desc" | grep -qF '(beta)'; } || say "$SETUP description must say files by default and name the beta"
 
 # Task 6: the markdown adapter's generic wording
+lacks_phrase "$GENERIC" 'the owner pastes the post in before approving'
+has_phrase "$ADAPTER" 'Your post is the file'
+has_phrase "$ADAPTER" 'the title, description, date, tags and cover are at the top of the file'
+has_phrase "$ADAPTER" 'If you publish the post somewhere, copy the file and its pictures there.'
+has_phrase "$ADAPTER" 'Files mode'
 
 # Task 7: the workflow, generic wording and published on merge
 

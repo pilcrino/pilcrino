@@ -1,6 +1,6 @@
 # Generic frontmatter template (markdown adapter)
 
-Read by: the `blog-writer` agent (see `${CLAUDE_PLUGIN_ROOT}/personas/writer.md` §Frontmatter, which points here via `publish.markdown.frontmatter_template`), the review skill, and `${CLAUDE_PLUGIN_ROOT}/adapters/publish/markdown.md` (Stage 4b.5 cover injection). Used when `publish.markdown.platform: generic`, for any platform that takes a markdown file and has no doc of its own (Webflow, a page builder, a CMS import). Paste platform: the owner pastes the post in before approving.
+Read by: the `blog-writer` agent (see `${CLAUDE_PLUGIN_ROOT}/personas/writer.md` §Frontmatter, which points here via `publish.markdown.frontmatter_template`), the review skill, and `${CLAUDE_PLUGIN_ROOT}/adapters/publish/markdown.md` (Stage 4b.5 cover injection). Used when `publish.markdown.platform: generic`, for any platform that takes a markdown file and has no doc of its own (Webflow, a page builder, a CMS import). Files mode, setup's default: the merge files the post in the repository; the owner may copy it to a platform afterwards, and nothing waits for that.
 
 ## Config inputs
 

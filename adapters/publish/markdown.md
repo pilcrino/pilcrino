@@ -28,7 +28,9 @@ No `site_dir`, no authors map, no preview marker. `console.publish_policy` must 
 | Group | Platforms | What the merge does |
 |---|---|---|
 | Repo platform | `astro`, `hugo`, `nextjs`, `eleventy` | The site builds from `{git.base_branch}`: for a site that serves the configured image shape (§Config inputs, `{image_url_prefix}`), the merge publishes. The platform name alone never decides this |
-| Paste platform | `jekyll`, `ghost`, `generic` | The merge files the post in the repository. The platform gets it only when the owner pastes it in, before approving. Jekyll is here because its `_posts` folder only picks up files named `YYYY-MM-DD-<slug>.md` |
+| Paste platform | `jekyll`, `ghost`, `generic` | The merge files the post in the repository. The platform gets it only when the owner pastes it in, before approving (`ghost`, `jekyll`; `generic` waits for no paste, see Files mode below). Jekyll is here because its `_posts` folder only picks up files named `YYYY-MM-DD-<slug>.md` |
+
+**Files mode** is what setup writes by default (`skills/blog-setup/SKILL.md` "If files"): `platform` `generic`, `ghost` or `jekyll`, with `content_dir: blog-ops/posts` and `assets_dir: blog-ops/posts/images`, a folder no site reads (setup keeps it out of Jekyll and Eleventy builds). It stays on paste platforms on purpose: there the merge files the post and never publishes it, which is true of a file in `blog-ops/posts/`. A repo platform in that folder would make every "merging publishes" sentence false. For `generic` the owner may have no platform at all, so its wording below never asks for a paste, and its merge counts as the publish (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` Step 15.5, "When a `generic` post is published").
 
 `<Platform>` in the text below is the display name: Astro, Hugo, Jekyll, Ghost, Next.js, Eleventy, or "your platform" for `generic`.
 
@@ -40,7 +42,7 @@ None. This adapter never reads the site. `publish.markdown.platform` and `publis
 
 ## Relationship to the git repo
 
-The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For a paste platform the owner puts the post into the platform first (§Staging step 6 hands over the markdown file and its image folder; a blog registered with the Pilcrino app can also download the app's zip: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository.
+The repository is the canonical home of the post, whatever the site is. This adapter follows the shared git staging of `${CLAUDE_PLUGIN_ROOT}/adapters/publish/astro-git-pr.md` §Staging (Stage 4b.5) steps 6a to 6h VERBATIM (branch from `origin/<base>`, worktree, commit, push, `gh pr create`, `pr-monitor.json` with `mode: pr`), with `{content_dir}` and `{assets_dir}` bound from `publish.markdown.*`, never `publish.astro.*`: `$POST = {content_dir}/<slug>.md` and `$ASSETS = {assets_dir}/<slug>`. The PR path is the only publish path; its GitHub precondition is checked at Step 0 (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §GitHub precondition). For a repo platform, for a site that serves the configured image shape, the merge publishes; the first post's page on the site is the check. For `ghost` and `jekyll` the owner puts the post into the platform first (§Staging step 6 hands over the markdown file and its image folder; a blog registered with the Pilcrino app can also download the app's zip: `post.md` plus its images, every image path rewritten to `./<name>`), then the merge files it in the repository. For `generic` the merge files it and nothing waits for a paste.
 
 ## Staging (Stage 4b.5)
 
@@ -64,7 +66,13 @@ Unconditional, no human approval needed, as in astro-git-pr.md: never pause to a
 5. **`pr-monitor.json`.** astro-git-pr.md §Staging step 7's schema, `mode: pr`. This adapter adds no fields.
 6. **Preview line for the Gate 2 banner.** `Preview: <pr_url>` (the diff) and, when the blog is registered with the Pilcrino app (SKILL.md Step 2.5's test), the app's preview page for this post. There is no staging site.
 
-   **Paste platforms (`jekyll`, `ghost`, `generic`): hand the post over as a file, before any approval.** The post is a markdown file with its images beside it; the owner puts it into the platform the way that platform takes a markdown file (an import, or the text pasted into a new post), converting it if the platform needs another format. The worktree folder is hidden from the file manager, so open it for the owner, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
+   **`generic`: say where the post is.** Open the image folder as below, then the banner says, with the path and link filled in:
+
+   > Your post is the file `<WT_ABS/{content_dir}/<slug>.md>`, and its pictures are in the folder I opened. Read it in the pull request (<pr_url>); when it reads right, tell me "approve". Merging files it in your repository. To put it on a site, copy the file and its pictures there; the title, description, date, tags and cover are at the top of the file.
+
+   Registered blogs only, add: "Or download the post as a zip from the Pilcrino app." Nothing else: no field list, no paste step.
+
+   **Ghost and Jekyll (`ghost`, `jekyll`): hand the post over as a file, before any approval.** The post is a markdown file with its images beside it; the owner puts it into the platform the way that platform takes a markdown file (an import, or the text pasted into a new post), converting it if the platform needs another format. The worktree folder is hidden from the file manager, so open it for the owner, with `WT_ABS="$(git rev-parse --show-toplevel)/<pr-monitor.json worktree>"`:
    ```bash
    open "$WT_ABS/{assets_dir}/<slug>"   # macOS; xdg-open on Linux; on Windows (Git Bash): cmd.exe //c start "" "$(cygpath -w "<path>")"
    ```
@@ -88,7 +96,7 @@ astro-git-pr.md §On review-loop edit as written: edit `$worktree/{content_dir}/
 
 ## On Gate 2 approval
 
-astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron if `review.pr_monitor: true` started one, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, retire the drafts folder into `{drafts_dir}/_archive/<slug>/` (`archive-draft.mjs retire`, SKILL.md Step 15.3 step 3) and complete its checklist; the worktree stays. The paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge, in SKILL.md Step 15.5's words, with the date sentence from astro-git-pr.md step 2b (that step dates the post on the branch here too): for a repo platform with `publish.site_live: true`, "merging it publishes the post; check the first post's page on the site"; with `publish.site_live: false`, "merging files the post in the repository; the site is not live yet"; absent, "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site"; for a paste platform, whatever `site_live` says, "merging it files the post in the repository; <Platform> has it only if you pasted it in". Then how to merge it (Step 15.5's merge line). Never merge on approval alone: the owner merges on GitHub, or asks Pilcrino to in the session (SKILL.md Step 15.6), and on a paste platform that merge only files the repository copy of a post the owner has pasted.
+astro-git-pr.md §On Gate 2 approval as written: stop the monitor cron if `review.pr_monitor: true` started one, re-sync the archive into the PR inside the worktree, push, then set the source `pr-monitor.json` to `done`, retire the drafts folder into `{drafts_dir}/_archive/<slug>/` (`archive-draft.mjs retire`, SKILL.md Step 15.3 step 3) and complete its checklist; the worktree stays. For `ghost` and `jekyll` the paste instruction (§Staging step 6) was on the banner before approval. Report the PR is approved and ready to merge, in SKILL.md Step 15.5's words, with the date sentence from astro-git-pr.md step 2b (that step dates the post on the branch here too): for a repo platform with `publish.site_live: true`, "merging it publishes the post; check the first post's page on the site"; with `publish.site_live: false`, "merging files the post in the repository; the site is not live yet"; absent, "merging it publishes the post on a site that serves the configured image shape; check the first post's page on the site"; for `generic`, "merging it files the post in your repository" (and that merge is its publish, SKILL.md Step 15.5); for `ghost` and `jekyll`, whatever `site_live` says, "merging it files the post in the repository; <Platform> has it only if you pasted it in". Then how to merge it (Step 15.5's merge line). Never merge on approval alone: the owner merges on GitHub, or asks Pilcrino to in the session (SKILL.md Step 15.6), and on `ghost` or `jekyll` that merge only files the repository copy of a post the owner has pasted.
 
 ## On abandon
 
@@ -102,7 +110,13 @@ The literal content this adapter supplies for `action-items.md` §4b, §6 and §
 
 Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`): the `astro-git-pr` wording; each row applied at §Staging step 3 ships in the same PR as the post. If the outline planned none, the template's default "None." stands.
 
-Paste platform (`jekyll`, `ghost`, `generic`): the `wordpress-rest` rule. The live posts on <Platform> are not the repository, so for every existing post in `<edited inbound posts>` write one item:
+`generic`: the repository copy is the post, and it already carries the link. For every existing post in `<edited inbound posts>` write one item:
+
+- [ ] If `<existing-slug>` is also on another site, add the same link there by hand (the repository copy already has it): link text `<anchor>`, target `{route_prefix}<slug>`.
+
+If the outline planned none, "None." stands.
+
+Ghost and Jekyll (`ghost`, `jekyll`): the `wordpress-rest` rule. The live posts on <Platform> are not the repository, so for every existing post in `<edited inbound posts>` write one item:
 
 - [ ] Add the link to `<existing-slug>` on <Platform> by hand (the repository copy already has it): link text `<anchor>`, target `{route_prefix}<slug>`.
 
@@ -120,7 +134,13 @@ Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`):
 - [ ] Merge the pull request ("Merge pull request", then "Confirm merge" on GitHub, or tell Pilcrino "merge it"); your site builds from `{git.base_branch}`.
 - [ ] After the build finishes, verify the live post per action-items §8.
 
-Paste platform (`jekyll`, `ghost`, `generic`):
+`generic`:
+
+- [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
+- [ ] Merge the pull request (on GitHub, or tell Pilcrino "merge it"). The merge files the post in `{content_dir}` and counts as its publish (SKILL.md Step 15.5).
+- [ ] If you publish the post somewhere, copy the file and its pictures there.
+
+Ghost and Jekyll (`ghost`, `jekyll`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
 - [ ] Put the post into <Platform> as the Gate 2 banner says (the markdown file, then each field and image; set the date field to today), then merge the pull request (on GitHub, or tell Pilcrino "merge it"; it files the repository copy). Registered with the Pilcrino app: the app's zip works too.
