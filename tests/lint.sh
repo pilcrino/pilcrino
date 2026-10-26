@@ -137,4 +137,11 @@ fi
 # 15. Markdown adapter frontmatter docs carry exactly their platform's keys
 python3 tests/check_markdown_frontmatter.py || err "markdown frontmatter docs (tests/check_markdown_frontmatter.py)"
 
+# 16. Files by default, site publishing as beta: the wording the spec depends on
+if [ -f tests/check_files_default.sh ]; then
+  bash tests/check_files_default.sh || err "files-default wording (tests/check_files_default.sh)"
+else
+  err "tests/check_files_default.sh missing"
+fi
+
 [ "$fail" -eq 0 ] && echo "LINT OK" || exit 1

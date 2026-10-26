@@ -89,6 +89,28 @@ console:
 research:
 `
 
+const FILES = `${BLOG}
+images:
+  enabled: [ai-prompt]
+
+publish:
+  adapter: markdown
+  markdown:
+    content_dir: blog-ops/posts
+    assets_dir: blog-ops/posts/images
+    platform: generic
+    frontmatter_template: adapters/publish/frontmatter/markdown-generic.md
+
+git:
+  branch_prefix: blog/
+  base_branch: main
+
+console:
+  publish_policy: gated
+
+research:
+`
+
 const WORDPRESS = (passwordLines) => `${BLOG}
 images:
   enabled: [ai-prompt]
@@ -139,6 +161,12 @@ test('a complete Astro config passes all 16 checks, exit 0', () => {
 
 test('a Hugo markdown config with frontmatter_keys and cover_key passes', () => {
   const r = run(repo(HUGO, { remotion: false, gitattributes: null }))
+  assert.equal(r.status, 0, r.out + r.err)
+  assert.match(r.out, /All 16 checks pass/)
+})
+
+test('a files-mode config (generic, blog-ops/posts, no site_live) passes all 16 checks', () => {
+  const r = run(repo(FILES, { remotion: false, gitattributes: null }))
   assert.equal(r.status, 0, r.out + r.err)
   assert.match(r.out, /All 16 checks pass/)
 })
