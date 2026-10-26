@@ -82,4 +82,15 @@ has_phrase README.md 'a markdown file and its images'
 has_phrase README.md '(beta)'
 has_phrase README.md 'GitHub account'
 
+# Final review fixes (Codex round 1)
+has_phrase "$SETUP" 'add `blog-ops` to the `exclude` list in `_config.yml`'
+has_phrase "$SETUP" 'add the line `blog-ops/` to `.eleventyignore`'
+has_phrase "$SETUP" 'an `--input` flag in a `package.json` build script (it overrides the config), else the config'
+has_phrase "$SETUP" "when that step edited a site file, continue to Phase 6's summary, commit and push"
+has_phrase "$SETUP" 'the effective folders'
+has_phrase "$SETUP" 'Files mode merges only the `git:` block below'
+has_phrase "$WORKFLOW" 'never from inside Step 16.5'
+has_phrase "$WORKFLOW" "without Step 15.5's \"When a \`generic\` post is published\" continuation"
+has_phrase personas/editor.md 'N/A in files mode: the post is on no site.'
+
 exit $fail

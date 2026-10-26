@@ -138,7 +138,7 @@ Repo platform (`astro`, `hugo`, `nextjs`, `eleventy`):
 
 - [ ] Review the PR diff at `<pr_url>` one more time (cover image, inbound links).
 - [ ] Merge the pull request (on GitHub, or tell Pilcrino "merge it"). The merge files the post in `{content_dir}` and counts as its publish (SKILL.md Step 15.5).
-- [ ] If you publish the post somewhere, copy the file and its pictures there.
+- [ ] If you publish the post somewhere, copy the file and its pictures there. (§8 is N/A for `generic`: personas/editor.md Stage 4b.)
 
 Ghost and Jekyll (`ghost`, `jekyll`):
 

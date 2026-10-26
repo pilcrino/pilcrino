@@ -691,8 +691,11 @@ folder.
   on file), then Phase 6's validation, summary and commit; every other
   phase is kept. "Go through everything" runs every phase with the
   detailed path's keep / update / start-over menus. "Nothing, just check
-  it" runs Phase 6's validator and reports. Each choice still runs "Keep
-  Pilcrino's files off the site" when its test matches. Otherwise tell
+  it" runs "Keep Pilcrino's files off the site" when its test matches,
+  then Phase 6's validator, and reports; when that step edited a site file, continue to Phase 6's summary, commit and push (with consent, as
+  always), because the fix only protects the site once it is on GitHub.
+  Each other choice runs that step too, and reaches Phase 6's commit
+  anyway. Otherwise tell
   the owner in their words: "I found an earlier setup for this blog here.
   I'll go through each part (what the blog is about, how it sounds, your
   sources and product, images, where posts go) and for each one you can
@@ -2182,14 +2185,20 @@ chosen adapter's section and before the `git:` block.
 
 ### If files
 
-Write, through the whole-file rewrite (Global rule 4):
+First settle the effective folders: `blog-ops/posts` and
+`blog-ops/posts/images` on a fresh setup or "start over"; on "update" of
+an existing `markdown` blog with `platform` `generic`, `ghost` or
+`jekyll`, its own `content_dir` and `assets_dir` (Phase 5's resume check:
+its posts live there). Every write, folder line and `mkdir` below uses
+the effective folders. Write, through the whole-file rewrite (Global
+rule 4):
 
 ```yaml
 publish:
   adapter: markdown
   markdown:
-    content_dir: blog-ops/posts
-    assets_dir: blog-ops/posts/images
+    content_dir: blog-ops/posts              # or the kept folder, above
+    assets_dir: blog-ops/posts/images        # or the kept folder, above
     platform: <generic | ghost | jekyll>     # the format, below
     frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
 ```
@@ -2205,7 +2214,8 @@ below handles that.
 
 1. State the folders in one line, never ask: "Posts go in
    `blog-ops/posts/`, with their images in `blog-ops/posts/images/`."
-   Run `mkdir -p blog-ops/posts/images` (an action, not counted).
+   (with the kept folders' names on an update). Run `mkdir -p` on the
+   effective `content_dir` and `assets_dir` (an action, not counted).
    Quick path: derive, both paths.
 2. **Format.** Which platform's field names the file uses, as a menu:
    - "Not sure, keep it plain" (first, the default) → `generic`: `title`,
@@ -2259,9 +2269,11 @@ would also appear at an address like `/blog-ops/posts/<slug>.html`.
   (`.eleventy.js`, `eleventy.config.js`, `eleventy.config.mjs`,
   `eleventy.config.cjs`) or an `@11ty/eleventy` dependency in
   `package.json` (Eleventy runs with no config file at all). It matches
-  only when the input folder contains `blog-ops/`: the input is the
-  config's `dir.input`, else an `--input` flag in a `package.json`
-  script, else `.` (the repository root).
+  only when the input folder contains `blog-ops/`: the input is an
+  `--input` flag in a `package.json` build script (it overrides the
+  config), else the config's `dir.input`, else `.` (the repository root).
+  When several scripts build with different inputs, test each, and match
+  if any one contains `blog-ops/`.
 
 **The edit.**
 - **Jekyll:** add `blog-ops` to the `exclude` list in `_config.yml`. When
@@ -3006,7 +3018,9 @@ Detect, don't ask:
     `main`). State it ("Pull requests go against `<branch>`, your
     repository's main branch").
 
-Merge into `config.yaml`:
+Merge into `config.yaml`. Files mode merges only the `git:` block below:
+the `publish:` block "If files" wrote stays exactly as written, with no
+`site_live` (files mode never asks it). The beta merges both blocks:
 
 ```yaml
 publish:
