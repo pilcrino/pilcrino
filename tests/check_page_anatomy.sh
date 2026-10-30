@@ -218,7 +218,7 @@ need skills/blog-setup/SKILL.md '### Three standing decisions (every blog)'
 need skills/blog-setup/SKILL.md 'Watching the pull request → `review.pr_monitor`'
 need skills/blog-setup/SKILL.md '"No, I'"'"'ll approve here" (default) → `false`'
 need README.md '### 0.59.0 - The pull request monitor is opt-in'
-need .claude-plugin/plugin.json '"version": "0.59.2"'
+need .claude-plugin/plugin.json '"version": "0.61.0"'
 
 # 0.59.2: plan-content stops at Google's check instead of skipping Google
 need skills/plan-content/SKILL.md "return { blocked: 'unusual_traffic'"
@@ -271,5 +271,9 @@ need $R 'changes of theirs that a save would publish'
 need $R 'see them only once they are on GitHub'
 absent $R 'the next post run'
 need $R 'allowed-tools: Read, Glob, Grep, Bash, Edit, Write'
+absent personas/editor.md 'suggestions only; nothing auto-applied'
+need personas/editor.md 'adds the ones you pick to your custom instructions'
+absent README.md 'suggests shared-skill and blog-local improvements'
+need README.md '### 0.61.0 - The retro writes custom instructions'
 
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1
