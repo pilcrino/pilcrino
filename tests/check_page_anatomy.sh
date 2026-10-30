@@ -246,4 +246,30 @@ wp=$(grep -n '^| `finalize` | `gate_2_final` | `publish.adapter: wordpress-rest`
 owner=$(grep -n 'PR MERGED by the owner, `review.pr_monitor` off' skills/blog-post-workflow/SKILL.md | head -1 | cut -d: -f1)
 [ -n "$wp" ] && [ -n "$owner" ] && [ "$wp" -lt "$owner" ] || { echo "ANATOMY FAIL: SKILL.md: the WordPress published row must come before the owner-merge rows" >&2; fail=1; }
 
+# Retro: custom instructions only (plan 2026-10-30-retro-custom-instructions)
+R=skills/blog-retro/SKILL.md
+absent $R 'Shared-skill findings'
+absent $R 'two-bucket'
+absent $R '${CLAUDE_PLUGIN_ROOT}/personas/{editor,writer,repurposer}.md'
+need $R '## Instructions to add'
+need $R '**Setting:**'
+need $R '**Pilcrino problem:**'
+need $R 'github.com/pilcrino/pilcrino/issues'
+need $R 'gh issue create -R pilcrino/pilcrino'
+need $R 'No draft text'
+need $R '## From the retro on <slug>, <YYYY-MM-DD>'
+need $R '# Custom instructions'
+need $R 'already states'
+need $R 'On `none`, or no answer, write nothing'
+need $R 'chore(pilcrino): custom instructions from the <slug> retro'
+need $R 'git worktree list --porcelain'
+need $R 'refs/heads/{git.base_branch}'
+need $R 'Only the work on `custom-instructions.md` runs against `<base>`'
+need $R 'the checkout the retro was invoked in (the evidence root)'
+need $R 'run the retro again from the blog'
+need $R 'changes of theirs that a save would publish'
+need $R 'see them only once they are on GitHub'
+absent $R 'the next post run'
+need $R 'allowed-tools: Read, Glob, Grep, Bash, Edit, Write'
+
 [ "$fail" -eq 0 ] && echo "ANATOMY OK" || exit 1

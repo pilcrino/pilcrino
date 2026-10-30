@@ -1,13 +1,13 @@
 ---
 name: blog-retro
-description: Run a retrospective after a blog post is finished, analyze how the run actually went and suggest concrete improvements. Reads the working-session conversation (primary), the PR review + comment history via gh (the async-review friction record), and the slug's archived artifacts (review-iteration counts, verdicts, fallbacks, HARD-HALTs). Produces an in-chat, root-caused suggestion list (symptom, root-cause file + section, suggested edit) split into two buckets, shared-skill findings that target the plugin (benefiting every blog on the next update) and blog-local findings that target this blog's blog-ops/ overrides. Read-only, it suggests and never applies. Human-triggered only, never on a timer, standalone via /pilcrino:blog-retro <slug> in the working session after Gate 2. Not wired into blog-post-workflow.
+description: Run a retrospective after a blog post is finished, analyze how the run actually went and turn what went wrong into standing instructions for this blog. Reads the working-session conversation (primary), the PR review + comment history via gh (the async-review friction record), and the slug's archived artifacts (review-iteration counts, verdicts, fallbacks, HARD-HALTs). Produces an in-chat, root-caused list where each finding is an instruction to add to this blog's custom instructions (blog-ops/profile/custom-instructions.md), a setting to change, or a Pilcrino problem no instruction can fix. Adds the instructions the owner picks and saves them to GitHub; offers to report Pilcrino problems on the public Pilcrino issues board. Never edits plugin files. Human-triggered only, never on a timer, standalone via /pilcrino:blog-retro <slug> in the working session after Gate 2. Not wired into blog-post-workflow.
 argument-hint: "<slug>"
-allowed-tools: Read, Glob, Grep, Bash
+allowed-tools: Read, Glob, Grep, Bash, Edit, Write
 ---
 
 # blog-retro
 
-Standalone retrospective. Run AFTER a blog post is finished, in the working session where the post was produced, to mine that run for improvements. Read-only: it suggests, it never edits a skill, persona, template, adapter, or blog-local profile/config/template override.
+Standalone retrospective. Run AFTER a blog post is finished, in the working session where the post was produced, to mine that run for improvements. Every improvement lands in one place the blog owner controls: `{profile_dir}/custom-instructions.md`. The retro writes that file only after the owner picks what to add, and it never edits a skill, persona, template, adapter, post, `config.yaml`, or any other profile doc.
 
 ## When to invoke
 
@@ -23,14 +23,17 @@ There is exactly ONE way this skill runs, human-triggered: a human types `/pilcr
 
 On the default PR path, Gate 2 approval happens in the console. A human then triggers this skill deliberately in the working session where the post was produced; blog-post-workflow only nudges them to (Gate 2 banner + completion report).
 
-## The two-bucket model (why it matters)
+## Where findings go
 
-This plugin is layered: a shared plugin repo (`${CLAUDE_PLUGIN_ROOT}`, the workflow, personas, subagents, standards, templates, adapters) versus a per-blog workspace (`blog-ops/`, this blog's profile docs, `config.yaml`, and any template overrides under `blog-ops/templates/`). A friction point's fix belongs to exactly one of those, and they have different blast radii:
+The person running a retro owns a blog, not this plugin. They cannot change the plugin's skills, personas, agents, standards, templates or adapters: those come from the plugin and are replaced on every update. What they do own is `{profile_dir}/custom-instructions.md`, standing per-blog instructions that every stage of the workflow loads and that outrank the plugin's persona and standards defaults (`${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` Step 0.5 sets the precedence: the user's live instructions > custom instructions > persona/standards defaults). So a fix the owner can make is almost always an instruction in that file.
 
-- **Shared-skill finding.** Root cause is a plugin file, `${CLAUDE_PLUGIN_ROOT}/skills/*/SKILL.md` (or `references/*.md`), `${CLAUDE_PLUGIN_ROOT}/personas/*.md`, `${CLAUDE_PLUGIN_ROOT}/agents/*.md`, `${CLAUDE_PLUGIN_ROOT}/standards/*.md`, `${CLAUDE_PLUGIN_ROOT}/templates/*.md`, or `${CLAUDE_PLUGIN_ROOT}/adapters/**/*.md`. A candidate edit here improves every blog running this plugin on the next `git pull` / plugin update, not just this one.
-- **Blog-local finding.** Root cause is this blog's own workspace: `blog-ops/profile/*.md` (blog, voice, authors, audience, image-style, product, competitors), `blog-ops/config.yaml`, or a `blog-ops/templates/<name>.md` override. A candidate edit here only affects this blog.
+Every finding is exactly one of three kinds:
 
-The same symptom can point to either bucket depending on the actual root cause, e.g. a reviewer flagging a tone drift might mean the writer persona's rhythm rule is genuinely broken (shared-skill), OR that this blog's `voice.md` under-specifies the author's tone (blog-local). Read the candidate file before naming it, and pick the bucket the evidence actually supports, don't default to one bucket out of habit.
+- **Instruction** (the default). A standing instruction, in the owner's plain words, that prevents the problem next time, plus the stage it affects (research, plan, draft, review, humanize, images, publish). Tone drift, a banned phrase, a structure the owner wants, a fact the writer keeps getting wrong about the product, an image style rule: all instructions.
+- **Setting.** The fix is a value in `blog-ops/config.yaml` (a module toggle, an images or publish setting). Say in one plain sentence what to change, or that re-running `/pilcrino:blog-setup` changes it. The retro never edits config.
+- **Pilcrino problem.** No instruction can fix it: the plugin crashed, a stage ignored its own rules or the custom instructions, a wrong file was written, a step ran out of order. Carry a workaround instruction when one would help until the plugin is fixed, and offer to report it (Step 6).
+
+A finding never names a plugin file (`${CLAUDE_PLUGIN_ROOT}/...`, a persona, an agent, a standard, a template, an adapter) as something to edit, and never targets `voice.md`, `config.yaml` or a template override as an edit. The root-cause work in Step 3 still reads those files; it decides the kind and the wording, not the output.
 
 ## Procedure
 
@@ -39,6 +42,8 @@ The same symptom can point to either bucket depending on the actual root cause, 
 - If `<slug>` is given, use it.
 - If omitted, infer the most recently finished slug: prefer one named in the current conversation; else `Glob: {drafts_dir}/_archive/*/checklist.md`, read frontmatter, pick the most recent `last_updated` with `status: complete`. State which slug you picked.
 - Locate artifacts at `{drafts_dir}/_archive/<slug>/`. If the dir is missing, check `{drafts_dir}/<slug>/` (post not yet archived) and use whichever exists. If neither exists, stop and report.
+
+These paths, and everything in Step 2, resolve from the checkout the retro was invoked in (the evidence root). Before merge the post's drafts, archive and `pr-monitor.json` exist only on the post's branch, so never look for them in another checkout.
 
 ### Step 2, Gather signals
 
@@ -56,55 +61,72 @@ Pull all THREE sources; each may be empty depending on the path the run took.
 
 ### Step 3, Root-cause each friction point
 
-For every distinct problem found, identify the one artifact that should change to prevent a recurrence, and classify it into exactly one bucket per §The two-bucket model:
+For every distinct problem found, find why it happened before deciding what to suggest. Read the stage's own files (the workflow step, the persona, the agent, the standard or template it follows, and this blog's profile docs and `custom-instructions.md`) so the cause is real, not guessed. Then pick the kind (§Where findings go):
 
-**Shared-skill candidates** (read the candidate before naming it, so the cited file + section is real):
-- `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` (a stage, gate, or resume-routing rule)
-- `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/{config-schema,quality-gates,pr-monitor}.md`
-- a companion skill, `${CLAUDE_PLUGIN_ROOT}/skills/{review-blog-post,humanize-text,suggest-images,generate-images,repurpose-blog-post}/SKILL.md`
-- `${CLAUDE_PLUGIN_ROOT}/personas/{editor,writer,repurposer}.md`
-- a subagent definition, `${CLAUDE_PLUGIN_ROOT}/agents/{blog-researcher,blog-writer,blog-reviewer,blog-humanizer,image-planner,image-builder,plan-reviewer}.md`
-- `${CLAUDE_PLUGIN_ROOT}/standards/{writing-standards,blog-craft}.md`
-- a template, `${CLAUDE_PLUGIN_ROOT}/templates/<name>.md`
-- a publish or image adapter, `${CLAUDE_PLUGIN_ROOT}/adapters/{publish,images}/*.md`
+- The stage did what its rules say, and this blog wants something else, or something more specific: **Instruction**. Word it so it would have prevented this run's problem, and check it does not repeat or contradict what `custom-instructions.md` already says (when it contradicts, say the new instruction replaces the old one).
+- The cause is a config value: **Setting**.
+- The stage broke its own rules, ignored an instruction already in `custom-instructions.md`, or failed in a way no instruction can steer: **Pilcrino problem**. A finding about a stage that does not load `custom-instructions.md` at all is a Pilcrino problem too, because an instruction would never reach it.
 
-**Blog-local candidates:**
-- a profile doc, `{profile_dir}/{blog,voice,authors,audience,image-style,product}.md` or `{competitors_dir}/*.md`
-- `blog-ops/config.yaml` (a module toggle, an images/publish setting)
-- a per-blog template override, `blog-ops/templates/<name>.md` (only exists if this blog overrode a shared template)
-
-If a symptom traces to something neither list covers (e.g. a one-off human typo, an external API outage), don't force it into a bucket, note it as environmental in the wrap-up instead.
+If a symptom traces to something none of these covers (a one-off human typo, an external API outage), do not force it into a kind: note it as environmental in the wrap-up instead.
 
 ### Step 4, Present the retrospective in chat
 
-Output only in chat, in exactly two sections, in this order. Within each section, one compact entry per finding:
+One section, one numbered entry per finding:
 
 ```
-## Shared-skill findings
+## Instructions to add
 
-1. **Symptom:** what went wrong this run (cite the conversation moment, PR comment, or artifact).
-   **Root cause:** exact file + section, e.g. `${CLAUDE_PLUGIN_ROOT}/agents/blog-writer.md` §Hard rules.
-   **Suggested edit:** one concrete change.
+1. **What happened:** what went wrong this run (cite the conversation moment, PR comment, or artifact).
+   **Add:** "Never open a post with a question."
+   **Affects:** draft
 
-## Blog-local findings
+2. **What happened:** ...
+   **Setting:** turn on <setting, in plain words>, or re-run /pilcrino:blog-setup and answer <question> with <answer>.
 
-1. **Symptom:** ...
-   **Root cause:** exact file + section, e.g. `blog-ops/profile/voice.md` §Additional forbidden phrases.
-   **Suggested edit:** one concrete change.
+3. **What happened:** ...
+   **Pilcrino problem:** what the plugin did wrong, in one plain sentence.
+   **Workaround to add:** "..." (only when one helps)
+   **Affects:** images
 ```
 
-If a section has no findings, keep the heading and write "None this run." rather than omitting the section. If nothing notable surfaced in either bucket, say so plainly ("No changes suggested, the run was clean") rather than inventing nits. End by reminding the human that nothing was applied: they decide whether to act, and any shared-skill change they greenlight lands in the plugin repo (helping every blog on next update), while a blog-local change lands only in this blog's `blog-ops/`.
+An **Add:** line is the exact text that will go into the file, quoted, written as a standing instruction to the workflow. Keep it one or two sentences. If nothing notable surfaced, say so plainly ("No changes suggested, the run was clean") rather than inventing nits, and skip Steps 5 and 6.
+
+Then ask: "Which of these should I add to your custom instructions? Reply with the numbers, `all`, or `none`." Only **Add:** and **Workaround to add:** lines can be picked. When the list has a Pilcrino problem, also ask whether to report it (Step 6).
+
+### Step 5, Add what the owner picks
+
+On `none`, or no answer, write nothing and commit nothing.
+
+1. **Find the copy to write.** Run `git worktree list --porcelain` and take the entry whose `branch` line is `refs/heads/{git.base_branch}`; call its `worktree` path `<base>`. Only the work on `custom-instructions.md` runs against `<base>` (`git -C <base> ...`, and the file at `<base>/{profile_dir}/custom-instructions.md`): reading it, deduplicating, appending, committing and pushing. When the retro runs inside the post's worktree, an edit there would be lost when that worktree is removed, which is why it never writes there. When no checkout has `{git.base_branch}` checked out, write nothing: show the picked lines and tell the owner to run the retro again from the blog's main folder.
+2. **Check for the owner's own changes.** `git -C <base> status --porcelain -- {profile_dir}/custom-instructions.md`. Note whether it prints anything.
+3. **Append.** When the file is missing, create it with a `# Custom instructions` heading. Append the picked lines under a new heading `## From the retro on <slug>, <YYYY-MM-DD>`, one `- ` bullet per instruction. Skip any instruction the file already states, in any wording, and name what you skipped. Never rewrite or remove anything already in the file. Show the owner the lines you added.
+4. **Save to GitHub.**
+   - **Step 2 printed nothing** (the file had no unsaved changes): `git -C <base> add -- {profile_dir}/custom-instructions.md`, then `git -C <base> commit -m "chore(pilcrino): custom instructions from the <slug> retro" -- {profile_dir}/custom-instructions.md`. Then `git -C <base> fetch origin {git.base_branch}` and `git -C <base> log --oneline origin/{git.base_branch}..{git.base_branch}`: when it lists any commit besides this one, the push would carry it too, so name those commits and ask first. Otherwise, with `git.push_without_asking: true` run `git -C <base> push origin {git.base_branch}` at once; without it, ask "Save these to GitHub now?" and push on a yes.
+   - **Step 2 printed something** (the file already had the owner's own unsaved changes): do not commit. Say the file has changes of theirs that a save would publish together with the new lines, and commit and push only on an explicit yes, even under `git.push_without_asking`. Never discard, stash or reset the owner's changes.
+   - A rejected push (the base branch moved on GitHub): leave the commit in place, say so, and tell the owner the lines are saved on this Mac but not on GitHub yet.
+   - Whenever the lines end up not pushed, say plainly that console runs and other checkouts see them only once they are on GitHub.
+
+### Step 6, Report a Pilcrino problem
+
+Pilcrino problems go to the public Pilcrino issues board, https://github.com/pilcrino/pilcrino/issues, never to the blog's own repository. For each one the owner wants reported:
+
+1. Draft a title and body. The body holds: what happened, at which stage, what the owner expected instead, the plugin version (`version` in `${CLAUDE_PLUGIN_ROOT}/.claude-plugin/plugin.json`), and, when Step 3 found it, a "Likely source" line naming the plugin file and section, for the maintainer. No draft text, no facts or research, no private URLs, no keys, tokens or passwords, and nothing from the blog the owner has not published. The issue is public.
+2. Show the owner the full title and body before anything is sent.
+3. On an explicit yes, file it: `gh issue create -R pilcrino/pilcrino --title "<title>" --body "<body>"`, and give the owner the issue link it prints.
+4. When `gh` is not signed in, or filing fails, give the owner `https://github.com/pilcrino/pilcrino/issues/new?title=<title>&body=<body>` with both values URL-encoded, so they can file it in the browser themselves.
 
 ## Hard rules
 
-- Read-only. Never `Write` or `Edit` a skill, persona, template, adapter, post, or any `blog-ops/` file. Suggestions are chat-only.
+- The only file this skill writes is `{profile_dir}/custom-instructions.md` in `<base>`, and only after the owner picks what to add. Never a plugin file, a post, `config.yaml`, a template override, or any other profile doc.
+- Never commit anything but that file, never push a commit the owner was not told about, and never discard the owner's own changes.
+- Files a Pilcrino issue only on an explicit yes, and only after the owner has seen its full text.
 - Never invent friction that the signals do not support.
-- Every finding lands in exactly one bucket. If genuinely ambiguous, pick the bucket the stronger piece of evidence supports and say why in the suggested edit, don't duplicate the same finding into both sections.
+- Every finding is exactly one kind. If genuinely ambiguous, pick the kind the stronger evidence supports; don't list the same finding twice.
 - No em-dash codepoint (U+2014) in any output.
 
 ## What this skill does NOT do
 
-- Does not edit any file, it is suggestion-only.
+- Does not suggest edits to plugin files. A plugin fault is reported as a Pilcrino problem, never as an edit for the owner.
+- Does not edit `config.yaml`; it says what setting to change.
 - Does not run unattended on a timer. It runs when a human asks for it in the working session.
-- Does not decide which bucket's suggestions to act on, that's the human's call.
 - Does not spawn subagents, runs inline.
