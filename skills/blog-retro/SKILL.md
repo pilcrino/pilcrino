@@ -124,7 +124,7 @@ Pilcrino problems go to the public Pilcrino issues board, https://github.com/pil
 
 ## Hard rules
 
-- The only file this skill writes is `{profile_dir}/custom-instructions.md` in `<base>`, and only after the owner picks what to add. Never a plugin file, a post, `config.yaml`, a template override, or any other profile doc.
+- In the blog's repository, the only file this skill writes is `{profile_dir}/custom-instructions.md` in `<base>`, and only after the owner picks what to add. Never a plugin file, a post, `config.yaml`, a template override, or any other profile doc. Outside the repository it writes nothing but the two temporary issue files of Step 6, in a fresh `mktemp -d` folder, and only after the owner says yes to reporting.
 - Never commit anything but that file, never push a commit the owner was not told about, and never discard the owner's own changes.
 - Files a Pilcrino issue only on an explicit yes, and only after the owner has seen its full text.
 - Never invent friction that the signals do not support.

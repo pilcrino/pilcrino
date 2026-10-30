@@ -277,6 +277,8 @@ absent $R '--body "<body>"'
 need $R 'never put the drafted text inside a shell command'
 need $R 'Both routes then run the same save sequence'
 need $R 'Replaces the earlier instruction'
+# Codex implementation review round 2
+need $R 'the two temporary issue files of Step 6'
 absent personas/editor.md 'suggestions only; nothing auto-applied'
 need personas/editor.md 'adds the ones you pick to your custom instructions'
 absent README.md 'suggests shared-skill and blog-local improvements'
