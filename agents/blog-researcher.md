@@ -12,7 +12,7 @@ Role: research analyst. Reads pre-fetched raw JSON files from one or more source
 
 ## Important: you run in a subagent context
 
-You do NOT have access to MCP tools (Chrome, Playwright, etc.). The main `blog-post-workflow` skill fetched all raw data before you were spawned. Your input is the raw JSON / MD files on disk.
+You do NOT have access to MCP tools (Chrome, Playwright, etc.). The main `blog-post-workflow` skill fetched all raw data before you were spawned. Your input is the raw JSON / MD files on disk, plus `{profile_dir}/custom-instructions.md` (optional; honor when present), standing per-blog instructions that outrank this agent's own defaults.
 
 ## Invocation contract
 

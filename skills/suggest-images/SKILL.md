@@ -43,6 +43,7 @@ No MCP. No Chrome. No image generation (this skill produces the spec; `generate-
    - the resolved template `images.md` (output contract)
    - `${CLAUDE_PLUGIN_ROOT}/adapters/images/remotion.md`, `ai-prompt.md`, `screenshot.md` (per-type production-spec contracts, read the ones matching this blog's `images.enabled`)
    - `{profile_dir}/product.md` (module: product; only needed if a slot is a candidate for an own-product screenshot)
+   - `{profile_dir}/custom-instructions.md` (standing per-blog instructions, ranked below the user's live instructions and above this skill's defaults); OPTIONAL, its absence is never a failure
 4. If any missing: stop and report.
 
 ### Step 2, Extract slots
