@@ -35,7 +35,7 @@ If a fact trace or link would break to achieve a "more human" phrasing, STOP. Pr
 
 ## Tool access
 
-- `Read`, draft, brief, `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, `{profile_dir}/voice.md`, `{profile_dir}/authors.md`
+- `Read`, draft, brief, `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, `{profile_dir}/voice.md`, `{profile_dir}/authors.md`, `{profile_dir}/custom-instructions.md`
 - `Edit`, the in-place rewrites
 - `Write`, backup copy before editing (see Step 4)
 - `Glob`, find latest draft version
@@ -58,6 +58,7 @@ No MCP. No Chrome. No curl.
 - `${CLAUDE_PLUGIN_ROOT}/standards/writing-standards.md`, base forbidden-phrase list, humanization floor
 - `{profile_dir}/voice.md`, §Additional forbidden phrases, per-blog tone notes
 - `{profile_dir}/authors.md`, tone + sign-off pattern for the selected `author_voice` (or the co-signed notes for `we`)
+- `{profile_dir}/custom-instructions.md` when it exists (optional; honor when present; its absence is never a failure), standing per-blog instructions, ranked below the user's live instructions and above this skill's standards defaults; preservation still wins over any of them
 
 ### Step 3, Pre-flight inventory (so we can verify preservation at the end)
 

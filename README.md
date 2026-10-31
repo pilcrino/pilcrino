@@ -550,7 +550,7 @@ Every entry point installed by this plugin (`skills/`), namespaced
 | `generate-images` | Dispatches an image plan's slots to their adapters (remotion, ai-prompt, screenshot). |
 | `generate-image-codex` | Generates one AI illustration via codex's built-in image model (gpt-image); the sole automated AI-image path, needs no `OPENAI_API_KEY`. Invoked per `ai-prompt` slot by `generate-images`, or standalone. |
 | `repurpose-blog-post` | Turns a published post into an X thread, an X short take, a LinkedIn post, and a newsletter. |
-| `blog-retro` | Post-run retrospective; suggests shared-skill and blog-local improvements from the actual working session. |
+| `blog-retro` | Post-run retrospective; turns what went wrong into standing instructions in custom-instructions.md and offers to report Pilcrino problems. |
 | `research-competitor` | Research a competitor into `{competitors_dir}/<slug>.md` (`modules.competitors`). |
 | `plan-content` | Turns a product description into pillars, a scored post queue, and a competitor list, researched through the Pilcrino browser. Writes `blog-ops/content-plan.md`. Re-runs add new posts without repeating existing ones. |
 | `post-to-linkedin` | Publish an already-written post to this blog's LinkedIn company page (`social.linkedin.company_id`) and add the link as the first comment. |
@@ -754,6 +754,14 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.61.0 - The retro writes custom instructions
+
+- `blog-retro` no longer suggests edits to Pilcrino's own files, which a blog owner cannot change. Every finding is now an instruction for `blog-ops/profile/custom-instructions.md`, a setting to change in plain words, or a Pilcrino problem.
+- The retro asks which instructions to add, appends the picked ones under a dated heading in the main checkout (never the post's worktree), skips ones the file already has, and saves the file to GitHub. Unsaved edits the owner already made to that file are never committed without a yes.
+- A Pilcrino problem can be reported on https://github.com/pilcrino/pilcrino/issues. The retro shows the issue text first, keeps the post's content out of it, and files it only on a yes.
+- Four subagents (`blog-researcher`, `plan-reviewer`, `image-planner`, `image-builder`) and four skills (`review-blog-post`, `humanize-text`, `suggest-images`, `generate-images`) ignored custom instructions; they now read them, so an instruction reaches every stage. Lint checks it.
+- The browser test that reads the real process list no longer fails on a loaded Windows runner: it takes one listing instead of up to 21, and its child process lives until the test ends.
 
 ### 0.59.2 - plan-content stops at Google's check
 

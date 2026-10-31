@@ -770,7 +770,7 @@ Follow editor persona §Stage 1c. On completion, set `plan.md` status `awaiting_
 
 Gate 1 is replaced by an independent automated review (same loop shape as Stage 3b). Checklist already has `current_stage=plan_review`, `gate_pending=none`, plan `awaiting_plan_review` (from Step 6).
 
-1. Dispatch `plan-reviewer` (mid-tier model) with paths: `plan.md`, `brief.md`, `facts.md`, `research/serp.md`, `research/reddit.md` and `research/x.md` when present, `{profile_dir}/product.md` when `modules.product` is on, `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md`. It writes `plan-review.md` per the resolved template `plan-review.md`. Wait for return, idle (§Hand-offs to subagents).
+1. Dispatch `plan-reviewer` (mid-tier model) with paths: `plan.md`, `brief.md`, `facts.md`, `research/serp.md`, `research/reddit.md` and `research/x.md` when present, `{profile_dir}/product.md` when `modules.product` is on, `{profile_dir}/custom-instructions.md` when present, `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md`. It writes `plan-review.md` per the resolved template `plan-review.md`. Wait for return, idle (§Hand-offs to subagents).
 2. On verdict:
    - **approve** → continue to Step 7.5. Do NOT archive `plan-review.md` (the gate needs it on disk).
    - **request_revisions / reject, iteration ≤ 1** → archive review as `plan-review-v<N>.md`, apply the reviewer's revision instruction to `plan.md`, re-dispatch. Cap 1 revision pass (max two reviewer dispatches total — a plan still contested after one revision proceeds anyway, so a third dispatch buys nothing).

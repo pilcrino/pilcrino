@@ -58,6 +58,7 @@ No MCP. No Chrome. No curl.
    - `{profile_dir}/authors.md` (author-voice notes drive §1.6)
    - `{profile_dir}/audience.md` (if it defines this blog's own niche-jargon translation list, feeds §1.7)
 4. If any missing: stop with a clear report.
+5. Read `{profile_dir}/custom-instructions.md` when it exists (optional; honor when present; its absence is never a failure): standing per-blog instructions, ranked below the user's live instructions and above this skill's standards defaults, as in `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/SKILL.md` Step 0.5. A draft that breaks one is an issue.
 
 ### Step 2, Read everything into working memory
 

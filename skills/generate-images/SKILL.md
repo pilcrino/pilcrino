@@ -14,6 +14,7 @@ Derive `REPO=$(git rev-parse --show-toplevel)` before touching any path below; e
 
 - Read `blog-ops/config.yaml` (the config preamble): resolve `{drafts_dir}`, `{assets_dir}`, `{profile_dir}`, `{remotion_dir}`, `{content_dir}`, and the `images.enabled` value.
 - Read `{drafts_dir}/<slug>/images.md`, your work list: the `## Featured image` block plus every `### Image N` entry under `## In-post images`.
+- Read `{profile_dir}/custom-instructions.md` when it exists (optional; honor when present; its absence is never a failure): standing per-blog instructions, ranked below the user's live instructions and above this skill's defaults.
 
 If either file is missing, stop and report which one; never fabricate a manifest from an incomplete read.
 
