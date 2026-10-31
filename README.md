@@ -761,6 +761,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 - The retro asks which instructions to add, appends the picked ones under a dated heading in the main checkout (never the post's worktree), skips ones the file already has, and saves the file to GitHub. Unsaved edits the owner already made to that file are never committed without a yes.
 - A Pilcrino problem can be reported on https://github.com/pilcrino/pilcrino/issues. The retro shows the issue text first, keeps the post's content out of it, and files it only on a yes.
 - Four subagents (`blog-researcher`, `plan-reviewer`, `image-planner`, `image-builder`) and four skills (`review-blog-post`, `humanize-text`, `suggest-images`, `generate-images`) ignored custom instructions; they now read them, so an instruction reaches every stage. Lint checks it.
+- The browser test that reads the real process list no longer fails on a loaded Windows runner: it takes one listing instead of up to 21, and its child process lives until the test ends.
 
 ### 0.59.2 - plan-content stops at Google's check
 
