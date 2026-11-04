@@ -94,7 +94,10 @@ has_phrase "$WORKFLOW" "without Step 15.5's \"When a \`generic\` post is publish
 has_phrase personas/editor.md 'N/A in files mode: the post is on no site.'
 
 # Local test run fixes (4 Nov): lines said word for word, no "goes live" in files mode
-has_phrase "$SETUP" 'Steps 1, 3 and 4 are said word for word'
+has_phrase "$SETUP" 'The summary before the commit repeats steps 3 and 4'
+has_phrase "$SETUP" 'every post now waits for your approval; until now, approved posts merged on their own'
+has_phrase "$SETUP" 'your <Astro> site won'"'"'t show these posts'
+lacks_phrase "$SETUP" 'git commit-tree "$T" $PARENT'
 has_phrase "$SETUP" 'For Jekyll, which the beta does not cover, say only the first sentence.'
 has_phrase "$SETUP" 'Every post waits for your approval before it is merged.'
 has_phrase "$SETUP" 'in files mode the folder, the format and "nothing is published to your site", without the address shape'

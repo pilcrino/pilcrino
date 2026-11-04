@@ -776,6 +776,7 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 - Setup keeps `blog-ops/` out of Jekyll and Eleventy builds with one ignore line, asked once, for every blog.
 - Setup says before its first check that a GitHub account is needed, and a completed quick setup can come back to change where posts go.
 - Plain markdown posts no longer ask for a paste into a platform; Ghost and Jekyll keep their paste steps.
+- Fix: setup's commit no longer fails on its first try in zsh, the Mac's default shell.
 
 ### 0.59.1 - The README says three systems everywhere
 

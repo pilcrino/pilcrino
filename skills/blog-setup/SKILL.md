@@ -2242,7 +2242,10 @@ below handles that.
 
 Steps 1, 3 and 4 are said word for word, each on its own line, in a
 short message of their own before the next question: never folded into
-a question's lead-in, merged with each other or reworded.
+a question's lead-in, merged with each other or reworded. The summary
+before the commit repeats steps 3 and 4, because a line said between
+tool calls is easy to miss (its "where posts go" and approval lines,
+Phase 6).
 
 Skipped in files mode: "Interview: how the site goes live" and its
 deployment evidence, "Interview: adapter choice", the adapter sections,
@@ -3262,7 +3265,9 @@ describes them in one line built from what is actually on file: the plan's
 row count ("Content plan: empty, ready for posts" or "Content plan: <N>
 posts, kept as they were") and the saved policy ("every post waits for
 your approval" for `gated`; for an existing `auto` block, "approved posts
-are merged without a further step", which the owner can change there).
+are merged without a further step", which the owner can change there;
+when "If files" step 4 just turned `auto` into `gated`, "every post now
+waits for your approval; until now, approved posts merged on their own").
 
 ### The summary before the commit (both paths)
 
@@ -3282,7 +3287,10 @@ the positioning rule, when the product module is on), competitors, images
 (kinds, colours and fonts in words), where posts go (adapter, site live or
 not, the posts' address shape `https://<host><route prefix><slug>` and
 whether it ends with a slash; in files mode the folder, the format and
-"nothing is published to your site", without the address shape), research sources, plan approval, watching the pull request, pushing,
+"nothing is published to your site", without the address shape, and in
+a repository that is an Astro, Hugo, Next.js or Eleventy site also
+"your <Astro> site won't show these posts; run setup again and choose
+the beta to publish there"), research sources, plan approval, watching the pull request, pushing,
 categories (when site-conventions was drafted).
 Mark each value by its origin: "(from your site)", "(from your
 repository)", "(standard)", or nothing for an answer the owner typed.
@@ -3477,7 +3485,11 @@ recorded, in this order:
      rm -f "$I"; echo "STOP: temporary files in the commit:"; echo "$BAD"; exit 1
    fi
    T="$(GIT_INDEX_FILE="$I" git write-tree)"
-   C="$(git commit-tree "$T" $PARENT -m "Set up Pilcrino for <blog name>")"
+   if [ -n "$PARENT" ]; then   # two calls, not $PARENT unquoted: zsh would pass "-p HEAD" as one argument
+     C="$(git commit-tree "$T" -p HEAD -m "Set up Pilcrino for <blog name>")"
+   else
+     C="$(git commit-tree "$T" -m "Set up Pilcrino for <blog name>")"
+   fi
    rm -f "$I"; echo "$C"
    if [ -n "$PARENT" ]; then echo "parent: $(git rev-parse HEAD)"; else echo "root commit"; fi
    git show --stat --format='%h %s' "$C"
