@@ -409,7 +409,7 @@ Triggered after Stage 4a. Purely mechanical: grep the draft for every placeholde
    - § 4b Inbound links: one row per outline "Inbound internal links" entry, framed as a record + publish reminder (these are APPLIED at the next stage, 4b.5, not a human TODO): "applied at Stage 4b.5 to `<existing-slug>.md`; include in publish commit + confirm in preview"; "None" if the outline planned none. The row wording follows the active adapter's `§Action-items sections` §4b branch when the adapter defines one (the astro-flavored "include in publish commit" above is the `astro-git-pr` wording, which `markdown` shares).
    - § 5 Final manual read: static checklist from template
    - § 6-7 Publish-adapter-specific steps: per the publish adapter (`${CLAUDE_PLUGIN_ROOT}/adapters/publish/<adapter>.md` §Action-items sections), covers the optional authors-map check and the full publish sequence for the configured `publish.adapter`
-   - § 8 Post-publish: static (URLs prefilled with the actual slug)
+   - § 8 Post-publish: static (URLs prefilled with the actual slug), except a `markdown` post with `platform: generic`, which is on no site: §8 is the one line "N/A in files mode: the post is on no site. If you publish it somewhere, check it there: the live address, search indexing, the Open Graph preview and mobile rendering." with no checkboxes
    - § 10 Archive cleanup: static (paths filled)
    - § Marker grep summary: raw counts + the grep command used
 6. Tick Stage 4b items. Append stage log: `Stage 4b completed: <ts>, <N> action items`.
@@ -448,7 +448,7 @@ Outline: approved by editor at end of Stage 2 (no human gate)
 Review:  verdict `approve` (iteration <N> of 3 max)
 Humanize: PASSED preservation check
 Preview:  <review-surface url> + staging <preview url> (read the staged post before approving)
-Merging:  <publish.site_live true: "Merging the pull request publishes the post." | false: "Merging files the post in your repository; the site is not live yet." | absent: the adapter's wording | wordpress-rest: "Merging keeps the repository copy; the post goes live when you click Publish in WordPress." | markdown paste platform: "Merging files the post in your repository; <Platform> has it only once you paste it in.">
+Merging:  <publish.site_live true: "Merging the pull request publishes the post." | false: "Merging files the post in your repository; the site is not live yet." | absent: the adapter's wording | wordpress-rest: "Merging keeps the repository copy; the post goes live when you click Publish in WordPress." | markdown generic: "Merging files the post in your repository." | markdown ghost or jekyll: "Merging files the post in your repository; <Platform> has it only once you paste it in.">
 <only when an in-post image is still missing on a site that is not live: "<image> is not made yet; the post shows a short note in its place. Save it as <path> and tell me, and I'll put it in the pull request.">
 
 Images:     <N> slots (1 featured + <N-1> in-post), plan at {drafts_dir}/<slug>/images.md

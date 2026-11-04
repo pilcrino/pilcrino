@@ -142,4 +142,11 @@ for f in agents/*.md skills/review-blog-post/SKILL.md skills/humanize-text/SKILL
   grep -qF '{profile_dir}/custom-instructions.md' "$f" || err "$f: does not read {profile_dir}/custom-instructions.md"
 done
 
+# 17. Files by default, site publishing as beta: the wording the spec depends on
+if [ -f tests/check_files_default.sh ]; then
+  bash tests/check_files_default.sh || err "files-default wording (tests/check_files_default.sh)"
+else
+  err "tests/check_files_default.sh missing"
+fi
+
 [ "$fail" -eq 0 ] && echo "LINT OK" || exit 1

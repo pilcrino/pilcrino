@@ -1,6 +1,6 @@
 ---
 name: blog-setup
-description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). Reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain, scaffolds the Remotion image project, probes the publish adapter's auth once, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
+description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). By default each post is a markdown file with its images, delivered as a pull request; publishing to the site (beta) is opt-in, for WordPress, Astro, Hugo, Next.js and Eleventy, and only the beta reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain and probes the publish adapter's auth once. Keeps Pilcrino's files out of Jekyll and Eleventy builds, scaffolds the Remotion image project, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
 ---
 
@@ -290,7 +290,11 @@ resolves to."
     Quick path: T = 10 for the ten always-asked questions, in order: name,
     address, about, readers, credibility, product yes/no, competitors,
     where posts go, pushing consent, the commit question; +1 for
-    WordPress (username). A conditional question (the product's address,
+    WordPress (username). "Where posts go" is "Interview: where your
+    posts go": files mode adds nothing more (the format is derived, never
+    asked on the quick path), and a beta label that named the detected
+    site adds nothing either; the general beta label's adapter menu is a
+    conditional question. A conditional question (the product's address,
     route prefix, site live, author name, product identity fallback,
     image serving fallback, the Astro template choice when the schema
     matches neither supported shape) raises T by one when it arises, said
@@ -319,8 +323,14 @@ resolves to."
 
 Runs once, before Phase 1, on every invocation (resumed or fresh). To the
 owner this is "Checking this Mac" (or "this computer", Global rule 9), then
-"Finding your blog". Open with one sentence: "Before any questions, I'll
-check that this Mac has what Pilcrino needs, then find your blog."
+"Finding your blog". Open with this message, before the first check, so
+an owner learns what Pilcrino needs before anything fails: "Pilcrino keeps
+your posts and its settings in a GitHub repository, and opens every post
+as a pull request for you to review. So you need a GitHub account (a free
+one works), and this Mac needs git and GitHub's command line tool; I'll
+install those with you if they're missing. Before any questions, I'll
+check this Mac, then find your blog." (On Windows and Linux, "this
+computer", Global rule 9.)
 
 ### 0a. Preflight: the tools, in this order
 
@@ -472,7 +482,9 @@ Pilcrino may run it.
      gh auth login -h github.com -p https -w </dev/null > "$GH_LOG" 2>&1
      ```
      Then read the log after a few seconds (`grep -oE '[A-Z0-9]{4}-[A-Z0-9]{4}' "$GH_LOG"`)
-     and tell the owner: "Next, sign in to GitHub from this Mac. Open
+     and tell the owner, first, once: "No GitHub account yet? Create one at
+     https://github.com/signup, then come back here." Then: "Next, sign in
+     to GitHub from this Mac. Open
      https://github.com/login/device in your browser, sign in to GitHub if
      asked, enter the code <code>, click Continue, then Authorize. Tell me
      when the page says it is done." On the reply, run `gh auth status`
@@ -563,7 +575,8 @@ Ask with `AskUserQuestion`: "Where is your blog's website right now?"
    the Ananke theme, no posts yet"; "an Astro site"; "empty").
 3. **"Nowhere yet, or it is on WordPress / Webflow / another platform
    that hosts it for me."** First the one-sentence reason, then a question:
-   "Pilcrino still needs a GitHub repository for this blog: every post is
+   "As I said at the start, Pilcrino needs a GitHub repository for this
+   blog: every post is
    reviewed there as a pull request before it goes anywhere, and the
    repository keeps your posts and Pilcrino's settings. Do you already have
    one for this blog, maybe one someone made for you?" Yes: continue as
@@ -666,10 +679,23 @@ folder.
 - Either exists → this is a resume/update run. Read what's there, work out
   which phases already have their files (config.yaml keys present; which
   profile docs exist), append the resume time (Global rule 8), read
-  `Path:` from `setup-notes.md` (Global rule 10). `Path: quick`: say "I
+  `Path:` from `setup-notes.md` (Global rule 10). `Path: quick`, with
+  some phase still without its files (an interrupted setup): say "I
   found your earlier answers; I'll continue from <the first part without
   files>" and proceed to Phase 1 on the quick path, keeping finished
-  phases without asking. Otherwise tell
+  phases without asking. `Path: quick` with every phase's files present
+  (a completed setup): ask once, as a menu, "Your setup is complete. What
+  would you like to change?": "Where your posts go" / "Go through
+  everything" / "Nothing, just check it". "Where your posts go" runs
+  Phase 5 as "update" (its first question again, pre-filled with what is
+  on file), then Phase 6's validation, summary and commit; every other
+  phase is kept. "Go through everything" runs every phase with the
+  detailed path's keep / update / start-over menus. "Nothing, just check
+  it" runs "Keep Pilcrino's files off the site" when its test matches,
+  then Phase 6's validator, and reports; when that step edited a site file, continue to Phase 6's summary, commit and push (with consent, as
+  always), because the fix only protects the site once it is on GitHub.
+  Each other choice runs that step too, and reaches Phase 6's commit
+  anyway. Otherwise tell
   the owner in their words: "I found an earlier setup for this blog here.
   I'll go through each part (what the blog is about, how it sounds, your
   sources and product, images, where posts go) and for each one you can
@@ -2075,6 +2101,20 @@ as-is" is an informed choice rather than a guess:
   owes this file); recommended otherwise. Check both conditions and report
   a mismatch explicitly rather than staying silent.
 
+Name what is on file in owner words first: "Posts are files in
+`blog-ops/posts/`" (files mode; "in `<content_dir>`" when an older setup
+used another folder), "Posts go to your WordPress as drafts (beta)",
+"Posts are published to your Astro site (beta)" (likewise Hugo, Next.js,
+Eleventy). "Keep as-is" keeps whatever is there, any adapter: an existing
+WordPress, Astro or Hugo blog is never moved to files. "Update" asks
+"Interview: where your posts go" again, with what is on file as the
+first option. An existing `markdown` blog with `platform: generic`,
+`ghost` or `jekyll` and a `content_dir` other than `blog-ops/posts`
+(earlier setups used `posts/`) keeps its folders, on "keep as-is" and on
+"update" alike: its posts live there and the inbound-link search over
+`{content_dir}` must keep finding them. Only a fresh setup or "start
+over" writes `blog-ops/posts`.
+
 Phrase it like: "publish config exists (auth probe: FAILED on last run;
 site-conventions.md: MISSING — required for this adapter): keep as-is /
 update / start over."
@@ -2089,9 +2129,185 @@ interview itself. Only once `site-conventions.md` exists (or the check
 above finds it genuinely isn't required) does "keep as-is" mean "nothing
 left to do in Phase 5."
 
+"Keep Pilcrino's files off the site" below is the same kind of exception:
+it runs outside Phase 5's resume gate, on both paths, including the quick
+path's silent keep, whenever its test matches and neither the ignore
+entry nor a recorded decline exists.
+
 Owner's name for this part: "Where your posts go." The word "adapter" is
 never said to the owner; the three adapters are described by what happens
 to a post.
+
+### Interview: where your posts go (every blog)
+
+The first question of Phase 5, on every blog. By default each post is a
+markdown file with its images in this repository, delivered as a pull
+request, and nothing else happens to it ("files", below). Publishing to
+the site is a beta: it works and is less tested. "Beta" is only a label:
+no warning, no extra confirmation.
+
+First run the detection of "Interview: adapter choice" step 1 below,
+without asking anything, only to name the site in option 2. Then ask, as
+a menu, files first:
+
+1. "Files in a pull request (recommended)": "Each post is a markdown file
+   with its images, in `blog-ops/posts/` in your repository. Merging the
+   pull request files it there; you put it on your site yourself."
+2. "Publish to my site (beta)": "WordPress (as drafts you publish), or a
+   site built from this repository with Astro, Hugo, Next.js or
+   Eleventy."
+
+Quick path: ask, both paths. Counted ("Where posts go").
+
+When detection found a supported site, option 2's label names it:
+"Publish to your Astro site (beta)", "Publish to your Hugo site (beta)"
+(likewise Next.js and Eleventy), "Create drafts in your WordPress
+(beta)". When it found nothing supported (Jekyll, Ghost, Webflow or
+another hosted CMS, an empty repository), option 2 keeps the general
+label and description above, so the menu always has two options.
+Detection never picks the beta for the owner.
+
+- Files → "If files" below, then "Keep Pilcrino's files off the site",
+  then the `git:` block. Nothing else between them runs.
+- A label that named the detected site → that adapter (`astro-git-pr`,
+  `wordpress-rest`, or `markdown` with `hugo`, `nextjs` or `eleventy`).
+  "Interview: adapter choice" is not asked again: continue at "Interview:
+  how the site goes live", then the chosen adapter's section.
+- The general label → "Interview: how the site goes live", then
+  "Interview: adapter choice" as a menu of the beta platforms only,
+  counted on both paths (on the quick path it is a conditional
+  question: "One more than I said").
+
+Beta chosen: everything from "Interview: how the site goes live" to the
+`git:` block is the beta, unchanged except where it says so. "Keep
+Pilcrino's files off the site" runs for the beta too, right after the
+chosen adapter's section and before the `git:` block.
+
+### If files
+
+First settle the effective folders: `blog-ops/posts` and
+`blog-ops/posts/images` on a fresh setup or "start over"; on "update" of
+an existing `markdown` blog with `platform` `generic`, `ghost` or
+`jekyll`, its own `content_dir` and `assets_dir` (Phase 5's resume check:
+its posts live there). Every write, folder line and `mkdir` below uses
+the effective folders. Write, through the whole-file rewrite (Global
+rule 4):
+
+```yaml
+publish:
+  adapter: markdown
+  markdown:
+    content_dir: blog-ops/posts              # or the kept folder, above
+    assets_dir: blog-ops/posts/images        # or the kept folder, above
+    platform: <generic | ghost | jekyll>     # the format, below
+    frontmatter_template: adapters/publish/frontmatter/markdown-<platform>.md
+```
+
+No `image_url_prefix` (images are referenced relative to the post, as
+`markdown-generic.md` §Cover path computation says), no
+`publish.site_live`, no `cover_key`, `frontmatter_keys` or `draft_key`.
+Why `blog-ops/posts/`: Astro, Hugo and Next.js never read it, while the
+site's own posts folder would publish a file in a shape the site never
+agreed to, and a top-level `posts/` is read by many Next.js starters.
+Jekyll and Eleventy do read it: "Keep Pilcrino's files off the site"
+below handles that.
+
+1. State the folders in one line, never ask: "Posts go in
+   `blog-ops/posts/`, with their images in `blog-ops/posts/images/`."
+   (with the kept folders' names on an update). Run `mkdir -p` on the
+   effective `content_dir` and `assets_dir` (an action, not counted).
+   Quick path: derive, both paths.
+2. **Format.** Which platform's field names the file uses, as a menu:
+   - "Not sure, keep it plain" (first, the default) → `generic`: `title`,
+     `description`, `date`, `tags`, `author`, `image`.
+   - "Ghost" → `ghost`: Ghost's own names (`excerpt`, `published_at`,
+     `feature_image`), and the review step walks you through pasting it.
+   - "Jekyll" → `jekyll`: `layout: post` and `image`, the
+     `YYYY-MM-DD-<slug>.md` filename reminder and the paste steps.
+   Quick path: derive. `jekyll` when the Jekyll test of "Keep Pilcrino's
+   files off the site" matches, otherwise `generic`; never `ghost` (setup
+   cannot detect a Ghost site). The summary says "Post format: plain
+   markdown" (or Jekyll's). Hugo, Astro, Next.js and Eleventy are never
+   formats here: their field names come with publishing to that site,
+   the beta.
+3. **A repository that is a site** (Astro, Hugo, Next.js, Eleventy or
+   Jekyll detected): say once: "Your site won't show these posts; merging
+   only files them in `blog-ops/posts/`. To have Pilcrino publish to your
+   site, run setup again and choose the beta." For Jekyll, which the
+   beta does not cover, say only the first sentence.
+4. **Approval policy.** When `console.publish_policy` is `auto` (only an
+   `astro-git-pr` blog can have it, invariant 10), set it to `gated` in
+   the same rewrite, keep the rest of the `console:` block, and say:
+   "Every post now waits for your approval."
+
+Steps 1, 3 and 4 are said word for word, each on its own line, in a
+short message of their own before the next question: never folded into
+a question's lead-in, merged with each other or reworded. The summary
+before the commit repeats steps 3 and 4, because a line said between
+tool calls is easy to miss (its "where posts go" and approval lines,
+Phase 6).
+
+Skipped in files mode: "Interview: how the site goes live" and its
+deployment evidence, "Interview: adapter choice", the adapter sections,
+"Site conventions", and the `jq` check (Phase 0a check 6 runs only for
+WordPress). "Keep Pilcrino's files off the site", the `git:` block and
+the GitHub precondition still run.
+
+### Keep Pilcrino's files off the site (every blog)
+
+Runs for every blog, files or beta, and runs outside Phase 5's resume
+gate: on a resumed or re-run setup where Phase 5 is kept as it is (Global
+rule 3's "keep as-is", or the quick path keeping finished phases without
+asking), this step still runs whenever the repository matches a test
+below and neither the ignore entry nor a recorded decline exists. An
+existing Jekyll or Eleventy blog gets the fix this way.
+
+Jekyll, and Eleventy when it builds from the repository root, publish
+every file in the repository they are not told to skip: markdown becomes
+pages, and every other file (`blog-ops/config.yaml`, research captures,
+the profile docs) is copied to the site as it is. A merged files-mode post
+would also appear at an address like `/blog-ops/posts/<slug>.html`.
+
+**The tests.**
+- **Jekyll:** a `_config.yml` at the site root, or a GitHub Pages site
+  built by Jekyll: `gh api repos/<owner>/<repo>/pages` reports
+  `build_type: legacy` and the repository has no `.nojekyll` at the root
+  of the folder Pages serves.
+- **Eleventy:** any Eleventy config file at the repository root
+  (`.eleventy.js`, `eleventy.config.js`, `eleventy.config.mjs`,
+  `eleventy.config.cjs`) or an `@11ty/eleventy` dependency in
+  `package.json` (Eleventy runs with no config file at all). It matches
+  only when the input folder contains `blog-ops/`: the input is an
+  `--input` flag in a `package.json` build script (it overrides the
+  config), else the config's `dir.input`, else `.` (the repository root).
+  When several scripts build with different inputs, test each, and match
+  if any one contains `blog-ops/`.
+
+**The edit.**
+- **Jekyll:** add `blog-ops` to the `exclude` list in `_config.yml`. When
+  the file has an `exclude` list, append the one entry. When it has none,
+  write the list with Jekyll's defaults first (`.sass-cache/`,
+  `.jekyll-cache/`, `gemfiles/`, `Gemfile`, `Gemfile.lock`,
+  `node_modules/`, `vendor/bundle/`, `vendor/cache/`, `vendor/gems/`,
+  `vendor/ruby/`) and `blog-ops` last: Jekyll 3, which GitHub Pages runs,
+  replaces the default list with yours, and Jekyll 4 adds yours to it, so
+  this list is right for both. A Pages site with no `_config.yml`: create
+  one holding only that `exclude` list.
+- **Eleventy:** add the line `blog-ops/` to `.eleventyignore` at the
+  repository root, creating the file when there is none. Creating it does
+  not stop Eleventy from also honouring `.gitignore`.
+
+Ask with consent, in one sentence: "Your site publishes every file in the
+repository it is not told to skip, Pilcrino's own notes and settings
+included. Shall I add one line to `<file>` so it skips the `blog-ops`
+folder?" Quick path: action, both paths. On yes, make the edit and record
+the file in Global rule 2's paths list as a site file, so Phase 6 commits
+it and lists it under `## Site files edited by setup`. On no, say once:
+"Then merged posts will also appear on your site at an address under
+/blog-ops/." and record `Site ignore line: declined <date>` in
+`{profile_dir}/setup-notes.md` (above the site-files section). Setup does
+not block on a decline, and while that line exists no later run asks
+again unless the owner asks for it.
 
 ### Interview: how the site goes live (every adapter)
 
@@ -2144,11 +2360,8 @@ sentence again if the owner picks another):
 - WordPress: "Approving a post leaves it as a draft in your WordPress;
   you click Publish in WordPress. Merging the pull request only files the
   text in the repository." (The same sentence, live or not.)
-- A platform you paste into (Jekyll, Webflow, Ghost, Squarespace, another
-  hosted CMS): "You paste each post into <Platform> before you approve it; merging
-  the pull request only files it in the repository." (The same sentence,
-  live or not.)
-Never tell a WordPress or paste-platform owner that merging publishes.
+Never tell a WordPress owner that merging publishes. (Jekyll, Ghost,
+Webflow and other paste platforms are files mode now, "If files".)
 Then, when the site is built by Hugo, Astro, Jekyll or another generator,
 add: "Pilcrino does not need to build your site on this Mac, so <Hugo/Astro> does not
 need to be installed here" (do not report a missing `hugo` binary as a
@@ -2159,12 +2372,16 @@ problem).
 1. Detect first, then confirm. Read the repo root (and `site_dir` when a
    subfolder holds the site): `astro.config.*` or an `astro` dependency in
    `package.json` → `astro-git-pr`; `hugo.toml`/`config.toml` with Hugo
-   keys, `_config.yml` (Jekyll), a `next` dependency, `.eleventy.js` →
-   `markdown` with that platform; a WordPress address from Phase 1
-   (`/wp-json` answers) or the owner said WordPress → `wordpress-rest`;
-   Webflow, Squarespace, Ghost or another hosted CMS → `markdown` with
-   `generic` (or `ghost`). Then confirm as a menu with the detected choice
-   first, each option in owner words:
+   keys, a `next` dependency, an Eleventy site (any config file or the
+   dependency, as "Keep Pilcrino's files off the site" tests) → `markdown`
+   with that platform; a WordPress address from Phase 1 (`/wp-json` answers) or the
+   owner said WordPress → `wordpress-rest`. A Jekyll site (`_config.yml`),
+   Webflow, Squarespace, Ghost or another hosted CMS is not a beta
+   platform: detection reports nothing supported, and "Interview: where
+   your posts go" keeps its general label. Asked only after the general
+   beta label ("Interview: where your posts go"); a label that named the
+   site has already chosen. Then confirm as a menu with the detected
+   choice first, each option in owner words:
    - Astro: "Your site runs on Astro, so each post lands in it as a file
      through a GitHub pull request; merging publishes it (when the site is
      live)."
@@ -2173,12 +2390,9 @@ problem).
    - Markdown, repo platform: "Your site runs on <Hugo/...>, so each post
      lands in this repository as a file through a pull request; merging
      publishes it when the site rebuilds from GitHub."
-   - Markdown, paste platform: "Each post becomes a markdown file plus
-     images that you put into <Platform> before you approve it; the
-     repository keeps a copy."
    → `publish.adapter`.
-   Quick path: ask, the detected option first, counted ("Where posts
-   go"). The adapter steps that need the owner afterwards
+   Quick path: ask, the detected option first, counted as a conditional
+   question (the first question, "Where posts go", is already counted). The adapter steps that need the owner afterwards
    (the WordPress password dialog, the Astro format edit consent) are
    actions, done as today and not counted; the WordPress username is a
    counted question.
@@ -2641,6 +2855,11 @@ above.
 
 ### If `markdown`
 
+The beta's markdown sites: `hugo`, `nextjs`, `eleventy`, and `astro`
+where the owner picks the markdown route over `astro-git-pr`. The
+platform docs below still describe `jekyll`, `ghost` and `generic`, which
+only files mode writes now ("If files"); the beta never offers them.
+
 2. `content_dir` (default `posts`; for Hugo the existing posts folder,
    `content/posts` or `content/blog`, whichever exists): the folder in this
    repo where each post lands as `<slug>.md`. To the owner: "Posts go in
@@ -2807,7 +3026,9 @@ Detect, don't ask:
     `main`). State it ("Pull requests go against `<branch>`, your
     repository's main branch").
 
-Merge into `config.yaml`:
+Merge into `config.yaml`. Files mode merges only the `git:` block below:
+the `publish:` block "If files" wrote stays exactly as written, with no
+`site_live` (files mode never asks it). The beta merges both blocks:
 
 ```yaml
 publish:
@@ -2833,7 +3054,7 @@ publish:
     permalink_structure: <value>    # as read from the site; omit when unknown
     default_status: draft
     apply_inbound_links_live: false
-  markdown:         # only if adapter = markdown
+  markdown:         # only if adapter = markdown; files mode writes the "If files" block instead
     content_dir: <path>
     assets_dir: <path>
     image_url_prefix: <prefix>      # omit when images are relative
@@ -3036,14 +3257,17 @@ to the owner rule 8):
    `blog-ops/config.yaml` **only if absent**, through the whole-file
    rewrite (Global rule 4), with `publish_policy: gated` for every
    adapter. Say its one sentence: "Every post waits for your approval
-   before it goes live."
+   before it goes live." In files mode nothing goes live, so say "Every
+   post waits for your approval before it is merged." instead.
 Record both paths in Global rule 9's list. These two files are committed
 with the rest in the commit step below, and the summary that follows
 describes them in one line built from what is actually on file: the plan's
 row count ("Content plan: empty, ready for posts" or "Content plan: <N>
 posts, kept as they were") and the saved policy ("every post waits for
 your approval" for `gated`; for an existing `auto` block, "approved posts
-are merged without a further step", which the owner can change there).
+are merged without a further step", which the owner can change there;
+when "If files" step 4 just turned `auto` into `gated`, "every post now
+waits for your approval; until now, approved posts merged on their own").
 
 ### The summary before the commit (both paths)
 
@@ -3062,7 +3286,11 @@ few words), your product (the feature list in full, with its sources, and
 the positioning rule, when the product module is on), competitors, images
 (kinds, colours and fonts in words), where posts go (adapter, site live or
 not, the posts' address shape `https://<host><route prefix><slug>` and
-whether it ends with a slash), research sources, plan approval, watching the pull request, pushing,
+whether it ends with a slash; in files mode the folder, the format and
+"nothing is published to your site", without the address shape, and in
+a repository that is an Astro, Hugo, Next.js or Eleventy site also
+"your <Astro> site won't show these posts; run setup again and choose
+the beta to publish there"), research sources, plan approval, watching the pull request, pushing,
 categories (when site-conventions was drafted).
 Mark each value by its origin: "(from your site)", "(from your
 repository)", "(standard)", or nothing for an answer the owner typed.
@@ -3257,7 +3485,11 @@ recorded, in this order:
      rm -f "$I"; echo "STOP: temporary files in the commit:"; echo "$BAD"; exit 1
    fi
    T="$(GIT_INDEX_FILE="$I" git write-tree)"
-   C="$(git commit-tree "$T" $PARENT -m "Set up Pilcrino for <blog name>")"
+   if [ -n "$PARENT" ]; then   # two calls, not $PARENT unquoted: zsh would pass "-p HEAD" as one argument
+     C="$(git commit-tree "$T" -p HEAD -m "Set up Pilcrino for <blog name>")"
+   else
+     C="$(git commit-tree "$T" -m "Set up Pilcrino for <blog name>")"
+   fi
    rm -f "$I"; echo "$C"
    if [ -n "$PARENT" ]; then echo "parent: $(git rev-parse HEAD)"; else echo "root commit"; fi
    git show --stat --format='%h %s' "$C"
@@ -3356,6 +3588,12 @@ detailed path, before any yes adds a block:
 | astro-git-pr | 55 | identity 8, live-site research 4, audience 7, voice 8, authors 2, modules 5, images 9, publishing 7, final 5 |
 | wordpress-rest | 53 | as above with publishing 5 (folders, address, username) |
 | markdown | 54 | as above with publishing 6 (folders, platform, image serving) |
+| files | 50 | as above with publishing 2 (where posts go, format) |
+
+"Where posts go" (the first Phase 5 question) replaces the adapter
+confirm on the beta rows above when its label named the detected site,
+so those rows are unchanged; when the general beta label leads to the
+adapter menu, add 1.
 
 The table is the existing-blog case. Recompute T from the branch
 actually taken, at the moment it is taken: a brand-new blog answers only
@@ -3395,7 +3633,10 @@ says.
 3. How a post reaches readers, one sentence from the `publish.site_live`
    and adapter answers ("Each post is a pull request on GitHub; merging it
    publishes once your site rebuilds" / "...uploads as a WordPress draft
-   that you publish" / "...you paste into <Platform> before approving").
+   that you publish" / "...you paste into <Platform> before approving";
+   files mode: "Each post is a markdown file in a pull request; merging
+   files it in `blog-ops/posts/`; nothing reaches your site", with the
+   kept folder on an older setup).
 4. Competitors: "Fact sheets ready for <names>" or "Pilcrino will offer to
    research <names> the first time a post names them."
 5. Anything the owner must still do, only if real (a placeholder domain to
