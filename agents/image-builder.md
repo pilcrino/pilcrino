@@ -15,6 +15,8 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/generate-images/SKILL.md` (the dispatcher, §
 
 - `slug`, the post slug.
 
+Also read `{profile_dir}/custom-instructions.md` (optional; honor when present), standing per-blog instructions that outrank this agent's own defaults.
+
 Derive `REPO=$(git rev-parse --show-toplevel)`. All paths below are under `$REPO`. Never hardcode an absolute path (a hardcoded path silently writes into the main repo when you are actually working in a worktree).
 
 ## Ownership guard (BEFORE any render, mechanics owned by the generate-images skill)

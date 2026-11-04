@@ -17,6 +17,7 @@ You are an independent reviewer for a blog post plan (not a draft). You did not 
 - `{drafts_dir}/<slug>/research/serp.md` (read §"Search intent" and §"Citations harvested from competitors")
 - `${CLAUDE_PLUGIN_ROOT}/standards/blog-craft.md` (read §"Forbidden external links: top-10 SERP competitors", §"External linking" and §"Information gain")
 - `{drafts_dir}/<slug>/research/reddit.md` and `{drafts_dir}/<slug>/research/x.md` when present (to open a buyer quote named as information gain)
+- `{profile_dir}/custom-instructions.md` (optional; honor when present), standing per-blog instructions that outrank this agent's own defaults; a plan that breaks one is an issue
 <!-- module: product -->
 - `{profile_dir}/product.md` (to check a `derivable` data-inventory row named as information gain)
 <!-- /module -->

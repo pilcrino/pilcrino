@@ -465,7 +465,7 @@ On approve (async review or console), I will:
 3. Date the post today on the pull request's branch
 4. Report the post is ready to merge/publish (the draft mechanism is already removed) and how to merge it
 I never merge or publish on my own. You merge on GitHub, or after approving tell me "merge it" and I merge it for you (WordPress: publishing stays your click in WordPress). Until then, tell me here what to change and I address it. <only with `review.pr_monitor: true`: "Comments on the pull request work too.">
-After I finalize, run /pilcrino:blog-retro <slug> here for a workflow retrospective (suggestions only; nothing auto-applied).
+After I finalize, run /pilcrino:blog-retro <slug> here for a retrospective: it suggests standing instructions for this blog and adds the ones you pick to your custom instructions.
 
 APPROVE / REQUEST CHANGES / PAUSE
 ─────────────────────────────────────────────

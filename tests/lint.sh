@@ -137,4 +137,9 @@ fi
 # 15. Markdown adapter frontmatter docs carry exactly their platform's keys
 python3 tests/check_markdown_frontmatter.py || err "markdown frontmatter docs (tests/check_markdown_frontmatter.py)"
 
+# 16. Every subagent, and every skill a subagent runs, reads the blog's custom instructions (the workflow's Step 0.5 promises it)
+for f in agents/*.md skills/review-blog-post/SKILL.md skills/humanize-text/SKILL.md skills/suggest-images/SKILL.md skills/generate-images/SKILL.md; do
+  grep -qF '{profile_dir}/custom-instructions.md' "$f" || err "$f: does not read {profile_dir}/custom-instructions.md"
+done
+
 [ "$fail" -eq 0 ] && echo "LINT OK" || exit 1
