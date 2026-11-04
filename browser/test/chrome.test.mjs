@@ -305,21 +305,25 @@ test('quitKeys per platform', async () => {
   assert.equal(quitKeys('linux'), 'Ctrl+Shift+W')
 })
 
-test('profileProcessEntries with the real process list finds a child carrying the profile flag', { timeout: 20000 }, async () => {
-  const { profileProcessEntries } = await import('../src/chrome.mjs')
-  const { spawn } = await import('node:child_process')
+// One real listing, read twice. On a loaded Windows runner a single PowerShell
+// process listing can take over ten seconds, so the child lives until it is
+// killed and the timeout leaves room for that one listing. The child is
+// listed once 'spawn' fires: libuv returns after exec, Windows after
+// CreateProcess.
+test('profileProcessEntries with the real process list finds a child carrying the profile flag', { timeout: 120000 }, async () => {
+  const { profileProcessEntries, processListCommand } = await import('../src/chrome.mjs')
+  const { spawn, execFileSync } = await import('node:child_process')
   const base = mkdtempSync(join(tmpdir(), 'pb-José-'))
   const dir = join(base, 'browser')
-  const child = spawn(process.execPath, ['-e', 'setTimeout(()=>{},20000)', '--', `--user-data-dir=${dir}`], { stdio: 'ignore' })
+  const child = spawn(process.execPath, ['-e', 'setInterval(()=>{},1000)', '--', `--user-data-dir=${dir}`], { stdio: 'ignore' })
   try {
     await new Promise((r) => child.once('spawn', r))
-    let found = []
-    for (let i = 0; i < 20 && found.length === 0; i++) {
-      found = profileProcessEntries(dir).filter((e) => e.pid === child.pid)
-      if (found.length === 0) await new Promise((r) => setTimeout(r, 100))
-    }
+    const [bin, args] = processListCommand()
+    const listing = execFileSync(bin, args, { encoding: 'utf8', windowsHide: true, maxBuffer: 64 * 1024 * 1024 })
+    const exec = () => listing
+    const found = profileProcessEntries(dir, { exec }).filter((e) => e.pid === child.pid)
     assert.equal(found.length, 1, 'the child is listed under its profile')
-    assert.equal(profileProcessEntries(dir + '2').length, 0)
+    assert.equal(profileProcessEntries(dir + '2', { exec }).length, 0)
   } finally {
     child.kill()
     rmSync(base, { recursive: true, force: true })

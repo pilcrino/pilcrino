@@ -557,7 +557,7 @@ Every entry point installed by this plugin (`skills/`), namespaced
 | `generate-images` | Dispatches an image plan's slots to their adapters (remotion, ai-prompt, screenshot). |
 | `generate-image-codex` | Generates one AI illustration via codex's built-in image model (gpt-image); the sole automated AI-image path, needs no `OPENAI_API_KEY`. Invoked per `ai-prompt` slot by `generate-images`, or standalone. |
 | `repurpose-blog-post` | Turns a published post into an X thread, an X short take, a LinkedIn post, and a newsletter. |
-| `blog-retro` | Post-run retrospective; suggests shared-skill and blog-local improvements from the actual working session. |
+| `blog-retro` | Post-run retrospective; turns what went wrong into standing instructions in custom-instructions.md and offers to report Pilcrino problems. |
 | `research-competitor` | Research a competitor into `{competitors_dir}/<slug>.md` (`modules.competitors`). |
 | `plan-content` | Turns a product description into pillars, a scored post queue, and a competitor list, researched through the Pilcrino browser. Writes `blog-ops/content-plan.md`. Re-runs add new posts without repeating existing ones. |
 | `post-to-linkedin` | Publish an already-written post to this blog's LinkedIn company page (`social.linkedin.company_id`) and add the link as the first comment. |
@@ -770,13 +770,27 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 
 ## Changelog
 
-### 0.60.0 - Posts are files by default; site publishing is beta
+### 0.62.0 - Posts are files by default; site publishing is beta
 
 - Setup's "where your posts go" asks one question. The default puts each post, a markdown file with its images, in `blog-ops/posts/` through a pull request; merging files it, and for plain markdown the merge counts as published. Publishing to WordPress, Astro, Hugo, Next.js or Eleventy is offered as beta, unchanged.
 - Setup keeps `blog-ops/` out of Jekyll and Eleventy builds with one ignore line, asked once, for every blog.
 - Setup says before its first check that a GitHub account is needed, and a completed quick setup can come back to change where posts go.
 - Plain markdown posts no longer ask for a paste into a platform; Ghost and Jekyll keep their paste steps.
 - Fix: setup's commit no longer fails on its first try in zsh, the Mac's default shell.
+
+### 0.61.0 - The retro writes custom instructions
+
+- `blog-retro` no longer suggests edits to Pilcrino's own files, which a blog owner cannot change. Every finding is now an instruction for `blog-ops/profile/custom-instructions.md`, a setting to change in plain words, or a Pilcrino problem.
+- The retro asks which instructions to add, appends the picked ones under a dated heading in the main checkout (never the post's worktree), skips ones the file already has, and saves the file to GitHub. Unsaved edits the owner already made to that file are never committed without a yes.
+- A Pilcrino problem can be reported on https://github.com/pilcrino/pilcrino/issues. The retro shows the issue text first, keeps the post's content out of it, and files it only on a yes.
+- Four subagents (`blog-researcher`, `plan-reviewer`, `image-planner`, `image-builder`) and four skills (`review-blog-post`, `humanize-text`, `suggest-images`, `generate-images`) ignored custom instructions; they now read them, so an instruction reaches every stage. Lint checks it.
+- The browser test that reads the real process list no longer fails on a loaded Windows runner: it takes one listing instead of up to 21, and its child process lives until the test ends.
+
+### 0.59.2 - plan-content stops at Google's check
+
+- `plan-content` no longer skips Google when Google shows its unusual-traffic check. A test run had finished with no Google pages and scored every post without a search result page. Now the page script reports the check, the Pilcrino browser brings that tab to the front, and an interactive run stops at once and asks the owner to pass it, then retries that search in a new tab and finishes the Google round. It never moves on to Reddit or X with Google searches left, unless the owner says to.
+- Autopilot waits a minute and retries once in a new tab; if Google still blocks, the run fails with `blocked` instead of carrying on with Reddit and X.
+- The first message of an interactive run says "This takes about 30 minutes." It no longer promises to ask no questions.
 
 ### 0.59.1 - The README says three systems everywhere
 

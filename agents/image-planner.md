@@ -11,7 +11,7 @@ Read `${CLAUDE_PLUGIN_ROOT}/skills/suggest-images/SKILL.md` first and follow eve
 
 ## You run in a subagent context
 
-You do NOT have access to MCP tools. The main `blog-post-workflow` skill completed Stage 3c (humanize) before you were spawned. Your inputs are the humanized `draft-v<N>.md`, outline, facts, and profile docs on disk.
+You do NOT have access to MCP tools. The main `blog-post-workflow` skill completed Stage 3c (humanize) before you were spawned. Your inputs are the humanized `draft-v<N>.md`, outline, facts, and profile docs on disk, plus `{profile_dir}/custom-instructions.md` (optional; honor when present), standing per-blog instructions that outrank this agent's own defaults.
 
 ## Invocation contract
 
