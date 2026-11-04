@@ -2233,11 +2233,16 @@ below handles that.
 3. **A repository that is a site** (Astro, Hugo, Next.js, Eleventy or
    Jekyll detected): say once: "Your site won't show these posts; merging
    only files them in `blog-ops/posts/`. To have Pilcrino publish to your
-   site, run setup again and choose the beta."
+   site, run setup again and choose the beta." For Jekyll, which the
+   beta does not cover, say only the first sentence.
 4. **Approval policy.** When `console.publish_policy` is `auto` (only an
    `astro-git-pr` blog can have it, invariant 10), set it to `gated` in
    the same rewrite, keep the rest of the `console:` block, and say:
    "Every post now waits for your approval."
+
+Steps 1, 3 and 4 are said word for word, each on its own line, in a
+short message of their own before the next question: never folded into
+a question's lead-in, merged with each other or reworded.
 
 Skipped in files mode: "Interview: how the site goes live" and its
 deployment evidence, "Interview: adapter choice", the adapter sections,
@@ -3249,7 +3254,8 @@ to the owner rule 8):
    `blog-ops/config.yaml` **only if absent**, through the whole-file
    rewrite (Global rule 4), with `publish_policy: gated` for every
    adapter. Say its one sentence: "Every post waits for your approval
-   before it goes live."
+   before it goes live." In files mode nothing goes live, so say "Every
+   post waits for your approval before it is merged." instead.
 Record both paths in Global rule 9's list. These two files are committed
 with the rest in the commit step below, and the summary that follows
 describes them in one line built from what is actually on file: the plan's
@@ -3275,7 +3281,8 @@ few words), your product (the feature list in full, with its sources, and
 the positioning rule, when the product module is on), competitors, images
 (kinds, colours and fonts in words), where posts go (adapter, site live or
 not, the posts' address shape `https://<host><route prefix><slug>` and
-whether it ends with a slash), research sources, plan approval, watching the pull request, pushing,
+whether it ends with a slash; in files mode the folder, the format and
+"nothing is published to your site", without the address shape), research sources, plan approval, watching the pull request, pushing,
 categories (when site-conventions was drafted).
 Mark each value by its origin: "(from your site)", "(from your
 repository)", "(standard)", or nothing for an answer the owner typed.
@@ -3614,7 +3621,10 @@ says.
 3. How a post reaches readers, one sentence from the `publish.site_live`
    and adapter answers ("Each post is a pull request on GitHub; merging it
    publishes once your site rebuilds" / "...uploads as a WordPress draft
-   that you publish" / "...you paste into <Platform> before approving").
+   that you publish" / "...you paste into <Platform> before approving";
+   files mode: "Each post is a markdown file in a pull request; merging
+   files it in `blog-ops/posts/`; nothing reaches your site", with the
+   kept folder on an older setup).
 4. Competitors: "Fact sheets ready for <names>" or "Pilcrino will offer to
    research <names> the first time a post names them."
 5. Anything the owner must still do, only if real (a placeholder domain to
