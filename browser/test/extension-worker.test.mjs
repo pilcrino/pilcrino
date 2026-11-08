@@ -301,3 +301,41 @@ test('a malformed frame is ignored', () => {
   s.onmessage({ data: '42' })
   assert.equal(frames(s).length, 1)
 })
+
+test('a capture arriving while a check or consent redirect is pending is reported as blocked, and the tab is kept and activated', async () => {
+  const { w, fc, ws } = setup()
+  const s = ws()[0]; s.open()
+  const a = await searchOn(s, fc, 'r1', 't1')
+  fc.tabs.get(a).pendingUrl = 'https://www.google.com/sorry/index?continue=x'
+  fc.message({ type: 'pilcrino-serp', token: 't1', value: { topResults: [] } }, { tab: { id: a }, frameId: 0 })
+  await tick(); await tick()
+  assert.deepEqual(frames(s)[1], { type: 'result', id: 'r1', token: 't1', value: { blocked: 'unusual_traffic', url: 'https://www.google.com/sorry/index?continue=x' } })
+  assert.deepEqual(fc.of('update')[0], ['update', a, { active: true }])
+  const b = await searchOn(s, fc, 'r2', 't2')
+  fc.tabs.get(b).pendingUrl = 'https://consent.google.com/m?continue=x'
+  fc.message({ type: 'pilcrino-serp', token: 't2', value: { topResults: [] } }, { tab: { id: b }, frameId: 0 })
+  await tick(); await tick()
+  assert.equal(frames(s)[2].value.blocked, 'consent')
+  assert.equal(fc.of('remove').length, 0)
+  assert.equal(w.owned().size, 0)
+  // the later onUpdated for the redirect finds nothing to do
+  fc.navigate(a, 'https://www.google.com/sorry/index?continue=x')
+  assert.equal(frames(s).length, 3)
+})
+
+test('cancel during a stalled first navigation (empty committed url, pending search) closes the tab', async () => {
+  const { w, fc, ws } = setup()
+  const s = ws()[0]; s.open()
+  const a = await searchOn(s, fc, 'r1', 't1')
+  Object.assign(fc.tabs.get(a), { url: '', pendingUrl: 'https://www.google.com/search?q=kanban&pilcrino=t1' })
+  s.receive({ type: 'cancel', id: 'r1' })
+  await tick(); await tick()
+  assert.deepEqual(fc.of('remove').map((c) => c[1]), [a])
+  assert.equal(w.owned().size, 0)
+  // but a pending check page is never closed by a cancel
+  const b = await searchOn(s, fc, 'r2', 't2')
+  Object.assign(fc.tabs.get(b), { pendingUrl: 'https://www.google.com/sorry/index?continue=x' })
+  s.receive({ type: 'cancel', id: 'r2' })
+  await tick(); await tick()
+  assert.deepEqual(fc.of('remove').map((c) => c[1]), [a])
+})

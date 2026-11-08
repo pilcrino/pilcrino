@@ -10,9 +10,21 @@
   const isOwnedUrl = (url, token) => {
     try { return new URL(url).searchParams.get('pilcrino') === token } catch { return false }
   }
-  // A tab is still ours only while its committed address carries our token and
-  // no navigation elsewhere is pending (Chrome reports that as pendingUrl).
-  const isOwnedTab = (tab, token) => !!tab && isOwnedUrl(tab.url, token) && (!tab.pendingUrl || isOwnedUrl(tab.pendingUrl, token))
+  // A tab is still ours while its committed address carries our token (or is
+  // Google's check or consent page, where the token is gone) and no navigation
+  // elsewhere is pending (Chrome reports that as pendingUrl). A tab whose first
+  // navigation has not committed yet (empty or about:blank) is ours when the
+  // pending address is our search.
+  const oursOrCheck = (url, token) => isOwnedUrl(url, token) || isCheckUrl(url)
+  const blank = (url) => !url || url === 'about:blank'
+  const isOwnedTab = (tab, token) => {
+    if (!tab) return false
+    if (tab.pendingUrl && !oursOrCheck(tab.pendingUrl, token)) return false
+    if (oursOrCheck(tab.url, token)) return true
+    return blank(tab.url) && !!tab.pendingUrl
+  }
+  // The check or consent page the tab shows or is about to show, or null.
+  const checkOn = (tab) => (tab && isCheckUrl(tab.pendingUrl) ? tab.pendingUrl : tab && isCheckUrl(tab.url) ? tab.url : null)
 
   function createWorker(chrome, WebSocketCtor, opts = {}) {
     const ports = opts.ports || root.PILCRINO_PORTS
@@ -30,8 +42,9 @@
 
     const send = (ws, obj) => { try { ws.send(JSON.stringify(obj)) } catch {} }
     const forget = (tabId) => { const e = owned.get(tabId); if (e) { clearTimer(e.timer); owned.delete(tabId) } }
+    // Never closes a tab on or heading to a check page: that one is the owner's to pass.
     const closeIfOwned = (tabId, token) => Promise.resolve(chrome.tabs.get(tabId)).then((tab) => {
-      if (isOwnedTab(tab, token)) return chrome.tabs.remove(tabId)
+      if (isOwnedTab(tab, token) && !checkOn(tab)) return chrome.tabs.remove(tabId)
     }).catch(() => {})
     const keepForOwner = (tabId) => { forget(tabId); Promise.resolve(chrome.tabs.update(tabId, { active: true })).catch(() => {}) }
     const lost = (tabId, reason) => { const e = owned.get(tabId); if (!e) return; forget(tabId); send(e.ws, { type: 'lost', id: e.id, token: e.token, reason }) }
@@ -139,6 +152,14 @@
       Promise.resolve(chrome.tabs.get(tabId)).then((tab) => {
         if (!owned.has(tabId)) return
         if (!isOwnedTab(tab, e.token)) { lost(tabId, 'tab_lost'); return }
+        const check = checkOn(tab)
+        if (check) {
+          // The page is redirecting to a check: the capture is stale, the check is the answer.
+          forget(tabId)
+          send(e.ws, { type: 'result', id: e.id, token: e.token, value: { blocked: checkKind(check), url: check } })
+          Promise.resolve(chrome.tabs.update(tabId, { active: true })).catch(() => {})
+          return
+        }
         send(e.ws, { type: 'result', id: e.id, token: e.token, value })
         if (value.blocked) { keepForOwner(tabId); return }
         forget(tabId)
