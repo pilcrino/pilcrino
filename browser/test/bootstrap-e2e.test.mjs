@@ -32,7 +32,7 @@ setTimeout(() => {
   const t0 = Date.now()
   const child = spawn(process.execPath, [join(root, 'bin.mjs')], {
     cwd: root,
-    env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm },
+    env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm, PILCRINO_EXTENSION_DIR: join(dir, 'extension') },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stderr = ''
@@ -81,7 +81,7 @@ setTimeout(() => {
     const late = await waitFor((m) => m.id === 3)
     const names = late.msg.result.tools.map((t) => t.name)
     assert.ok(names.includes('login_status'), names.join(','))
-    assert.equal(names.length, 11)
+    assert.equal(names.length, 12)
 
     // The real server also runs tools without having seen initialize itself.
     // outFile is validated before any tab lookup, so no Chrome is launched.

@@ -368,6 +368,7 @@ is not. The console rejects a zero/missing `pr` at the approval route
 
 `brief_insufficient`, `review_escalation`, `featured_screenshot_required`,
 `competitor_profile_stale`, `research_fetch_failure`, `serp_blocked`,
+`extension_not_connected`,
 `chrome_unavailable`, `captcha_or_login`, `wp_auth_failed`, `slug_collision`, `featured_image_missing`,
 `image_ownership_conflict`, `mass_forbidden_phrases`,
 `humanize_preservation_failed`, `subagent_failed`, `verification_failed`,
@@ -394,7 +395,9 @@ own orchestration writes a `parked` line via `console/src/publish.ts`'s
 - **RUN-emitted** (the run parks itself and exits 0, leaving checklist.md in a
   valid stage): `brief_insufficient`, `review_escalation`,
   `featured_screenshot_required`, `competitor_profile_stale`,
-  `research_fetch_failure`, `serp_blocked`, `chrome_unavailable`,
+  `research_fetch_failure`, `serp_blocked`, `extension_not_connected` (the
+  Pilcrino extension did not answer a `serp_search` under `research.serp:
+  extension`; `detail` carries the tool's hint), `chrome_unavailable`,
   `captcha_or_login`, `wp_auth_failed`, `slug_collision`,
   `featured_image_missing`, `image_ownership_conflict`,
   `mass_forbidden_phrases`, `humanize_preservation_failed`, `subagent_failed`,

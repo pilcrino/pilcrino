@@ -180,15 +180,22 @@ export function isGoogleUrl(url) {
   return !!u && /^https?:$/.test(u.protocol) && /(^|\.)google\.[a-z.]+$/.test(u.hostname)
 }
 
+/** A Bing search page: the SERP tab under research.serp bing, retained only on a check. */
+export function isBingUrl(url) {
+  const u = parseUrl(url)
+  return !!u && /^https?:$/.test(u.protocol) && /^(www\.)?bing\.com$/.test(u.hostname)
+}
+
 /**
  * Why a SERP capture value keeps its tab open: `blocked` for an object with a
- * non-empty `blocked` field (Google's check), `noResults` for an empty
- * `topResults` array, otherwise null.
+ * non-empty `blocked` field (the engine's check), `noResults` for an empty
+ * `topResults` array, otherwise null. With `onlyBlocked` (Bing) an empty result
+ * is a query with no results, not a check, and yields null.
  */
-export function checkKind(value) {
+export function checkKind(value, { onlyBlocked = false } = {}) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return null
   if (value.blocked) return 'blocked'
-  if (Array.isArray(value.topResults) && value.topResults.length === 0) return 'noResults'
+  if (!onlyBlocked && Array.isArray(value.topResults) && value.topResults.length === 0) return 'noResults'
   return null
 }
 

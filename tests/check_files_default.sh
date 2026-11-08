@@ -75,9 +75,9 @@ lacks_phrase "$WORKFLOW" 'A markdown paste platform starts the merge line with'
 lacks_phrase "$WORKFLOW" '"Publish it" on WordPress or a paste platform is not a merge request'
 lacks_phrase "$WORKFLOW" 'A paste platform (`markdown` with `jekyll`, `ghost`, `generic`)'
 
-# Task 8: README, version and changelog (released as 0.62.0: main shipped 0.61.0 first)
-grep -q '"version": "0.62.0"' .claude-plugin/plugin.json || say ".claude-plugin/plugin.json version is not 0.62.0"
-has_phrase README.md '### 0.62.0 - '
+# Task 8: README, version and changelog (released as 0.63.0: main shipped 0.61.0 first)
+grep -q '"version": "0.63.0"' .claude-plugin/plugin.json || say ".claude-plugin/plugin.json version is not 0.63.0"
+has_phrase README.md '### 0.63.0 - '
 has_phrase README.md 'a markdown file and its images'
 has_phrase README.md '(beta)'
 has_phrase README.md 'GitHub account'

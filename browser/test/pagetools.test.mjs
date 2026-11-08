@@ -114,3 +114,12 @@ test('screenshot: scroll with innerHeight 0 takes one shot, and scrolls back to 
   assert.equal(scrolls.at(-1), 0)
   rmSync(root, { recursive: true, force: true })
 })
+
+test('capture on a bing tab: a blocked value flags blocked, an empty topResults flags nothing', async () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'pb-pt-')))
+  const blocked = await captureTool({ evaluate: async () => ({ blocked: 'bing_check' }) }, 'return 1', join(root, 'a.json'), ctxFor(root), { bingCheck: true })
+  assert.equal(blocked.blocked, true)
+  const empty = await captureTool({ evaluate: async () => ({ engine: 'bing', resultCount: 0, topResults: [] }) }, 'return 1', join(root, 'b.json'), ctxFor(root), { bingCheck: true })
+  assert.deepEqual(Object.keys(empty).sort(), ['bytes', 'items', 'path'])
+  rmSync(root, { recursive: true, force: true })
+})

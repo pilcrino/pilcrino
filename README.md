@@ -12,9 +12,13 @@ Blog posts for your product's blog, written inside Claude Code.
 - **A researched content plan.** It reads Google and your competitors, plus
   Reddit and X if you turn them on, then ranks the posts your buyers are
   looking for.
-- **Research first, with sources.** Google, plus Reddit and X if you turn
-  them on, read in its own signed-in browser. Every post targets one query
+- **Research first, with sources.** Search results, plus Reddit and X if you
+  turn them on, read in its own signed-in browser. Every post targets one query
   and answers it within the first forty words, the shape AI assistants quote.
+  Search results come from Bing in Pilcrino's own browser by default, with no
+  robot checks. You can pick Google instead, in Pilcrino's browser (one robot
+  check per run) or through a small Pilcrino extension in your own browser (no
+  checks, one install by hand); setup asks.
 - **Competitor fact sheets.** It reads each competitor's pricing and
   features and dates the sheet. It offers to read a sheet older than 14 days
   again before a post uses it, and the reviewer checks competitor prices in
@@ -173,7 +177,8 @@ for your system for anything missing.
 Accounts:
 
 - GitHub, for the repository your posts go into.
-- Google, for research. Pilcrino searches signed in.
+- Google, for research, only if you pick Google in Pilcrino's own browser at
+  setup (the default, Bing, needs no account).
 - Reddit and X, only if you turn those research sources on in setup.
 - WordPress, only for WordPress publishing (beta): an application password (in WordPress admin, Users, Profile,
   Application Passwords). Pilcrino creates drafts with it and never publishes.
@@ -363,9 +368,25 @@ bookmarks, none of your extensions) and only the sign-in tabs open: sign in
 there, then tell Pilcrino you are done and it closes that window for you,
 keeping the sign-ins. If that fails, click inside that window and press
 Cmd+Q; closing it with the red button is not enough, and quitting your own
-Chrome by mistake leaves Pilcrino waiting. If Google asks you to prove you are not a robot,
-Pilcrino brings its window forward with a tab titled "Pilcrino: pass the
-check": pass it there and retry.
+Chrome by mistake leaves Pilcrino waiting.
+
+Where search results come from is the `research.serp` setting that setup asks
+about. By default they come from Bing, in Pilcrino's own browser: nothing to
+install, no robot checks, and research runs while you are away. If you chose
+Google in Pilcrino's browser, Google asks it to prove it is not a robot once
+per session (about every three hours): Pilcrino brings its window forward with
+a tab titled "Pilcrino: pass the check"; pass it there and retry. A run while
+you are away waits for you on that check.
+
+If you chose the Pilcrino extension, Google searches run in your own browser
+instead: setup copies the extension to `~/.pilcrino/extension` and walks you
+through loading it once (`chrome://extensions`, Developer mode, Load unpacked;
+load it in one browser only). For each search the extension opens a background
+tab in your browser, reads the results and closes it; a tab Google blocks stays
+open for you. It touches only tabs it opened, never your own, and talks only to
+Pilcrino on this computer. Your browser shows a "developer mode" notice when it
+starts until the extension is in the Chrome Web Store. To remove it, remove it
+on `chrome://extensions` and delete `~/.pilcrino/extension`.
 
 Right after a plugin update, the browser installs its packages the first time
 it starts. For a minute or two its tools answer that it is installing; wait
@@ -386,6 +407,7 @@ claude plugin marketplace remove pilcrino
 rm -rf ~/.claude/plugins/cache/pilcrino                                  # the plugin's files; uninstall leaves them
 rm -rf ~/.claude/plugins/data/pilcrino-pilcrino
 rm -rf ~/.pilcrino/browser
+rm -rf ~/.pilcrino/extension      # if you installed the Pilcrino extension: remove it from chrome://extensions first
 rm -rf ~/Library/Caches/claude-cli-nodejs/*/mcp-logs-plugin-pilcrino-pilcrino-browser   # macOS; ~/.cache/claude-cli-nodejs on Linux, ~/AppData/Local/claude-cli-nodejs on Windows
 ```
 
@@ -769,6 +791,14 @@ Pilcrino is made by Slav and writes the posts on Slav's own blogs.
 [GitHub @lucky72o](https://github.com/lucky72o)
 
 ## Changelog
+
+### 0.63.0 - Search results from Bing, Google, or the Pilcrino extension
+
+- Setup asks where search results come from (`research.serp`). Bing in Pilcrino's own browser is the default: no robot checks, runs while you are away. Google in Pilcrino's browser stays as a choice, with its one check per run. New: Google through a small Pilcrino extension in your own browser, installed once by hand, no checks. Every new Pilcrino browser session had been hitting Google's check since Chrome 155 started reporting remote control to pages (task #139).
+- The browser server has a `serp_search` tool and a loopback bridge the extension connects to (ports 47390 to 47399). The extension only ever touches tabs it opened, closes them when read, and leaves a check tab open for you. `~/.pilcrino/extension` is refreshed by the server and by setup; the newest build always wins.
+- A Bing search with no results is not a check: the run retries once and goes on. Google leaves the sign-in list under Bing and the extension.
+- Both research skills record the engine; `plan-content` gains the failure reasons `extension_blocked` and `extension_not_connected`; posts gain the park reason `extension_not_connected`.
+- Validator check 17: `research.serp` is one of bing, google, extension.
 
 ### 0.62.0 - Posts are files by default; site publishing is beta
 

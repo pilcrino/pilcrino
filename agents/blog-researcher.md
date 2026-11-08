@@ -125,7 +125,7 @@ Read the source's sentinel file. Capture:
 
 For each per-item JSON in this source:
 
-**SERP items (`NN-<host>.json`):**
+**SERP items (`NN-<host>.json`):** The SERP is Google's or Bing's: `_serp.json` carries `engine`, and `research/serp.md` names it where the template says Search engine (a Bing SERP has no AI Overview or shopping feature flags, so say "not reported on Bing" rather than "absent").
 - Rank + URL, title + meta, H2/H3 structure, word count
 - Title formula (transactional / how_to / informational / data / problem / mixed)
 - Hook style from first ~300 chars of `bodyText`

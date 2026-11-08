@@ -1,7 +1,7 @@
 ---
 name: blog-setup
 description: Interactive, resumable setup that creates or updates a blog's blog-ops/ workspace, written for a blog owner who is not a developer. Starts with a preflight on a fresh Mac (Apple's git stub, Node 22.13+, the GitHub CLI and its sign-in, Chrome), finds the blog (a folder on this Mac, a GitHub repository it clones, or a new repository it creates with consent) and offers to reuse an earlier Pilcrino setup on the same Mac. Then offers two paths, quick setup (about ten questions, everything else derived from the site and the repository) or detailed setup (every question), one question at a time with a counter, plus a one-time sign-in to the Pilcrino browser; shows every derived value in a summary before saving, and writes blog-ops/config.yaml plus every profile/*.md doc the rest of this plugin consumes (blog.md, audience.md, voice.md, authors.md, product.md, image-style.md, competitors/methodology.md, site-conventions.md, custom-instructions.md). A research pass reads the live site to pre-fill audience, voice and image style (asked first on the detailed path, run when the site answers on the quick path). By default each post is a markdown file with its images, delivered as a pull request; publishing to the site (beta) is opt-in, for WordPress, Astro, Hugo, Next.js and Eleventy, and only the beta reads the site to fit it (Astro schema and draft flag, Hugo cover key and uglyURLs, WordPress permalinks), stores a WordPress application password in the macOS keychain and probes the publish adapter's auth once. Keeps Pilcrino's files out of Jekyll and Eleventy builds, scaffolds the Remotion image project, runs scripts/validate-config.mjs, commits and pushes the setup files with consent, always writes blog-ops/content-plan.md and the console block, and ends with a What next menu. Must be run before blog-post-workflow, whose Step 0 config preamble hard-stops without a valid blog-ops/config.yaml.
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, WebFetch, AskUserQuestion, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__close_login, mcp__plugin_pilcrino_pilcrino-browser__serp_search
 ---
 
 # blog-setup
@@ -1484,6 +1484,71 @@ shouldn't need this doc open to answer):
    an X short take, a LinkedIn post, and a newsletter)?"
    (`modules.repurpose`)
    Quick path: omit, on.
+6. **Where search results come from** (`research.serp`). Ask with
+   `AskUserQuestion`, the three options in this order, the first marked
+   recommended, in these words or close to them:
+   "Where should Pilcrino get search results from? It searches for every
+   post and plan.
+   1. Bing, in Pilcrino's own browser (recommended). Nothing to install, no
+      robot checks, works while you are away. Bing's ranking is not
+      Google's, and there is no AI Overview flag.
+   2. Google, in Pilcrino's own browser. Google's own results. Google asks
+      you to prove you are not a robot once per session, about every three
+      hours, so you need to be at the keyboard; a run while you are away
+      waits for you.
+   3. Google, through a small Pilcrino extension in your own browser.
+      Google's own results, no checks, works while you are away. You install
+      the extension once by hand (about a minute, I'll walk you through
+      it), and your browser shows a "developer mode" notice when it starts
+      until the extension is in the Chrome Web Store.
+   You can change this later."
+   The Phase 6 summary repeats the choice in one line: "Search results:
+   Bing in Pilcrino's browser" (or "Google in Pilcrino's browser, with its
+   robot check" or "Google through the Pilcrino extension in your browser").
+   Answers: 1 → `bing`, 2 → `google`, 3 → `extension`. Never recommend 2 or
+   3 beyond stating their costs. When `research.serp` is already on file
+   (a re-run), that value is the default and the question adds
+   "(currently: <value>)". Quick path: ask, counted. Default 1.
+   On `extension`, run "Installing the Pilcrino extension" (below) right
+   away, before Phase 3.5. On `google`, Google joins Phase 3.5's sign-in
+   list; on `bing` and `extension` it does not (a Bing search needs no
+   account; the extension searches in a browser that is already signed in).
+
+### Installing the Pilcrino extension (answer 3 only)
+
+1. Run `node "${CLAUDE_PLUGIN_ROOT}/browser/bin.mjs" refresh-extension` with
+   Bash. It copies the plugin's extension to `~/.pilcrino/extension` (a path
+   that survives plugin updates; later runs refresh it) and prints
+   `{"action": ..., "path": ...}`. On `{"error": ...}` say the message in
+   plain words and offer Bing instead; save whichever they pick.
+2. Ask, not counted and not saved: "Which browser do you use day to day?"
+   with the options Google Chrome, Brave, Microsoft Edge, another browser
+   built on Chromium, something else (Safari, Firefox). The answer only picks
+   the wording of the next step. Add: "Load it in that one browser only;
+   two copies would both try to answer." On "something else", say: "The
+   extension only works in a browser built on Chromium (Chrome, Brave, Edge)
+   that is open while Pilcrino researches, so for you it would mean keeping
+   Chrome open. Go on anyway, or take Bing instead?" Save whichever they
+   pick; on Bing, stop here.
+3. Say, in these words or close to them: "Open your browser and go to
+   `chrome://extensions` (in Brave `brave://extensions`, in Edge
+   `edge://extensions`). Turn on Developer mode, top right. Click Load
+   unpacked and choose this folder: `~/.pilcrino/extension`. Tell me when it
+   is loaded." Reveal the folder for them: `open ~/.pilcrino/extension` on
+   macOS, `xdg-open ~/.pilcrino/extension` on Linux, and on Windows (Git
+   Bash) `explorer "$(cygpath -w ~/.pilcrino/extension)"`. Wait for the
+   reply; do not poll.
+4. On the reply, run one test search: call
+   `mcp__plugin_pilcrino_pilcrino-browser__serp_search` with
+   `query: "pilcrino test search"` and `outFile: <repo root>/blog-ops/serp-test.json`
+   (absolute, from `git rev-parse --show-toplevel`; no dot segment, the
+   browser refuses those), then delete that file. Report
+   "The Pilcrino extension is installed and working." or the failure in
+   plain words: `extension_not_connected` or `extension_timeout` means the
+   extension is not loaded or the browser is not running; `blocked` means
+   the owner's own browser got a check (rare; pass it in that tab and try
+   again). Offer to try again or to switch to Bing for now; save whichever
+   they pick. The choice is saved either way.
 
 Merge into `config.yaml`:
 
@@ -1494,6 +1559,9 @@ modules:
   product: <bool>
   competitors: <bool>
   repurpose: <bool>
+
+research:
+  serp: <bing | google | extension>   # answer 6
 
 competitors:
   profile_dir: <answer 4a>   # OPTIONAL; write this block only when
@@ -1794,7 +1862,7 @@ Pilcrino researches in its own Chrome window, the Pilcrino browser. Google and R
 
 If that first call fails because the browser tool is unavailable and Node.js was installed during this session (Phase 0a check 2), this is the one restart: "Pilcrino's browser needs a fresh start of Claude Code now that Node.js is installed. Type `/exit`, then in Terminal: `cd <blog folder>` and `claude`, then `/pilcrino:blog-setup`. Everything so far is saved; setup will offer to keep each part and come straight here." Stop and wait. If Chrome itself is missing (Phase 0a check 5), say so again with the download address and offer to skip this step; research will park later until it is done.
 
-1. Sites needed: `google` always; `reddit` when `modules.reddit_research`; `x` when `modules.x_research`; `linkedin` when `social.linkedin` is configured.
+1. Sites needed: `google` only when `research.serp` is `google` (under `bing` and `extension` Google is not needed here); `reddit` when `modules.reddit_research`; `x` when `modules.x_research`; `linkedin` when `social.linkedin` is configured. An empty list means this phase has nothing to do: say so in one line and move on.
 2. Call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the sites that are not signed in. It quits the Pilcrino browser and opens the sign-in pages in a Chrome window on the Pilcrino profile without remote control (Google refuses to sign in a browser under remote control). Tell the owner, in this order and in these words or close to them:
    "A second Chrome has just opened: that is Pilcrino's own copy of Chrome, separate from the Chrome you normally use. It has one tab per site: <sites>. You can tell it apart because it has only those tabs and no bookmarks or history of yours; it may sit behind your other windows. Sign in to each tab with your own accounts (Reddit and Google sometimes show a 'verify you are human' check first; that is normal, pass it). Then tell me you are done and I'll close that window for you so the sign-ins are kept. Don't close it yourself: closing it the usual way can quit the wrong Chrome."
    Then wait for the owner's reply. Do not poll and do not sleep.

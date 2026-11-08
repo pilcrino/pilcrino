@@ -1,6 +1,6 @@
 import { test, mock } from 'node:test'
 import assert from 'node:assert/strict'
-import { TabRegistry, navigateTool, waitTool } from '../src/tabs.mjs'
+import { TabRegistry, checkKind as checkKindFn, isBingUrl, navigateTool, waitTool } from '../src/tabs.mjs'
 
 function fakeBrowser() {
   const pages = []
@@ -107,4 +107,18 @@ test('wait caps ms at 30000', async () => {
   } finally {
     mock.timers.reset()
   }
+})
+
+test('isBingUrl: www.bing.com and bing.com yes, google.com and bing.example no', () => {
+  assert.equal(isBingUrl('https://www.bing.com/search?q=x'), true)
+  assert.equal(isBingUrl('https://bing.com/search?q=x'), true)
+  assert.equal(isBingUrl('https://www.google.com/search?q=x'), false)
+  assert.equal(isBingUrl('https://www.bing.example/search'), false)
+  assert.equal(isBingUrl('not a url'), false)
+})
+
+test('checkKind onlyBlocked: blocked stays blocked, empty topResults is null', () => {
+  assert.equal(checkKindFn({ blocked: 'bing_check' }, { onlyBlocked: true }), 'blocked')
+  assert.equal(checkKindFn({ topResults: [] }, { onlyBlocked: true }), null)
+  assert.equal(checkKindFn({ topResults: [] }), 'noResults')
 })

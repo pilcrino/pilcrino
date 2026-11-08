@@ -6,31 +6,38 @@ import { fileURLToPath } from 'node:url'
 import { dirname, join } from 'node:path'
 import { ensureInstalled } from '../src/deps.mjs'
 
-test('lists exactly the eleven tools', async () => {
+test('lists exactly the twelve tools', async () => {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..')
   // Stamp node_modules as `node bin.mjs install` does (after `npm ci` there is no stamp yet),
   // so bin.mjs starts the real server directly instead of the install-time shim.
   ensureInstalled(root)
-  const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'bin.mjs')] })
+  // The server refreshes the extension copy at start: never the owner's live one from a test.
+  const { mkdtempSync, existsSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const extDir = join(mkdtempSync(join(tmpdir(), 'pb-srv-')), 'extension')
+  const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'bin.mjs')], env: { ...process.env, PILCRINO_EXTENSION_DIR: extDir } })
   const client = new Client({ name: 't', version: '0' })
   await client.connect(transport)
   try {
     const { tools } = await client.listTools()
-    assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'tabs', 'type', 'wait'])
+    for (let i = 0; i < 50 && !existsSync(join(extDir, 'pilcrino-stamp.json')); i++) await new Promise((r) => setTimeout(r, 100))
+    assert.equal(existsSync(join(extDir, 'pilcrino-stamp.json')), true, 'the refresh went to the test directory')
+    assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'serp_search', 'tabs', 'type', 'wait'])
     const r = await client.callTool({ name: 'capture', arguments: { tabId: 't1', script: 'return 1', outFile: 'relative.json' } })
     // outFile is validated before the tab lookup, so no Chrome is launched.
     assert.equal(r.isError, true)
     assert.equal(JSON.parse(r.content[0].text).code, 'bad_path')
   } finally {
     await client.close()
+    rmSync(join(extDir, '..'), { recursive: true, force: true })
   }
 })
 
-async function inMemoryClient(session) {
+async function inMemoryClient(session, extra = {}) {
   const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js')
   const { buildServer } = await import('../src/server.mjs')
   const [a, b] = InMemoryTransport.createLinkedPair()
-  await buildServer(session).connect(a)
+  await buildServer(session, extra).connect(a)
   const client = new Client({ name: 't', version: '0' })
   await client.connect(b)
   return client
@@ -45,6 +52,19 @@ test('a closed CDP connection is browser_unavailable', async () => {
     assert.equal(codeOf(r), 'browser_unavailable', message)
     await client.close()
   }
+})
+
+test('serp_search checks the path before the bridge, and reports no bridge as extension_not_connected', async () => {
+  const calls = []
+  const client = await inMemoryClient({ roots: ['/tmp'], profile: '/nope', getRegistry: async () => { throw new Error('must not be called') } }, { bridge: { search: async (a) => { calls.push(a); return { value: {} } } } })
+  const bad = await client.callTool({ name: 'serp_search', arguments: { query: 'q', outFile: 'relative.json' } })
+  assert.equal(codeOf(bad), 'bad_path')
+  assert.equal(calls.length, 0)
+  await client.close()
+  const none = await inMemoryClient({ roots: ['/tmp'], profile: '/nope', getRegistry: async () => { throw new Error('must not be called') } })
+  const r = await none.callTool({ name: 'serp_search', arguments: { query: 'q', outFile: '/tmp/pilcrino-test-serp.json' } })
+  assert.equal(codeOf(r), 'extension_not_connected')
+  await none.close()
 })
 
 test('refused url schemes never reach the registry', async () => {
@@ -253,6 +273,26 @@ test('outside Google a blocked value returns the plain result and the tab closes
   const root = await tmpRoot()
   const b = checkBrowser()
   const run = await blockedRun(b, root, { url: 'https://www.reddit.com/search.json?q=q' })
+  assert.deepEqual(Object.keys(run.res).sort(), ['bytes', 'items', 'path'])
+  assert.equal(run.againCode, null)
+  assert.equal(run.tab.closed, true)
+})
+
+test('a blocked Bing capture leaves its tab open, titled, un-owned and in front, and shutdown leaves it', async () => {
+  const root = await tmpRoot()
+  const b = checkBrowser({ value: { engine: 'bing', blocked: 'bing_check' }, sorry: false })
+  const run = await blockedRun(b, root, { url: 'https://www.bing.com/search?q=q' })
+  assert.deepEqual([run.res.blocked, run.res.leftOpen, run.res.noResults], [true, true, undefined])
+  assert.equal(run.againCode, 'not_owned')
+  assert.equal(run.tab.closed, false, 'closeOwned at shutdown leaves the released tab')
+  assert.equal(run.tab.front, true)
+  assert.equal(run.tab._title, CHECK_TITLE)
+})
+
+test('an empty Bing result returns the plain result and the tab closes as usual', async () => {
+  const root = await tmpRoot()
+  const b = checkBrowser({ value: { engine: 'bing', resultCount: 0, topResults: [] }, sorry: false })
+  const run = await blockedRun(b, root, { url: 'https://www.bing.com/search?q=q' })
   assert.deepEqual(Object.keys(run.res).sort(), ['bytes', 'items', 'path'])
   assert.equal(run.againCode, null)
   assert.equal(run.tab.closed, true)

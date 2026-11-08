@@ -2,11 +2,11 @@
 
 Written by: blog-researcher agent, invoked with `source=serp`.
 Read by: blog-editor (synthesis stage).
-Source: Google SERP via the Pilcrino browser (mcp__plugin_pilcrino_pilcrino-browser__*). Never hallucinate, cite every claim.
+Source: the SERP capture in `_serp.json` (Google or Bing; its `engine` field says which). Never hallucinate, cite every claim.
 
 ## Query metadata
 
-- Search engine: Google
+- Search engine: <google | bing, from `engine` in `_serp.json`>
 - Query used: <exact query>
 - Date searched: <YYYY-MM-DD>
 - Top N results studied: <N>
