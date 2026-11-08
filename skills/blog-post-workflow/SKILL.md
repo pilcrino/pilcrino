@@ -2,7 +2,7 @@
 name: blog-post-workflow
 description: "Produce a publish-ready blog post through a gated multi-stage workflow. The skill loads the editor persona and plays the editor role in the main session, conducting intake Q&A, browser research (SERP + optionally Reddit + X), plan synthesis, and gates directly. Heavy file-reading stages delegate to subagents, blog-researcher (Stage 1b analysis), blog-writer (Stage 3a draft + 3b revise), blog-reviewer (Stage 3b review), blog-humanizer (Stage 3c), image-planner (Stage 4a). Each research source uses a select-then-fetch pattern: cheap search-results capture → editor selects the most relevant → deep-fetch only those. Research runs in the Pilcrino browser (its own signed-in Chrome profile, driven by the bundled pilcrino-browser MCP server); Playwright is explicitly forbidden."
 argument-hint: "[resume <slug> | new]"
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch, WebFetch, CronCreate, CronDelete, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__run, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login
+allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent, WebSearch, WebFetch, CronCreate, CronDelete, mcp__plugin_pilcrino_pilcrino-browser__tabs, mcp__plugin_pilcrino_pilcrino-browser__navigate, mcp__plugin_pilcrino_pilcrino-browser__capture, mcp__plugin_pilcrino_pilcrino-browser__run, mcp__plugin_pilcrino_pilcrino-browser__screenshot, mcp__plugin_pilcrino_pilcrino-browser__wait, mcp__plugin_pilcrino_pilcrino-browser__login_status, mcp__plugin_pilcrino_pilcrino-browser__open_login, mcp__plugin_pilcrino_pilcrino-browser__serp_search
 ---
 
 # blog-post-workflow
@@ -45,7 +45,7 @@ Before the workflow does any orchestration, load and validate the blog's config,
 
 1. **Locate the config.** `blog-ops/config.yaml` at the workspace repo root is a fixed convention, the bootstrap anchor (see `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Bootstrap rule); all other paths derive from its values. If it is missing or does not parse as YAML → **HARD-STOP**: "No valid blog-ops/config.yaml. Run /pilcrino:blog-setup first." Do not proceed.
 
-2. **Validate invariants 1-16** from `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Validation invariants. These are cheap checks only (no network: this preamble never probes any adapter's auth; see the auth-probe note under step 4 below); resolve env-var presence with `[ -n "${!VAR}" ]`. Any failure → **HARD-STOP** naming the specific invariant and "run /pilcrino:blog-setup first", except invariant 14, which is a repair offer (see its row).
+2. **Validate invariants 1-17** from `${CLAUDE_PLUGIN_ROOT}/skills/blog-post-workflow/references/config-schema.md` §Validation invariants. These are cheap checks only (no network: this preamble never probes any adapter's auth; see the auth-probe note under step 4 below); resolve env-var presence with `[ -n "${!VAR}" ]`. Any failure → **HARD-STOP** naming the specific invariant and "run /pilcrino:blog-setup first", except invariant 14, which is a repair offer (see its row).
    1. File parses; `blog.name`, `blog.url`, `modules`, `images.enabled` (non-empty), `publish.adapter` present.
    2. `images.featured_default`, if set, ∈ `images.enabled`.
    3. `remotion` ∈ `images.enabled` → `images.remotion.project_dir` set and exists on disk.
@@ -62,6 +62,7 @@ Before the workflow does any orchestration, load and validate the blog's config,
    14. `remotion` ∈ `images.enabled` → the repo-root `.gitattributes` on the BASE branch marks `<images.remotion.project_dir>/src/Root.tsx` as `merge=union` (a local `git show origin/<base>:.gitattributes` read, no network; config-schema.md explains why the base branch). **A miss here is a repair, not a HARD-STOP** (an existing blog set up before this check never had the line): say in one sentence that the line keeps two posts' image registries from colliding, offer to add it to `.gitattributes` and commit it to the base branch (under `git.push_without_asking`, else after a yes), and continue either way; the app's merge resolver needs it only when two posts land at once.
    15. `publish.adapter: wordpress-rest` → exactly one of `publish.wordpress.app_password_env` and `publish.wordpress.app_password_keychain` is set (syntax only; the credential itself is probed once at staging, see the auth-probe note under step 4).
    16. `publish.<adapter>.frontmatter_keys`, if present, is a non-empty list of strings that includes the configured template's required keys (config-schema.md §Fitting the site's frontmatter: `title`, the description key, the date key, the cover key, which is `publish.markdown.cover_key` when set; `layout` too for jekyll; no cover key for wordpress).
+   17. `research.serp`, if present, is one of `bing`, `google`, `extension`; absent means `bing`. Keep the value as `{serp}`: Step 4 and the §Browser sign-in gate branch on it.
 
    Invariant 10 and the `console` part of 11 are checked only when a `console:` block is present; blogs without a `console:` block (set up before 0.57.0) satisfy them vacuously. The rest of 11 and invariants 15 and 16 apply only to keys that are present: a config without the optional keys passes them by vacuity and behaves exactly as before. All are cheap, no-network structural checks (config-schema.md §Validation invariants), consistent with this preamble's "cheap checks only" rule.
 
@@ -122,8 +123,10 @@ Preflight before Step 4 (the sign-in gate): call
 
 ```
 mcp__plugin_pilcrino_pilcrino-browser__login_status
-  sites: ["google"<, "reddit" if modules.reddit_research><, "x" if modules.x_research>]
+  sites: [<"google" if {serp} is google><, "reddit" if modules.reddit_research><, "x" if modules.x_research>]
 ```
+
+Under `bing` and `extension` Google is not in the list: a Bing search needs no account, and the extension searches in the owner's own browser, which is already signed in. If the list is empty, skip the call.
 
 Every site must return `signed_in`. Otherwise:
 - `signed_out`: call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with those sites, then STOP: "Sign in to <site> in the Pilcrino window that just opened, then quit it with Cmd+Q and rerun." (`open_login` quits the Pilcrino browser and opens a window without remote control, because Google refuses sign-in under remote control; until the owner quits it, every browser tool fails with `signin_window_open`.) In autopilot this cannot happen at the start (the console gates before spawning); if it happens mid-run, park `captcha_or_login` with the site in detail.
@@ -337,6 +340,64 @@ Note the returned `tabId`. Use this tab for all navigation below and close it at
 
 #### Step 4.2, Capture the SERP
 
+Branch on `{serp}` (Step 0). Every branch writes `_serp.json` with an `engine` field and the same `topResults` and `serpFeatures` shape, so Step 4.3 and the researcher read it the same way.
+
+##### `{serp}: bing` (the default)
+
+```
+mcp__plugin_pilcrino_pilcrino-browser__navigate
+  tabId: <tabId>
+  url: https://www.bing.com/search?q=<URL-encoded target keyword>
+
+mcp__plugin_pilcrino_pilcrino-browser__wait
+  tabId: <tabId>
+  ms: 2000
+
+mcp__plugin_pilcrino_pilcrino-browser__capture
+  tabId: <tabId>
+  outFile: {drafts_dir}/<slug>/research/_raw/_serp.json
+  script: |
+    // pilcrino-bing-serp-script
+    if (/verify you are human/i.test(document.body.innerText)) return { engine: 'bing', blocked: 'bing_check', query: new URLSearchParams(location.search).get('q') };
+    const algo = Array.from(document.querySelectorAll('li.b_algo'));
+    const results = algo.map(li => li.querySelector('h2 a')).filter(a => a && a.href.startsWith('http'))
+      .map(a => ({ url: a.href, title: a.innerText.trim() })).filter(r => r.title).slice(0, 10);
+    return {
+      engine: 'bing',
+      query: new URLSearchParams(location.search).get('q'),
+      searchedAt: new Date().toISOString(),
+      resultCount: algo.length,
+      serpFeatures: [],
+      topResults: results.map((r, i) => ({ rank: i + 1, url: r.url, title: r.title }))
+    };
+```
+
+The tool returns `{path, bytes, items}`, plus `blocked: true, leftOpen: true` only when the script returned `blocked` (then the browser titles the tab `Pilcrino: pass the check`, leaves it open, brings its window forward and stops owning it; open a new tab for any retry). `Read` the file.
+
+- `resultCount` is 0 and there is no `blocked`: a query with no results, not a check. `wait` 4000 ms, then `navigate` and `capture` once more. Still 0: keep `_serp.json` as it is and go on to Step 4.3 with an empty selection; `_serp_selection.md` says "No results on Bing for this query" and the researcher records it.
+- `blocked`: stop and tell the user, word for word, `Bing is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` Pause the workflow (autopilot: park `serp_blocked` with that sentence as `detail`). Never show the Google sentence under `bing`.
+
+Bing has no AI Overview flag: `serpFeatures` is always `[]` here.
+
+##### `{serp}: extension`
+
+No tab is needed for this step (the tab from Step 4.1 stays for the deep fetches). One call:
+
+```
+mcp__plugin_pilcrino_pilcrino-browser__serp_search
+  query: <target keyword>
+  outFile: {drafts_dir}/<slug>/research/_raw/_serp.json
+```
+
+It searches Google through the Pilcrino extension in the owner's own browser (a background tab opens and closes there) and writes the file in the shape Step 4.3 reads, with `engine: google`. `Read` the file.
+
+- The result has `blocked: true`: read the file's `blocked` value. `unusual_traffic`: tell the user, word for word, `Google asked for a check in your own browser; pass it there, then say retry.` `consent`: `Google is showing a consent page in your own browser; accept it there, then say retry.` Pause (autopilot: park `serp_blocked` with that sentence as `detail`).
+- The tool fails with `extension_not_connected`, `extension_timeout` or `extension_outdated`: tell the user, in plain words, that the Pilcrino extension did not answer, that their browser must be running with the extension loaded (for `extension_outdated`, repeat the tool's hint: it says which side to update), and offer two ways on: retry, or switch to Bing for this run (then open a tab and follow the `bing` branch above). Autopilot: park `extension_not_connected` with the tool's message as `detail`.
+- `topResults` is empty and there is no `blocked`: a query with no results, handled as on Bing: `wait` 4000 ms on the Step 4.1 tab, call `serp_search` once more, then go on with an empty selection.
+
+##### `{serp}: google` (today's flow, unchanged)
+
+
 ```
 mcp__plugin_pilcrino_pilcrino-browser__navigate
   tabId: <tabId>
@@ -361,6 +422,7 @@ mcp__plugin_pilcrino_pilcrino-browser__capture
     if (document.body.innerText.includes('People also ask')) features.push('people_also_ask');
     if (document.querySelector('[data-sgsc]')) features.push('shopping');
     return {
+      engine: 'google',
       query: new URLSearchParams(location.search).get('q'),
       searchedAt: new Date().toISOString(),
       serpFeatures: features,
@@ -1446,7 +1508,10 @@ its current valid stage state, and exits 0. Parked slugs stay resumable via
 | Step 13.5 step 6: a required image file is missing (the featured slot's always; any slot's when `publish.site_live: true`) → pause | Park `featured_screenshot_required`, detail naming the image and its path |
 | Step 4.85: competitor profile missing / >14d stale → HARD-HALT prompt | Park `competitor_profile_stale` |
 | >50% research fetches fail → retry/partial/abandon prompt | Proceed-partial and note it in facts.md, UNLESS the SERP capture itself failed → park `research_fetch_failure` |
-| SERP capture returns 0 results or `blocked` (captcha or bot-block) → stop, do not try curl or Playwright | Park `serp_blocked` with detail `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` The tab stays open in both cases |
+| `{serp}: google`: SERP capture returns 0 results or `blocked` → stop, do not try curl or Playwright | Park `serp_blocked` with detail `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` The tab stays open in both cases |
+| `{serp}: bing` or `extension`: the capture or `serp_search` says `blocked` | Park `serp_blocked` with that branch's sentence as detail (Bing: the Pilcrino window; extension: the owner's own browser) |
+| `{serp}: bing` or `extension`: 0 results after the one retry | Not a park: record no results and go on |
+| `serp_search` fails with `extension_not_connected`, `extension_timeout` or `extension_outdated` | Park `extension_not_connected` with the tool's message as detail |
 | Pilcrino browser cannot start, or a site is unreachable (login_status error) | Park `chrome_unavailable` |
 | login_status signed_out or blocked, or a captcha / login wall during a fetch | Park `captcha_or_login` |
 | WordPress auth probe fails | Park `wp_auth_failed` IMMEDIATELY — zero retries, no polling, no backoff (lockout rule) |
@@ -1508,7 +1573,7 @@ If the session dies, everything is on disk. Resume with `resume <slug>`.
 
 - **Slug already exists when starting new:** ask the human to resume that slug or pick a different keyword.
 - **Pilcrino browser unavailable or a site not signed in:** stop per §Browser (the sign-in gate); do not fall back to curl or Playwright.
-- **SERP capture returns `blocked` or no results:** stop and tell the user `Google is asking for a check. Pass it in the Pilcrino browser window that is open, then retry.` The tab stays open in both cases.
+- **SERP capture says `blocked`, or (under `{serp}: google`) returns no results:** stop with the sentence Step 4.2's branch names (Google in the Pilcrino window, Bing in the Pilcrino window, or the owner's own browser under `extension`); the retained tab stays open. Under `bing` and `extension` no results is not a stop: one retry, then go on.
 - **>50% per-URL fetches fail:** offer retry / proceed-partial / abandon.
 - **Researcher fails twice:** report; offer retry or proceed-with-partial.
 - **Template missing or malformed:** stop immediately and report.
