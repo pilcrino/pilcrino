@@ -7,7 +7,8 @@ import { loginStatus, validSites } from './login.mjs'
  * opens a plain one, see signin.mjs); close-login prints {closed, detail} and
  * never connects either (it quits that plain window); quit prints
  * {quit, detail} after quitting the Pilcrino Chrome so its profile can be
- * removed (the README's Uninstall section). Exit 1 on any failure,
+ * removed (the README's Uninstall section); refresh-extension prints
+ * {action, stamp, path} after refreshing ~/.pilcrino/extension. Exit 1 on any failure,
  * with {error, message} on stdout.
  */
 export async function runCli(cmd, sites) {
@@ -15,6 +16,19 @@ export async function runCli(cmd, sites) {
   // from its own package directory (see chrome.mjs findChrome).
   const session = createSession()
   try {
+    if (cmd === 'refresh-extension') {
+      // Copies the plugin's extension/ to ~/.pilcrino/extension when that copy is older (extension-copy.mjs). Needs no Chrome.
+      const { refreshExtensionCopy } = await import('./extension-copy.mjs')
+      const { PROTOCOL_VERSION } = await import('./bridge.mjs')
+      const { pluginVersion } = await import('./server.mjs')
+      const { fileURLToPath } = await import('node:url')
+      const { dirname, join } = await import('node:path')
+      const src = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'extension')
+      const r = await refreshExtensionCopy({ src, protocol: PROTOCOL_VERSION, pluginVersion: pluginVersion() })
+      const { defaultExtensionDir } = await import('./extension-copy.mjs')
+      process.stdout.write(JSON.stringify({ ...r, path: defaultExtensionDir() }) + '\n')
+      return 0
+    }
     if (cmd === 'close-login') {
       process.stdout.write(JSON.stringify(await session.closeSignIn()) + '\n')
       return 0
