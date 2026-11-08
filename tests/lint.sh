@@ -127,6 +127,13 @@ for dir in adapters/images/scripts adapters/publish/scripts skills/blog-post-wor
   ls "$dir"/*.test.mjs >/dev/null 2>&1 && script_tests "$dir"
 done
 
+# 13b. The extension's manifest version is the plugin version
+if [ -f extension/manifest.json ]; then
+  mv_=$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync("extension/manifest.json","utf8")).version)')
+  pv_=$(node -e 'process.stdout.write(JSON.parse(require("fs").readFileSync(".claude-plugin/plugin.json","utf8")).version)')
+  [ "$mv_" = "$pv_" ] || err "extension/manifest.json version $mv_ differs from plugin.json $pv_"
+fi
+
 # 14. Competitor profiles are read from the base branch, never the post's working tree.
 if [ -f tests/check_competitor_reads.sh ]; then
   bash tests/check_competitor_reads.sh || err "competitor profile reads (tests/check_competitor_reads.sh)"
