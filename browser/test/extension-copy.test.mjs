@@ -132,23 +132,32 @@ test('a stale lock is taken over', async () => {
 test('an older writer holding the lock, then a newer writer: the newest build ends installed', async () => {
   const s = scratch()
   // The child takes the lock itself, installs 0.63.0 while holding it for 400 ms, then releases.
-  const script = `
+  const script = join(s.root, 'older-writer.mjs')
+  writeFileSync(script, `
     import { mkdirSync, rmSync, cpSync, writeFileSync } from 'node:fs'
-    const [src, dest] = process.argv.slice(1)
-    mkdirSync(dest + '/..', { recursive: true })
+    import { join, dirname } from 'node:path'
+    const [src, dest] = process.argv.slice(2)
+    mkdirSync(dirname(dest), { recursive: true })
     mkdirSync(dest + '.lock')
     cpSync(src, dest, { recursive: true })
-    writeFileSync(dest + '/lib/a.js', 'old build')
-    writeFileSync(dest + '/${STAMP_FILE}', JSON.stringify({ protocol: 1, plugin: '0.63.0' }))
-    process.stdout.write('locked\\n')
+    writeFileSync(join(dest, 'lib', 'a.js'), 'old build')
+    writeFileSync(join(dest, '${STAMP_FILE}'), JSON.stringify({ protocol: 1, plugin: '0.63.0' }))
+    process.stdout.write('locked' + String.fromCharCode(10))
     await new Promise((r) => setTimeout(r, 400))
     rmSync(dest + '.lock', { recursive: true, force: true })
-  `
-  const child = spawn(process.execPath, ['--input-type=module', '-e', script, s.src, s.dest], { stdio: ['ignore', 'pipe', 'inherit'] })
-  await new Promise((r) => child.stdout.once('data', r))
+  `)
+  const child = spawn(process.execPath, [script, s.src, s.dest], { stdio: ['ignore', 'pipe', 'pipe'] })
+  let stderr = ''
+  child.stderr.on('data', (c) => { stderr += c })
+  const exited = new Promise((r) => child.once('close', (code) => r(code)))
+  const ready = await Promise.race([
+    new Promise((r) => child.stdout.once('data', () => r('ready'))),
+    exited.then((code) => `exited ${code}: ${stderr}`),
+  ])
+  assert.equal(ready, 'ready')
   writeFileSync(join(s.src, 'lib', 'a.js'), 'new build')
   const r = await refresh(s, '0.64.0')
-  await new Promise((r2) => child.once('close', r2))
+  await exited
   assert.equal(r.action, 'updated')
   assert.deepEqual(readStamp(s.dest), { protocol: 1, plugin: '0.64.0' })
   assert.equal(readFileSync(join(s.dest, 'lib', 'a.js'), 'utf8'), 'new build')
