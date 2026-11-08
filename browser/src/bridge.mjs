@@ -49,6 +49,7 @@ export function createBridge({ ports = BRIDGE_PORTS, origin, protocol = PROTOCOL
   let lastOutdated = null // { protocol, plugin } of the last refused extension, cleared by an accepted one
   let current = null // { id, token, url, state, resolve, reject, timer }
   const queue = []
+  let closing = false
 
   function listen() {
     return new Promise((resolve) => {
@@ -123,6 +124,7 @@ export function createBridge({ ports = BRIDGE_PORTS, origin, protocol = PROTOCOL
   }
 
   function dispatch() {
+    if (closing) return
     if (!current && queue.length) {
       current = queue.shift()
       current.timer = setTimeout(onDeadline, deadlineMs)
@@ -146,6 +148,7 @@ export function createBridge({ ports = BRIDGE_PORTS, origin, protocol = PROTOCOL
 
   function search({ url, token }) {
     if (typeof url !== 'string' || !url.startsWith('https://www.google.com/search?')) throw codedError('bad_argument', 'the bridge only sends Google search urls')
+    if (closing) return Promise.reject(codedError('extension_not_connected', 'The Pilcrino browser server is shutting down.'))
     if (wss === null) return Promise.reject(codedError('extension_not_connected', NO_PORT_HINT, { detail: 'too many Pilcrino sessions' }))
     return new Promise((resolve, reject) => {
       queue.push({ id: randomUUID(), url, token, state: 'waiting', resolve, reject, timer: null })
@@ -154,8 +157,12 @@ export function createBridge({ ports = BRIDGE_PORTS, origin, protocol = PROTOCOL
   }
 
   async function close() {
+    closing = true
+    const bye = () => codedError('extension_not_connected', 'The Pilcrino browser server is shutting down.')
     if (current && current.state === 'pending' && conn) send(conn, { type: 'cancel', id: current.id })
-    while (current || queue.length) settle(codedError('extension_not_connected', 'The Pilcrino browser server is shutting down.'))
+    // Queued searches are rejected without ever being sent: dispatch is off while closing.
+    for (const q of queue.splice(0)) q.reject(bye())
+    if (current) settle(bye())
     if (conn) {
       // Let the cancel frame flush before the socket goes: a graceful close, capped at 300 ms.
       const ws = conn

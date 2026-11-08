@@ -36,11 +36,11 @@ test('extensionIdFromKey matches a known vector and extensionOrigin reads the ma
   const key = Buffer.from('pilcrino test key').toString('base64')
   // sha256('pilcrino test key') starts with 8f5a... ; the id maps each hex nibble to a letter a..p
   const id = extensionIdFromKey(key)
-  assert.match(id, /^[a-p]{32}$/)
-  assert.equal(id, extensionIdFromKey(key))
+  assert.equal(id, 'fmdcadooikekkaacjakigocemagfdkal')
   const o = extensionOrigin('m.json', { readFileSync: () => JSON.stringify({ key }) })
   assert.equal(o, `chrome-extension://${id}`)
-  assert.match(extensionOrigin(join(here, '..', '..', 'extension', 'manifest.json')), /^chrome-extension:\/\/[a-p]{32}$/)
+  // The id Chrome shows for the shipped manifest key, recorded in extension/README.md.
+  assert.equal(extensionOrigin(join(here, '..', '..', 'extension', 'manifest.json')), 'chrome-extension://baadncnanikldfjmdekjakgjgmclbkbl')
 })
 
 test('extension and server agree on the protocol version; manifest version is the plugin version', () => {
@@ -259,7 +259,9 @@ test('close() sends cancel for the pending search, rejects queued ones and stops
   const r2 = assert.rejects(p2, (e) => e.code === 'extension_not_connected')
   await b.close()
   await r1; await r2
-  assert.ok(got.some((f) => f.type === 'cancel'))
+  await sleep(20)
+  assert.deepEqual(got.map((f) => f.type), ['welcome', 'search', 'cancel'], 'no second search is sent during shutdown')
+  assert.equal(got[1].token, 'a')
   const probe = new WebSocket(`ws://127.0.0.1:${port}`, { headers: { origin: ORIGIN } })
   await until(probe, 'error')
 })

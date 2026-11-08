@@ -10,6 +10,9 @@
   const isOwnedUrl = (url, token) => {
     try { return new URL(url).searchParams.get('pilcrino') === token } catch { return false }
   }
+  // A tab is still ours only while its committed address carries our token and
+  // no navigation elsewhere is pending (Chrome reports that as pendingUrl).
+  const isOwnedTab = (tab, token) => !!tab && isOwnedUrl(tab.url, token) && (!tab.pendingUrl || isOwnedUrl(tab.pendingUrl, token))
 
   function createWorker(chrome, WebSocketCtor, opts = {}) {
     const ports = opts.ports || root.PILCRINO_PORTS
@@ -28,7 +31,7 @@
     const send = (ws, obj) => { try { ws.send(JSON.stringify(obj)) } catch {} }
     const forget = (tabId) => { const e = owned.get(tabId); if (e) { clearTimer(e.timer); owned.delete(tabId) } }
     const closeIfOwned = (tabId, token) => Promise.resolve(chrome.tabs.get(tabId)).then((tab) => {
-      if (tab && isOwnedUrl(tab.url, token)) return chrome.tabs.remove(tabId)
+      if (isOwnedTab(tab, token)) return chrome.tabs.remove(tabId)
     }).catch(() => {})
     const keepForOwner = (tabId) => { forget(tabId); Promise.resolve(chrome.tabs.update(tabId, { active: true })).catch(() => {}) }
     const lost = (tabId, reason) => { const e = owned.get(tabId); if (!e) return; forget(tabId); send(e.ws, { type: 'lost', id: e.id, token: e.token, reason }) }
@@ -55,7 +58,7 @@
       Promise.resolve(chrome.tabs.create({ url, active: false })).then((tab) => {
         const c = creating.get(id)
         creating.delete(id)
-        if (!c || c.cancelled) { Promise.resolve(chrome.tabs.remove(tab.id)).catch(() => {}); return }
+        if (!c || c.cancelled) { closeIfOwned(tab.id, token); return }
         owned.set(tab.id, { id, token, ws, timer: setTimer(() => cancelTab(tab.id), root.PILCRINO_SAFETY_MS) })
       }).catch(() => { creating.delete(id); send(ws, { type: 'lost', id, token, reason: 'tab_lost' }) })
     }
@@ -131,10 +134,16 @@
       const e = owned.get(tabId)
       if (!e || sender.frameId !== 0 || msg.token !== e.token) return
       const value = msg.value || {}
-      send(e.ws, { type: 'result', id: e.id, token: e.token, value })
-      if (value.blocked) { keepForOwner(tabId); return }
-      forget(tabId)
-      closeIfOwned(tabId, e.token)
+      // The capture counts only if the tab is still ours right now: a message
+      // from a document the owner has since left is stale.
+      Promise.resolve(chrome.tabs.get(tabId)).then((tab) => {
+        if (!owned.has(tabId)) return
+        if (!isOwnedTab(tab, e.token)) { lost(tabId, 'tab_lost'); return }
+        send(e.ws, { type: 'result', id: e.id, token: e.token, value })
+        if (value.blocked) { keepForOwner(tabId); return }
+        forget(tabId)
+        closeIfOwned(tabId, e.token)
+      }).catch(() => lost(tabId, 'tab_lost'))
     }
 
     chrome.tabs.onUpdated.addListener(onUpdated)

@@ -13,7 +13,8 @@ import { join } from 'node:path'
  * rename fails, so a complete copy is always on disk.
  */
 export const STAMP_FILE = 'pilcrino-stamp.json'
-export const defaultExtensionDir = (home = homedir()) => join(home, '.pilcrino', 'extension')
+/** ~/.pilcrino/extension, or PILCRINO_EXTENSION_DIR when set (tests and the app point it elsewhere). */
+export const defaultExtensionDir = (home = homedir(), env = process.env) => env.PILCRINO_EXTENSION_DIR || join(home, '.pilcrino', 'extension')
 
 const semverParts = (v) => String(v ?? '0').split('.').map((p) => parseInt(p, 10) || 0)
 function compareSemver(a, b) {
@@ -60,7 +61,15 @@ export async function refreshExtensionCopy({ src, dest = defaultExtensionDir(), 
   fs.mkdirSync(join(dest, '..'), { recursive: true })
   if (!(await takeLock(lock, { fs, now, lockWaitMs, lockStaleMs }))) return { action: 'skipped_locked', stamp: readStamp(dest, fs) }
   try {
-    for (const leftover of [fresh, old]) fs.rmSync(leftover, { recursive: true, force: true })
+    fs.rmSync(fresh, { recursive: true, force: true })
+    // A writer that died between the two renames left the installed build at
+    // extension.old and nothing at dest: put it back before deciding anything,
+    // so the comparison sees the real installed build and a downgrade cannot
+    // slip in. A leftover .old beside a complete dest is just removed.
+    if (fs.existsSync(old)) {
+      if (!fs.existsSync(dest)) fs.renameSync(old, dest)
+      else fs.rmSync(old, { recursive: true, force: true })
+    }
     const current = readStamp(dest, fs)
     const installed = fs.existsSync(dest)
     if (installed && compareBuilds(current, mine) !== 'older') return { action: 'kept', stamp: current }

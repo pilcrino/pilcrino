@@ -11,11 +11,17 @@ test('lists exactly the twelve tools', async () => {
   // Stamp node_modules as `node bin.mjs install` does (after `npm ci` there is no stamp yet),
   // so bin.mjs starts the real server directly instead of the install-time shim.
   ensureInstalled(root)
-  const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'bin.mjs')] })
+  // The server refreshes the extension copy at start: never the owner's live one from a test.
+  const { mkdtempSync, existsSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const extDir = join(mkdtempSync(join(tmpdir(), 'pb-srv-')), 'extension')
+  const transport = new StdioClientTransport({ command: process.execPath, args: [join(root, 'bin.mjs')], env: { ...process.env, PILCRINO_EXTENSION_DIR: extDir } })
   const client = new Client({ name: 't', version: '0' })
   await client.connect(transport)
   try {
     const { tools } = await client.listTools()
+    for (let i = 0; i < 50 && !existsSync(join(extDir, 'pilcrino-stamp.json')); i++) await new Promise((r) => setTimeout(r, 100))
+    assert.equal(existsSync(join(extDir, 'pilcrino-stamp.json')), true, 'the refresh went to the test directory')
     assert.deepEqual(tools.map((t) => t.name).sort(), ['capture', 'click', 'close_login', 'login_status', 'navigate', 'open_login', 'run', 'screenshot', 'serp_search', 'tabs', 'type', 'wait'])
     const r = await client.callTool({ name: 'capture', arguments: { tabId: 't1', script: 'return 1', outFile: 'relative.json' } })
     // outFile is validated before the tab lookup, so no Chrome is launched.
@@ -23,6 +29,7 @@ test('lists exactly the twelve tools', async () => {
     assert.equal(JSON.parse(r.content[0].text).code, 'bad_path')
   } finally {
     await client.close()
+    rmSync(join(extDir, '..'), { recursive: true, force: true })
   }
 })
 

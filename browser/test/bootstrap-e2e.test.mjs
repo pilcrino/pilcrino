@@ -32,7 +32,7 @@ setTimeout(() => {
   const t0 = Date.now()
   const child = spawn(process.execPath, [join(root, 'bin.mjs')], {
     cwd: root,
-    env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm },
+    env: { ...process.env, PILCRINO_NPM_CLI: fakeNpm, PILCRINO_EXTENSION_DIR: join(dir, 'extension') },
     stdio: ['pipe', 'pipe', 'pipe'],
   })
   let stderr = ''

@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, renameSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -52,8 +52,9 @@ test('an older protocol writer keeps a newer copy; a newer protocol writer updat
   rmSync(s.root, { recursive: true, force: true })
 })
 
-test('a leftover .new and .old are removed at the start', async () => {
+test('a leftover .new and a leftover .old beside a complete copy are removed at the start', async () => {
   const s = scratch()
+  await refresh(s, '0.63.0')
   mkdirSync(`${s.dest}.new`, { recursive: true }); writeFileSync(join(`${s.dest}.new`, 'junk'), 'x')
   mkdirSync(`${s.dest}.old`, { recursive: true })
   await refresh(s, '0.63.0')
@@ -61,6 +62,38 @@ test('a leftover .new and .old are removed at the start', async () => {
   assert.equal(existsSync(`${s.dest}.old`), false)
   assert.equal(existsSync(join(s.dest, STAMP_FILE)), true)
   rmSync(s.root, { recursive: true, force: true })
+})
+
+test('an interrupted promotion (only extension.old left) is recovered before comparing, so an older writer cannot downgrade', async () => {
+  const s = scratch()
+  await refresh(s, '0.64.0')
+  writeFileSync(join(s.dest, 'lib', 'a.js'), 'newest build')
+  renameSync(s.dest, `${s.dest}.old`) // died between the two renames
+  assert.equal(existsSync(s.dest), false)
+  const r = await refresh(s, '0.63.0')
+  assert.equal(r.action, 'kept')
+  assert.equal(existsSync(`${s.dest}.old`), false)
+  assert.deepEqual(readStamp(s.dest), { protocol: 1, plugin: '0.64.0' })
+  assert.equal(readFileSync(join(s.dest, 'lib', 'a.js'), 'utf8'), 'newest build')
+  rmSync(s.root, { recursive: true, force: true })
+})
+
+test('a failed replacement copy leaves the installed build in place', async () => {
+  const s = scratch()
+  await refresh(s, '0.63.0')
+  const fs = await import('node:fs')
+  const broken = { ...fs, cpSync: () => { throw new Error('disk full') } }
+  await assert.rejects(refreshExtensionCopy({ src: s.src, dest: s.dest, protocol: 1, pluginVersion: '0.64.0', fs: broken }), /disk full/)
+  assert.deepEqual(readStamp(s.dest), { protocol: 1, plugin: '0.63.0' })
+  assert.equal(readFileSync(join(s.dest, 'lib', 'a.js'), 'utf8'), 'one')
+  assert.equal(existsSync(`${s.dest}.lock`), false)
+  rmSync(s.root, { recursive: true, force: true })
+})
+
+test('PILCRINO_EXTENSION_DIR overrides the default destination', async () => {
+  const { defaultExtensionDir } = await import('../src/extension-copy.mjs')
+  assert.equal(defaultExtensionDir('/home/x', { PILCRINO_EXTENSION_DIR: '/tmp/elsewhere' }), '/tmp/elsewhere')
+  assert.equal(defaultExtensionDir('/home/x', {}), join('/home/x', '.pilcrino', 'extension'))
 })
 
 test('a lock held for the whole wait budget returns skipped_locked without writing', async () => {

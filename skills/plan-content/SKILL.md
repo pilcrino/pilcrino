@@ -493,8 +493,10 @@ runs. Never write a quote that is not on a captured page. `threads` is 0.
 
 Candidates are the Reddit threads listed in the SERPs' "Discussions and forums"
 blocks and organic results, minus any URL already quoted in an earlier `*-voice.md`.
-Rank by comment count, threads without a count last; take the top eight. If fewer than six, search Google for
-`site:reddit.com <pain query>` for two of the pain queries and take from those.
+Rank by comment count, threads without a count last; take the top eight. If fewer than six, run two more
+searches, `site:reddit.com <pain query>` for two of the pain queries, through Step 4's `{serp}` branch (same
+source, pacing, capture and failure handling as every other query; never a separate Google search) and take
+from those.
 
 Read each thread by navigating one tab to
 `https://www.reddit.com/<thread path>.json?limit=15&depth=1` and capturing it:

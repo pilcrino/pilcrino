@@ -95,7 +95,7 @@ test('result from the owned tab, frame 0, right token is sent and the tab closed
   const s = ws()[0]; s.open()
   const tabId = await searchOn(s, fc)
   fc.message({ type: 'pilcrino-serp', token: 'tok1', value: { topResults: [1, 2, 3, 4, 5] } }, { tab: { id: tabId }, frameId: 0 })
-  await tick(); await tick()
+  await tick(); await tick(); await tick()
   assert.deepEqual(frames(s)[1], { type: 'result', id: 'r1', token: 'tok1', value: { topResults: [1, 2, 3, 4, 5] } })
   assert.deepEqual(fc.of('remove').map((c) => c[1]), [tabId])
   assert.equal(w.owned().size, 0)
@@ -113,16 +113,34 @@ test('result from an unowned tab, from a frame, or with a stale token is ignored
   assert.equal(fc.of('remove').length, 0)
 })
 
-test('late result from a tab whose url the owner changed closes nothing', async () => {
+test('late result from a tab whose url the owner changed is reported as lost and closes nothing', async () => {
   const { w, fc, ws } = setup()
   const s = ws()[0]; s.open()
   const tabId = await searchOn(s, fc)
   fc.tabs.get(tabId).url = 'https://www.google.com/search?q=my+own+search' // changed without an onUpdated event yet
   fc.message({ type: 'pilcrino-serp', token: 'tok1', value: { topResults: [] } }, { tab: { id: tabId }, frameId: 0 })
   await tick(); await tick()
-  assert.equal(frames(s)[1].type, 'result')
+  assert.deepEqual(frames(s)[1], { type: 'lost', id: 'r1', token: 'tok1', reason: 'tab_lost' })
   assert.equal(fc.of('remove').length, 0)
   assert.equal(w.owned().size, 0)
+})
+
+test('a pending navigation elsewhere ends ownership: a stale blocked capture activates nothing and the tab is not closed', async () => {
+  const { w, fc, ws } = setup()
+  const s = ws()[0]; s.open()
+  const tabId = await searchOn(s, fc)
+  fc.tabs.get(tabId).pendingUrl = 'https://example.com/where-the-owner-is-going'
+  fc.message({ type: 'pilcrino-serp', token: 'tok1', value: { blocked: 'unusual_traffic' } }, { tab: { id: tabId }, frameId: 0 })
+  await tick(); await tick()
+  assert.equal(frames(s)[1].type, 'lost')
+  assert.equal(fc.of('update').length, 0)
+  assert.equal(fc.of('remove').length, 0)
+  assert.equal(w.owned().size, 0)
+  const b = await searchOn(s, fc, 'r2', 't2')
+  fc.tabs.get(b).pendingUrl = 'https://example.com/leaving'
+  s.receive({ type: 'cancel', id: 'r2' })
+  await tick(); await tick()
+  assert.equal(fc.of('remove').length, 0, 'cancel does not close a tab that is navigating away')
 })
 
 test('inline blocked result keeps the tab, activates it, forgets it', async () => {
@@ -130,7 +148,7 @@ test('inline blocked result keeps the tab, activates it, forgets it', async () =
   const s = ws()[0]; s.open()
   const tabId = await searchOn(s, fc)
   fc.message({ type: 'pilcrino-serp', token: 'tok1', value: { blocked: 'unusual_traffic' } }, { tab: { id: tabId }, frameId: 0 })
-  await tick()
+  await tick(); await tick()
   assert.equal(frames(s)[1].value.blocked, 'unusual_traffic')
   assert.deepEqual(fc.of('update')[0], ['update', tabId, { active: true }])
   assert.equal(fc.of('remove').length, 0)
@@ -207,7 +225,7 @@ test('a reconnect on the same port never receives a result from a request of the
   w.scan()
   const s2 = ws()[1]; s2.open()
   fc.message({ type: 'pilcrino-serp', token: 'tok1', value: { topResults: [] } }, { tab: { id: tabId }, frameId: 0 })
-  await tick()
+  await tick(); await tick()
   assert.equal(frames(s2).length, 1) // only hello
 })
 
@@ -215,12 +233,25 @@ test('cancel arriving before tabs.create resolves closes the new tab', async () 
   const { w, fc, ws } = setup()
   const s = ws()[0]; s.open()
   let release
-  fc.chrome.tabs.create = (o) => new Promise((r) => { release = () => r({ id: 500, url: o.url }) })
+  fc.chrome.tabs.create = (o) => new Promise((r) => { fc.tabs.set(500, { id: 500, url: o.url }); release = () => r({ id: 500, url: o.url }) })
   s.receive(SEARCH('r1', 't1'))
   s.receive({ type: 'cancel', id: 'r1' })
   release()
-  await tick(); await tick()
+  await tick(); await tick(); await tick()
   assert.deepEqual(fc.of('remove').map((c) => c[1]), [500])
+  assert.equal(w.owned().size, 0)
+})
+
+test('cancel before tabs.create resolves leaves the tab alone when the owner already navigated it', async () => {
+  const { w, fc, ws } = setup()
+  const s = ws()[0]; s.open()
+  let release
+  fc.chrome.tabs.create = (o) => new Promise((r) => { fc.tabs.set(600, { id: 600, url: 'https://example.com/owner-moved-here' }); release = () => r({ id: 600, url: o.url }) })
+  s.receive(SEARCH('r1', 't1'))
+  s.receive({ type: 'cancel', id: 'r1' })
+  release()
+  await tick(); await tick(); await tick()
+  assert.equal(fc.of('remove').length, 0)
   assert.equal(w.owned().size, 0)
 })
 
