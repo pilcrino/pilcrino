@@ -31,9 +31,12 @@ Buyer-stage modifiers: awareness (how to, guide), consideration (best, vs, alter
 If a brand name has another meaning (a word, a company in another field), add its
 domain or the category word: "tally.so pricing", "tally forms alternatives".
 
-## Reading a Google result page
+## Reading a result page (Google or Bing)
 
-From the captured page text of `https://www.google.com/search?q=<query>&hl=en&gl=us`:
+From the captured page text of `https://www.google.com/search?q=<query>&hl=en&gl=us`
+(or, under `research.serp: bing`, `https://www.bing.com/search?q=<query>`; a
+Bing page has no AI Overview and no Discussions block, so those lines read
+`none` and the forum candidates come from the organic results alone):
 
 - Organic results appear as title, source, date, snippet. Take the top eight.
 - "AI Overview" or "AI Mode" text near the top means an AI answer rendered; note

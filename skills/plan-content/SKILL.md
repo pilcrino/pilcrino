@@ -42,20 +42,25 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    and never call `login_status` for it: the console checked it within 15
    minutes, and probing a signed-out X again trips X's login rate limit. X
    listed as anything but `signed_in` means skip Step 5b's X round. The
-   sites in play are `google`, plus `reddit` and `x` unless Step 0's research
-   switches turned them off; a switched-off site is never probed, never
-   required and its listed state is ignored. Call `login_status` only for the
+   sites in play are `google` only under `{serp}: google`, plus `reddit` and
+   `x` unless Step 0's research switches turned them off; a switched-off site
+   (and Google under `bing` or `extension`) is never probed, never required and
+   its listed state is ignored. Call `login_status` only for the
    sites in play the line does not list, and not at all when it lists them
-   all. Google, and Reddit when it is in play, must be `signed_in`: any
+   all. Google (when in play), and Reddit when it is in play, must be `signed_in`: any
    `signed_out` among them fails with
    `login_required`, `blocked` with `blocked`, `error` or a failed tool call
    with `browser_unavailable`. X is optional: its state only decides whether
    Step 5b's X round runs. Interactive runs call `open_login` for the
    signed-out required sites and stop with the sign-in instruction instead
    (sign in, then quit that window with Cmd+Q).
-   A Google block later in the run (unusual-traffic check or `/sorry`) is
-   retried once in a new tab after two consecutive 30000 ms `wait` calls
-   (Step 4); if it persists, the run fails with `blocked`. Google is never
+   Under `{serp}: google`, a Google block later in the run (unusual-traffic
+   check or `/sorry`) is retried once in a new tab after two consecutive
+   30000 ms `wait` calls (Step 4); if it persists, the run fails with `blocked`.
+   Under `bing` a Bing check is handled the same way with the Bing
+   sentence; under `extension` a check or consent page in the owner's browser
+   fails with `extension_blocked`, and a silent, missing or outdated extension
+   with `extension_not_connected` (Step 4). The search round is never
    skipped. A Reddit thread whose capture fails is skipped; the run fails
    with `blocked` only when the captured text shows "prove your humanity" or
    a login wall, or when more than half of the selected threads failed
@@ -120,7 +125,8 @@ elsewhere; they are the same values as `$CONSOLE_RESEARCH_REQUEST` and
    console shows.
    On failure: `{"status": "failed", "reason": "<reason>", "detail": "<one line the owner can act on>"}`,
    `reason` one of `browser_unavailable`, `login_required`, `blocked`,
-   `no_profile`, `other`. Without this file the console records the run as failed.
+   `no_profile`, `extension_blocked`, `extension_not_connected`, `other`.
+   Without this file the console records the run as failed.
 7. **Step 9's chat report** is not needed; the result's `report` is what the
    owner reads. The eight-line cap is for chat or report text only, not for
    the `competitors` array. With the module on, that array lists every chosen
@@ -240,7 +246,9 @@ there is no profile or competitors dir; say so once and continue.
   Reddit off for this run (no sign-in check, no thread reading in Step 5) and
   `modules.x_research: false` turns X off (no sign-in check, no Step 5b). A
   key that is missing or `true` leaves the source on. Without a config both
-  stay on.
+  stay on. `research.serp` (`bing` when missing; keep it as `{serp}`) decides
+  where Step 4 searches: `bing` or `google` in the Pilcrino browser, or
+  `extension` through `serp_search` in the owner's own browser.
 
 ## Step 1: Read what exists
 
@@ -295,12 +303,14 @@ The sign-in gate: call
 
 ```
 mcp__plugin_pilcrino_pilcrino-browser__login_status
-  sites: ["google"<, "reddit" unless Reddit is off><, "x" unless X is off>]
+  sites: [<"google" if {serp} is google><, "reddit" unless Reddit is off><, "x" unless X is off>]
 ```
 
-The list is `["google", "reddit", "x"]` unless a research switch (Step 0)
-turned Reddit or X off. Google, and Reddit when it is on, must return
-`signed_in`. Otherwise:
+The list is `["google", "reddit", "x"]` under `{serp}: google` unless a
+research switch (Step 0) turned Reddit or X off; under `bing` and `extension`
+Google is left out (Bing needs no account; the extension searches in the
+owner's own browser, already signed in). An empty list means no call. Google
+(when listed), and Reddit when it is on, must return `signed_in`. Otherwise:
 - `signed_out`: call `mcp__plugin_pilcrino_pilcrino-browser__open_login` with the signed-out
   required sites, then stop: "Sign in to <site> in the Pilcrino window that just
   opened, then quit it with Cmd+Q and run /pilcrino:plan-content again."
@@ -332,17 +342,23 @@ scratch directory path as given.
 Call `mcp__plugin_pilcrino_pilcrino-browser__tabs` with `action: open` once and keep the tab
 id. Searches run one at a time in that one tab, never in parallel tabs: each
 search is one `navigate`, then one `capture` to `{raw}/<round>-<n>.json` with the
-page script. Between two Google `navigate` calls, `wait` (`tabId`, `ms`) 4000 to
-6000 ms. Reddit and X rounds use their own single tab the same way:
+page script. Between two search `navigate` calls (Google or Bing), `wait` (`tabId`, `ms`)
+4000 to 6000 ms. Reddit and X rounds use their own single tab the same way:
 
 ```
 mcp__plugin_pilcrino_pilcrino-browser__capture
   tabId: <tabId>
   outFile: {raw}/<round>-<n>.json
   script: |
-    if (/(^|\.)google\.[a-z.]+$/.test(location.hostname) && (/unusual traffic/i.test(document.body.innerText) || location.pathname.startsWith('/sorry'))) return { blocked: 'unusual_traffic', url: location.href, query: new URLSearchParams(location.search).get('q') };
-    return { url: location.href, title: document.title, text: document.body.innerText.substring(0, 20000), links: Array.from(document.querySelectorAll('a[href]')).slice(0, 200).map(a => ({ href: a.href, text: a.innerText.trim().substring(0, 120) })) }
+    // pilcrino-plan-content-capture-script
+    const bing = /^(www\.)?bing\.com$/.test(location.hostname);
+    if (/(^|\.)google\.[a-z.]+$/.test(location.hostname) && (/unusual traffic/i.test(document.body.innerText) || location.pathname.startsWith('/sorry'))) return { blocked: 'unusual_traffic', engine: 'google', url: location.href, query: new URLSearchParams(location.search).get('q') };
+    if (bing && /verify you are human/i.test(document.body.innerText)) return { engine: 'bing', blocked: 'bing_check', url: location.href, query: new URLSearchParams(location.search).get('q') };
+    return { engine: bing ? 'bing' : 'google', resultCount: document.querySelectorAll('li.b_algo').length, url: location.href, title: document.title, text: document.body.innerText.substring(0, 20000), links: Array.from(document.querySelectorAll('a[href]')).slice(0, 200).map(a => ({ href: a.href, text: a.innerText.trim().substring(0, 120) })) }
 ```
+
+`resultCount` counts Bing's organic results and is 0 on Google pages, where it
+means nothing.
 
 Then `Read` the file. Close each tab this run still owns with `tabs`
 `action: close` (one call per `tabId`) when Step 6 ends; a tab the browser
@@ -366,7 +382,68 @@ Pain only.
 In idea mode build 8 to 12 queries from the idea, not 16 to 24 from the
 product, still two per bucket where the bucket applies.
 
-## Step 4: Search Google
+## Step 4: Search
+
+Branch on `{serp}` (Step 0). Every captured file carries `engine`, and the
+SERP notes file (below) opens with the line `Engine: google` or `Engine: bing`.
+
+### `{serp}: bing` (the default)
+
+For each query, `navigate` to `https://www.bing.com/search?q=<url-encoded query>`
+and `capture` it with the page script (Step 2), then `Read` the file. Wait 4000
+to 6000 ms between navigates (Step 2). Read the result page as
+`references/queries.md` says for Bing: no AI Overview and no Discussions block.
+
+- `resultCount` is 0 and there is no `blocked`: a query with no results, not a
+  check. `wait` 4000 ms, `navigate` and `capture` once more; still 0: write
+  the notes entry with `Organic: no results on Bing` and go on to the next
+  query.
+- `blocked` (`bing_check`): the browser has left that tab open titled
+  "Pilcrino: pass the check", brought its window forward and stopped owning it;
+  open a new tab and use it for the rest of the run, as the Google paragraph
+  below says. Interactive: stop at once and tell the owner, word for word,
+  `Bing is asking for a check. Pass it in the Pilcrino browser window that is open, then tell me to carry on.`
+  then retry the query in the new tab. Autopilot: `wait` 30000 ms twice in
+  the new tab, retry once; still blocked: fail with `blocked` and the detail
+  `Bing is asking for a check. Pass it in the Pilcrino browser window that is open, then run the research again.`
+
+### `{serp}: extension`
+
+Open one `about:blank` tab with `tabs` `action: open` at the start of the round
+and keep it only for pacing: the 4000 to 6000 ms `wait` (`tabId`, `ms`)
+between searches runs on it (a headless run has no shell, so no `sleep`).
+Close it with the other tabs at the end (Step 2). For each query, one call:
+
+```
+mcp__plugin_pilcrino_pilcrino-browser__serp_search
+  query: <query>
+  outFile: {raw}/<round>-<n>.json
+  locale: { hl: en, gl: us }
+```
+
+It searches Google through the Pilcrino extension in the owner's own browser (a
+background tab opens and closes there) and writes `engine`, `query`, `url`,
+`serpFeatures`, `topResults`, `title`, `text` and `links`. `Read` the file and
+read it as a Google page (`references/queries.md`).
+
+- The result has `blocked: true`: the file's `blocked` is `unusual_traffic`
+  (interactive: `Google asked for a check in your own browser; pass it there, then tell me to carry on.`)
+  or `consent`
+  (interactive: `Google is showing a consent page in your own browser; accept it there, then tell me to carry on.`).
+  Interactive: stop, say the sentence, retry the query on the reply. Autopilot:
+  fail with `extension_blocked` and that sentence as the detail.
+- `topResults` is empty and there is no `blocked`: a query with no results.
+  `wait` 4000 ms on the pacing tab, call `serp_search` once more; still empty:
+  write the notes entry with `Organic: no results` and go on.
+- The tool fails with `extension_not_connected`, `extension_timeout` or
+  `extension_outdated`: interactive, say in plain words that the Pilcrino
+  extension did not answer and that their browser must be running with the
+  extension loaded (for `extension_outdated`, repeat the tool's hint: it says
+  which side to update), and offer two ways on: retry, or Bing for this run
+  (then open a tab and follow the `bing` branch). Autopilot: fail with
+  `extension_not_connected` and the tool's message as the detail.
+
+### `{serp}: google` (unchanged)
 
 For each query, `navigate` to `https://www.google.com/search?q=<url-encoded query>&hl=en&gl=us`
 and `capture` it with the page script (Step 2), then `Read` the file. If the
@@ -739,7 +816,7 @@ note, not moved behind posts that need nothing.
 - [ ] Standalone, module on: an idea naming a competitor with no profile is added as `planned` with a `Profile first: <name>, <name>` line after its `Mention:` line, and the report says it waits for the fact sheets and that the post workflow offers to research them
 - [ ] Registered: an idea naming a competitor with no profile is reported with the add command (`/pilcrino:research-competitor <name>`), not added
 - [ ] Autopilot, module on: the `competitors` array holds every chosen and skipped competitor and every name the ideas use, up to 30
-- [ ] Browser tabs this run still owns closed (a tab released on Google's check stays open)
+- [ ] Browser tabs this run still owns closed (a tab released on a Google or Bing check stays open)
 - [ ] Interactive run: the first message said "This takes about 30 minutes."
-- [ ] Every Google query in the bank captured, or the owner said to end the Google round; a Google check stopped the run and asked the owner (autopilot: failed with `blocked`)
+- [ ] Every search query in the bank captured, or the owner said to end the search round; a check stopped the run and asked the owner (autopilot: failed with `blocked`, or `extension_blocked` under `extension`); a query with no results was retried once and recorded
 - [ ] Chat report under 25 lines, one "write these first" order (the plan's), plain words (fact sheet, no "cap"), owner-named and research-added competitors told apart, and standalone it ends with the plan file path
