@@ -4,7 +4,7 @@ import { z } from 'zod'
 import { createSession } from './session.mjs'
 import { captureTool, runTool, screenshotTool } from './pagetools.mjs'
 import { resolveOutFile } from './paths.mjs'
-import { checkTabUrl, clickTool, isGoogleUrl, navigateTool, typeTool, waitTool } from './tabs.mjs'
+import { checkTabUrl, clickTool, isBingUrl, isGoogleUrl, navigateTool, typeTool, waitTool } from './tabs.mjs'
 import { loginStatus, validSites, SITES } from './login.mjs'
 import { codedError } from './chrome.mjs'
 import { serpSearchTool } from './serp.mjs'
@@ -55,11 +55,12 @@ export function buildServer(session, { bridge } = {}) {
     checkTabUrl(url)
     return navigateTool(await page(tabId), url, { waitUntil, timeoutMs })
   })
-  tool('capture', 'Run a script (async function body that returns a JSON value) in an owned tab and write the result to outFile. Returns {path, bytes, items}. The value never enters this result. Only in a Google tab: when the value is an object with a `blocked` field (Google\'s unusual-traffic check) or an empty `topResults` array, the result adds `blocked: true` or `noResults: true`, plus `leftOpen: true`: earlier tabs left on Google\'s check page are closed, this tab is left open for the owner, its window comes to the front, and it is no longer owned by this session (later calls on that tabId fail with not_owned; open a new tab to retry).', { tabId: z.string(), script: z.string(), outFile: z.string() }, async ({ tabId, script, outFile }) => {
+  tool('capture', 'Run a script (async function body that returns a JSON value) in an owned tab and write the result to outFile. Returns {path, bytes, items}. The value never enters this result. Only in a Google tab: when the value is an object with a `blocked` field (Google\'s unusual-traffic check) or an empty `topResults` array, the result adds `blocked: true` or `noResults: true`, plus `leftOpen: true`: earlier tabs left on Google\'s check page are closed, this tab is left open for the owner, its window comes to the front, and it is no longer owned by this session (later calls on that tabId fail with not_owned; open a new tab to retry). On a Bing tab only a `blocked` value does this; an empty `topResults` on Bing is a query with no results and adds nothing.', { tabId: z.string(), script: z.string(), outFile: z.string() }, async ({ tabId, script, outFile }) => {
     checkOut(outFile)
     const reg = await session.getRegistry()
     const p = reg.page(tabId)
-    const res = await captureTool(p, script, outFile, session, { googleCheck: isGoogleUrl(p.url()) })
+    const url = p.url()
+    const res = await captureTool(p, script, outFile, session, { googleCheck: isGoogleUrl(url), bingCheck: isBingUrl(url) })
     const capturedHref = p.url()
     if (res.blocked || res.noResults) Object.assign(res, await reg.leaveOpen(tabId, capturedHref))
     return res
@@ -88,15 +89,23 @@ export async function startServer() {
   const log = (msg) => process.stderr.write(`pilcrino-browser: ${msg}\n`)
   // The extension bridge listens from process start, so the extension has
   // connected long before the first search (its rescan is 5 s, or 30 s asleep).
-  const bridge = createBridge({ origin: extensionOrigin(join(EXTENSION_SRC, 'manifest.json')), pluginVersion: version })
-  if ((await bridge.listen()) === null) log('no free bridge port, too many Pilcrino sessions')
-  // ~/.pilcrino/extension follows the plugin's copy; the result is logged, never awaited by a tool call.
-  refreshExtensionCopy({ src: EXTENSION_SRC, protocol: PROTOCOL_VERSION, pluginVersion: version })
-    .then((r) => { if (r.action !== 'kept') log(`extension copy ${r.action} (${r.stamp?.plugin ?? '?'})`) })
-    .catch((err) => log(`extension copy not refreshed: ${err?.message ?? err}`))
+  // Without the plugin's extension/ folder (a browser/ copied on its own) the
+  // server runs without a bridge and serp_search says so.
+  let bridge = null
+  try {
+    bridge = createBridge({ origin: extensionOrigin(join(EXTENSION_SRC, 'manifest.json')), pluginVersion: version })
+    if ((await bridge.listen()) === null) log('no free bridge port, too many Pilcrino sessions')
+    // ~/.pilcrino/extension follows the plugin's copy; the result is logged, never awaited by a tool call.
+    refreshExtensionCopy({ src: EXTENSION_SRC, protocol: PROTOCOL_VERSION, pluginVersion: version })
+      .then((r) => { if (r.action !== 'kept') log(`extension copy ${r.action} (${r.stamp?.plugin ?? '?'})`) })
+      .catch((err) => log(`extension copy not refreshed: ${err?.message ?? err}`))
+  } catch (err) {
+    log(`extension bridge not started: ${err?.message ?? err}`)
+    bridge = null
+  }
   const server = buildServer(session, { bridge })
   const transport = new StdioServerTransport()
-  const bye = async () => { await bridge.close().catch(() => {}); await session.closeOwned(); process.exit(0) }
+  const bye = async () => { if (bridge) await bridge.close().catch(() => {}); await session.closeOwned(); process.exit(0) }
   process.stdin.on('close', bye)
   process.on('SIGTERM', bye)
   process.on('SIGINT', bye)

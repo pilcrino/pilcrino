@@ -271,6 +271,26 @@ test('outside Google a blocked value returns the plain result and the tab closes
   assert.equal(run.tab.closed, true)
 })
 
+test('a blocked Bing capture leaves its tab open, titled, un-owned and in front, and shutdown leaves it', async () => {
+  const root = await tmpRoot()
+  const b = checkBrowser({ value: { engine: 'bing', blocked: 'bing_check' }, sorry: false })
+  const run = await blockedRun(b, root, { url: 'https://www.bing.com/search?q=q' })
+  assert.deepEqual([run.res.blocked, run.res.leftOpen, run.res.noResults], [true, true, undefined])
+  assert.equal(run.againCode, 'not_owned')
+  assert.equal(run.tab.closed, false, 'closeOwned at shutdown leaves the released tab')
+  assert.equal(run.tab.front, true)
+  assert.equal(run.tab._title, CHECK_TITLE)
+})
+
+test('an empty Bing result returns the plain result and the tab closes as usual', async () => {
+  const root = await tmpRoot()
+  const b = checkBrowser({ value: { engine: 'bing', resultCount: 0, topResults: [] }, sorry: false })
+  const run = await blockedRun(b, root, { url: 'https://www.bing.com/search?q=q' })
+  assert.deepEqual(Object.keys(run.res).sort(), ['bytes', 'items', 'path'])
+  assert.equal(run.againCode, null)
+  assert.equal(run.tab.closed, true)
+})
+
 // Two server processes over one Chrome: separate browser connections, so neither sees the other's ownership.
 async function twoConnections() {
   const { TabRegistry } = await import('../src/tabs.mjs')
