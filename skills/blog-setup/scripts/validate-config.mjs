@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Checks blog-ops/config.yaml against the 16 validation invariants of
+// Checks blog-ops/config.yaml against the 17 validation invariants of
 // skills/blog-post-workflow/references/config-schema.md and prints one plain
 // line per check for the blog owner. Run by blog-setup's final checks, from
 // the blog repository root:
@@ -97,7 +97,7 @@ export function hasUnionMerge(text, path) {
 }
 
 /**
- * Runs the 16 checks on a parsed config. `repo` is the blog repository root;
+ * Runs the 17 checks on a parsed config. `repo` is the blog repository root;
  * `fs` is a seam. Returns [{ n, title, ok, detail }], one per invariant, in order.
  */
 export function runChecks(cfg, { repo, fs = { existsSync, readFileSync, statSync } } = {}) {
@@ -121,7 +121,7 @@ export function runChecks(cfg, { repo, fs = { existsSync, readFileSync, statSync
     !nonEmpty(adapter) && 'publish.adapter is missing',
   ])
   if (!ok1) {
-    for (let n = 2; n <= 16; n++) check(n, 'Skipped: the file could not be read as settings', 'not checked')
+    for (let n = 2; n <= 17; n++) check(n, 'Skipped: the file could not be read as settings', 'not checked')
     return out
   }
   const list = Array.isArray(enabled) ? enabled : []
@@ -226,6 +226,9 @@ export function runChecks(cfg, { repo, fs = { existsSync, readFileSync, statSync
     return missing.length > 0 && `frontmatter_keys is missing ${missing.join(', ')}, which the post template always writes`
   })())
 
+  const serp = get(cfg, 'research.serp')
+  check(17, 'The search source, when given, is bing, google or extension', serp !== undefined && !['bing', 'google', 'extension'].includes(serp) && `research.serp must be one of bing, google, extension, got ${JSON.stringify(serp)}`)
+
   return out
 }
 
@@ -262,10 +265,10 @@ export async function main(argv = process.argv.slice(2), { stdout = process.stdo
   let yaml
   try { yaml = await loadYaml(pluginRoot) } catch (err) { stderr.write(`Could not load the YAML reader: ${err.message}\n`); return 1 }
   const file = join(opts.repo, 'blog-ops', 'config.yaml')
-  if (!existsSync(file)) { stdout.write(`FAIL  The settings file blog-ops/config.yaml exists (1): not found at ${file}\n\n1 of 16 checks failed:\n- The settings file blog-ops/config.yaml exists: not found at ${file}\n`); return 1 }
+  if (!existsSync(file)) { stdout.write(`FAIL  The settings file blog-ops/config.yaml exists (1): not found at ${file}\n\n1 of 17 checks failed:\n- The settings file blog-ops/config.yaml exists: not found at ${file}\n`); return 1 }
   let cfg
   try { cfg = yaml.parse(readFileSync(file, 'utf8')) } catch (err) {
-    stdout.write(`FAIL  The settings file reads as YAML (1): ${String(err.message).split('\n')[0]}\n\n1 of 16 checks failed:\n- The settings file reads as YAML: ${String(err.message).split('\n')[0]}\n`)
+    stdout.write(`FAIL  The settings file reads as YAML (1): ${String(err.message).split('\n')[0]}\n\n1 of 17 checks failed:\n- The settings file reads as YAML: ${String(err.message).split('\n')[0]}\n`)
     return 1
   }
   const results = runChecks(cfg, { repo: opts.repo })

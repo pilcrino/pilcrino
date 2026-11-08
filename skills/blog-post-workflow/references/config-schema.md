@@ -163,7 +163,13 @@ review:                       # OPTIONAL block
                               #   comments there; false: Gate 2 waits in the session.
                               #   Autopilot ignores it (the console gates)
 
-research:
+research:                     # OPTIONAL block
+  serp: bing                  # bing (default) | google | extension. Where search results
+                              #   come from: Bing in the Pilcrino browser; Google in the
+                              #   Pilcrino browser (one robot check per run); or Google
+                              #   through the Pilcrino extension in your own browser.
+                              #   Setup asks; change it here or by re-running blog-setup
+                              #   (invariant 17).
 
 browser:
   executable: /path/to/chrome   # OPTIONAL; only when Google Chrome is not at the platform default
@@ -403,6 +409,8 @@ validation step (`blog-setup`) both check:
     validator and the schema's own tests reject it), and `draft_mechanism` /
     `draft_key` alone decide whether the draft line is emitted (`none`:
     never).
+17. `research.serp`, if present, is one of `bing`, `google`, `extension`.
+    Absent means `bing`.
 
 Two further profile docs are registered here but not added as numbered
 invariants above, because their requirement depends on wizard-time state

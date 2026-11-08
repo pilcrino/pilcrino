@@ -151,31 +151,31 @@ function run(dir) {
 
 const failing = (out) => out.split('\n').filter((l) => l.startsWith('FAIL')).map((l) => Number(/\((\d+)\)/.exec(l)[1]))
 
-test('a complete Astro config passes all 16 checks, exit 0', () => {
+test('a complete Astro config passes all 17 checks, exit 0', () => {
   const r = run(repo(ASTRO))
   assert.equal(r.status, 0, r.out + r.err)
-  assert.equal(r.out.split('\n').filter((l) => l.startsWith('ok  ')).length, 16)
-  assert.match(r.out, /\nAll 16 checks pass\n$/)
+  assert.equal(r.out.split('\n').filter((l) => l.startsWith('ok  ')).length, 17)
+  assert.match(r.out, /\nAll 17 checks pass\n$/)
   assert.equal(r.err, '')
 })
 
 test('a Hugo markdown config with frontmatter_keys and cover_key passes', () => {
   const r = run(repo(HUGO, { remotion: false, gitattributes: null }))
   assert.equal(r.status, 0, r.out + r.err)
-  assert.match(r.out, /All 16 checks pass/)
+  assert.match(r.out, /All 17 checks pass/)
 })
 
-test('a files-mode config (generic, blog-ops/posts, no site_live) passes all 16 checks', () => {
+test('a files-mode config (generic, blog-ops/posts, no site_live) passes all 17 checks', () => {
   const r = run(repo(FILES, { remotion: false, gitattributes: null }))
   assert.equal(r.status, 0, r.out + r.err)
-  assert.match(r.out, /All 16 checks pass/)
+  assert.match(r.out, /All 17 checks pass/)
 })
 
 test('WordPress with both password sources fails only check 15 and names the fix', () => {
   const r = run(repo(WORDPRESS('    app_password_env: FIELDSTACK_WP_APP_PASSWORD\n    app_password_keychain: pilcrino-wp-fieldstack'), { remotion: false, gitattributes: null }))
   assert.equal(r.status, 1)
   assert.deepEqual(failing(r.out), [15])
-  assert.match(r.out, /1 of 16 checks failed:\n- WordPress has exactly one place .*: both app_password_env and app_password_keychain are set; keep one\n$/)
+  assert.match(r.out, /1 of 17 checks failed:\n- WordPress has exactly one place .*: both app_password_env and app_password_keychain are set; keep one\n$/)
 })
 
 test('WordPress with one password source passes 15', () => {
@@ -282,4 +282,19 @@ test('hasUnionMerge and parseArgs', () => {
   assert.equal(parseArgs(['--repo', '/r', '--no-install']).install, false)
   assert.equal(parseArgs(['--repo', '/r']).repo, resolve('/r')) // an absolute path on every platform (D:\r on Windows)
   assert.throws(() => parseArgs(['--bogus']), /unknown argument/)
+})
+
+test('check 17: research.serp accepts bing, google and extension, refuses others, passes when absent', () => {
+  for (const v of ['bing', 'google', 'extension']) {
+    const r = run(repo(FILES.replace('research:\n', `research:\n  serp: ${v}\n`)))
+    assert.equal(r.status, 0, v)
+    assert.match(r.out, /All 17 checks pass/)
+  }
+  const bad = run(repo(FILES.replace('research:\n', 'research:\n  serp: duckduckgo\n')))
+  assert.equal(bad.status, 1)
+  assert.deepEqual(failing(bad.out), [17])
+  assert.match(bad.out, /research\.serp must be one of bing, google, extension/)
+  const absent = run(repo(FILES))
+  assert.equal(absent.status, 0)
+  assert.equal(absent.out.split('\n').filter((l) => l.startsWith('ok  ')).length, 17)
 })
